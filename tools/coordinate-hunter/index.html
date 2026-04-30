@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>座標獵人</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main class="app">
+    <section class="panel board-panel" aria-label="座標棋盤">
+      <div class="board-header">
+        <h1>座標獵人</h1>
+        <div class="stats" aria-label="遊戲狀態">
+          <div>
+            <span>分數</span>
+            <strong id="score">0</strong>
+          </div>
+          <div>
+            <span>剩餘</span>
+            <strong id="remaining">10</strong>
+          </div>
+          <div>
+            <span>時間</span>
+            <strong id="timer">60</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="board-wrap">
+        <div id="grid" class="grid" role="grid" aria-label="x 和 y 從負 5 到 5 的座標棋盤"></div>
+      </div>
+    </section>
+
+    <section class="panel control-panel" aria-label="猜測控制">
+      <form id="guess-form" autocomplete="off">
+        <label for="guess">輸入座標</label>
+        <div class="guess-row">
+          <input id="guess" name="guess" type="text" inputmode="text" placeholder="2,-3" aria-describedby="message">
+          <button type="submit">猜測</button>
+        </div>
+      </form>
+
+      <p id="message" class="message" aria-live="polite">找出 10 個隱藏座標。</p>
+
+      <div class="actions">
+        <button id="restart" type="button">重新開始</button>
+      </div>
+
+      <div class="found-list" aria-label="已命中的座標">
+        <h2>已命中</h2>
+        <ol id="found"></ol>
+      </div>
+    </section>
+  </main>
+
+  <script src="./script.js"></script>
+</body>
+</html>
