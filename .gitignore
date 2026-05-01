@@ -1,4 +1,6 @@
 # Google Drive 系統檔
+.DS_Store
+Icon*
 desktop.ini
 *.tmp
 ~$*

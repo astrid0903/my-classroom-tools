@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Google Slides 教學播放台</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main class="studio">
+    <section class="stage-column" aria-label="簡報播放區">
+      <div id="slide-stage" class="slide-stage">
+        <div id="empty-state" class="empty-state">
+          <strong>Google Slides 教學播放台</strong>
+          <span>從下方 slides 貼上簡報連結。</span>
+        </div>
+        <iframe id="slides-frame" title="Google Slides 簡報播放器" allowfullscreen></iframe>
+        <div id="slides-loading" class="slides-loading hidden" aria-live="polite">
+          <div class="loading-box">
+            <div class="spinner" aria-hidden="true"></div>
+            <strong id="loading-title">正在載入簡報</strong>
+            <span id="loading-detail">Google Slides 第一次載入可能需要 10-30 秒。</span>
+            <div class="loading-actions">
+              <button id="retry-slides" type="button">重新載入</button>
+              <a id="loading-open-slides" class="link-button secondary disabled" href="#" target="_blank" rel="noreferrer">另開簡報</a>
+            </div>
+          </div>
+        </div>
+
+        <article id="timer-widget" class="widget timer-widget hidden" data-widget="timer" aria-label="計時器小工具">
+          <button class="drag-handle" type="button" aria-label="拖曳計時器">⋮⋮</button>
+          <div id="stage-timer-title" class="widget-label">Timer</div>
+          <div id="stage-timer" class="stage-timer">05:00</div>
+          <div id="stage-timer-note" class="stage-note">準備中</div>
+          <button class="resize-handle" type="button" aria-label="縮放計時器"></button>
+        </article>
+
+        <article id="groups-widget" class="widget groups-widget hidden" data-widget="groups" aria-label="分組名單小工具">
+          <button class="drag-handle" type="button" aria-label="拖曳分組名單">⋮⋮</button>
+          <div class="widget-label">Groups</div>
+          <div id="stage-groups" class="stage-groups"></div>
+          <button class="resize-handle" type="button" aria-label="縮放分組名單"></button>
+        </article>
+      </div>
+    </section>
+
+    <aside class="control-tray" aria-label="小工具設定">
+      <section id="slides-panel" class="tool-section" data-panel="slides">
+        <h2>簡報</h2>
+        <label for="slides-url">Google Slides 連結或 ID</label>
+        <textarea id="slides-url" rows="4" placeholder="https://docs.google.com/presentation/d/.../edit"></textarea>
+        <div class="button-row">
+          <button id="load-slides" type="button">載入簡報</button>
+          <button id="clear-slides" class="secondary" type="button">清除</button>
+        </div>
+        <div class="button-row">
+          <button id="switch-slides-mode" class="secondary" type="button">切換播放模式</button>
+          <a id="open-slides" class="link-button secondary disabled" href="#" target="_blank" rel="noreferrer">另開簡報</a>
+        </div>
+        <a id="open-online-app" class="link-button secondary hidden" href="https://astrid0903.github.io/my-classroom-tools/" target="_blank" rel="noreferrer">開啟線上播放台</a>
+        <p id="slides-debug" class="debug-link"></p>
+        <p id="slides-message" class="hint" aria-live="polite">若一般連結看不到，請先在 Google Slides 設為「知道連結的人可檢視」。</p>
+      </section>
+
+      <section id="timer-panel" class="tool-section" data-panel="timer">
+        <div class="section-head">
+          <h2>計時器</h2>
+          <label class="switch">
+            <input id="show-timer" type="checkbox">
+            <span>顯示</span>
+          </label>
+        </div>
+        <label for="timer-title">標題</label>
+        <input id="timer-title" type="text" placeholder="例如：小組討論" value="Timer">
+        <div class="time-grid">
+          <label>
+            分鐘
+            <input id="timer-minutes" type="number" min="0" max="180" value="5">
+          </label>
+          <label>
+            秒
+            <input id="timer-seconds" type="number" min="0" max="59" value="0">
+          </label>
+        </div>
+        <div class="button-row three">
+          <button id="timer-start" type="button">開始</button>
+          <button id="timer-pause" class="secondary" type="button">暫停</button>
+          <button id="timer-reset" class="secondary" type="button">重設</button>
+        </div>
+      </section>
+
+      <section id="groups-panel" class="tool-section" data-panel="groups">
+        <div class="section-head">
+          <h2>學員分組</h2>
+          <label class="switch">
+            <input id="show-groups" type="checkbox">
+            <span>顯示</span>
+          </label>
+        </div>
+        <label for="student-list">學員名單</label>
+        <textarea id="student-list" rows="7" placeholder="一行一位，也可以用逗號分隔"></textarea>
+        <div class="group-controls">
+          <label>
+            分成幾組
+            <input id="group-count" type="number" min="1" max="20" value="4">
+          </label>
+          <label class="switch shuffle-switch">
+            <input id="shuffle-groups" type="checkbox" checked>
+            <span>隨機</span>
+          </label>
+        </div>
+        <div class="button-row">
+          <button id="make-groups" type="button">產生分組</button>
+          <button id="copy-groups" class="secondary" type="button">複製</button>
+        </div>
+        <div class="manual-groups">
+          <div class="section-head">
+            <h3>手動分組</h3>
+            <button id="build-manual-groups" class="secondary compact-button" type="button">建立欄位</button>
+          </div>
+          <div id="manual-groups-list" class="manual-groups-list"></div>
+          <button id="apply-manual-groups" class="secondary" type="button">套用手動名單</button>
+        </div>
+        <div id="groups-output" class="groups-output" aria-live="polite"></div>
+      </section>
+    </aside>
+
+    <nav class="tool-dock" aria-label="小工具列">
+      <button class="dock-item" type="button" data-tool="slides" aria-label="簡報設定">
+        <span class="dock-icon">▣</span>
+        <span>slides</span>
+      </button>
+      <button class="dock-item" type="button" data-tool="timer" aria-label="計時器">
+        <span class="dock-icon">◷</span>
+        <span>timer</span>
+      </button>
+      <button class="dock-item" type="button" data-tool="groups" aria-label="學員分組">
+        <span class="dock-icon">▦</span>
+        <span>groups</span>
+      </button>
+      <a class="dock-item" href="./tools/coordinate-hunter/" aria-label="座標獵人">
+        <span class="dock-icon">⌖</span>
+        <span>hunter</span>
+      </a>
+      <button id="fullscreen-button" class="dock-item" type="button" aria-label="全螢幕播放">
+        <span class="dock-icon">⛶</span>
+        <span>full</span>
+      </button>
+    </nav>
+  </main>
+
+  <script src="./script.js"></script>
+</body>
+</html>

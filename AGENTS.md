@@ -1,7 +1,7 @@
 # my-classroom-tools — 我的班級工具總專案
 
 ## 對話開始時請先讀
-進度與最近更動都在 Obsidian：`OB/10-專案工作筆記/my-classroom-tools/工作筆記.md`
+進度與最近更動都在 Obsidian：`OB/10-專案工作筆記/18.my-classroom-tools/工作筆記.md`
 
 ## 工作模式
 - **加新工具**：對 Codex 說「我想做一個 XXX 工具」→ Codex 會建 `tools/<工具名>/` 子資料夾、引導跟著影片做
@@ -11,7 +11,7 @@
 ## 工作桌 + 三個家
 - 📋 GDrive 工作桌：`/Users/hsiaoyutsai/我的雲端硬碟 (gisele0903@gmail.com)/my-classroom-tools/`
 - 🐙 GitHub repo：`astrid0903/my-classroom-tools`（公開）
-- 📘 Obsidian 駕駛艙：`OB/10-專案工作筆記/my-classroom-tools/工作筆記.md`
+- 📘 Obsidian 駕駛艙：`OB/10-專案工作筆記/18.my-classroom-tools/工作筆記.md`
 - 🔥 Firebase 專案：`my-teaching-tools-gisele0903`
 
 ## 「收工」觸發規則（給 Codex 讀的）
@@ -43,6 +43,7 @@
 
 ## 工具清單
 （之後加新工具時自動更新）
+- `index.html`：Google Slides 教學播放台，可播放指定簡報並疊加計時器與學員分組名單
 - `tools/coordinate-hunter/`：直角座標練習遊戲「座標獵人」
 
 ## 工作注意事項
