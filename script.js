@@ -28,7 +28,16 @@ const els = {
   stageTimerTitle: document.querySelector("#stage-timer-title"),
   stageTimer: document.querySelector("#stage-timer"),
   stageTimerNote: document.querySelector("#stage-timer-note"),
+  stageTimerStart: document.querySelector("#stage-timer-start"),
+  stageTimerPause: document.querySelector("#stage-timer-pause"),
+  stageTimerReset: document.querySelector("#stage-timer-reset"),
   showGroups: document.querySelector("#show-groups"),
+  showTextBox: document.querySelector("#show-text-box"),
+  textBoxContent: document.querySelector("#text-box-content"),
+  textBoxSize: document.querySelector("#text-box-size"),
+  textBoxColor: document.querySelector("#text-box-color"),
+  textWidget: document.querySelector("#text-widget"),
+  stageTextBox: document.querySelector("#stage-text-box"),
   studentList: document.querySelector("#student-list"),
   groupCount: document.querySelector("#group-count"),
   shuffleGroups: document.querySelector("#shuffle-groups"),
@@ -40,6 +49,10 @@ const els = {
   groupsOutput: document.querySelector("#groups-output"),
   groupsWidget: document.querySelector("#groups-widget"),
   stageGroups: document.querySelector("#stage-groups"),
+  toolDock: document.querySelector(".tool-dock"),
+  hideWidgets: document.querySelector("#hide-widgets"),
+  collapseDock: document.querySelector("#collapse-dock"),
+  expandDock: document.querySelector("#expand-dock"),
   dockItems: document.querySelectorAll(".dock-item[data-tool]"),
   toolPanels: document.querySelectorAll(".tool-section[data-panel]"),
 };
@@ -56,6 +69,7 @@ let slidesMode = "preview";
 let currentSlides = null;
 let currentPlayerUrl = "";
 let loadingTimerId = null;
+let dockCollapsed = false;
 
 function readState() {
   try {
@@ -73,6 +87,10 @@ function writeState(extra = {}) {
     timerTitle: els.timerTitle.value,
     showTimer: els.showTimer.checked,
     showGroups: els.showGroups.checked,
+    showTextBox: els.showTextBox.checked,
+    textBoxContent: els.textBoxContent.value,
+    textBoxSize: els.textBoxSize.value,
+    textBoxColor: els.textBoxColor.value,
     studentList: els.studentList.value,
     groupCount: els.groupCount.value,
     shuffleGroups: els.shuffleGroups.checked,
@@ -80,11 +98,13 @@ function writeState(extra = {}) {
     slidesMode,
     currentSlides,
     activeTool,
+    dockCollapsed,
     groups,
     manualGroups: readManualGroups(),
     widgets: {
       timer: widgetPosition(els.timerWidget),
       groups: widgetPosition(els.groupsWidget),
+      text: widgetPosition(els.textWidget),
     },
     ...extra,
   };
@@ -103,7 +123,35 @@ function setActiveTool(tool) {
 }
 
 function toggleActiveTool(tool) {
+  if (tool === "timer") {
+    els.showTimer.checked = true;
+    renderTimer();
+  }
+  if (tool === "text") {
+    els.showTextBox.checked = true;
+    renderTextBox();
+  }
   setActiveTool(activeTool === tool ? "" : tool);
+}
+
+function setDockCollapsed(isCollapsed) {
+  dockCollapsed = isCollapsed;
+  els.toolDock.classList.toggle("collapsed", dockCollapsed);
+  els.expandDock.classList.toggle("hidden", !dockCollapsed);
+  if (dockCollapsed) setActiveTool("");
+  writeState();
+}
+
+function hideAllWidgets() {
+  els.showTimer.checked = false;
+  els.showGroups.checked = false;
+  els.showTextBox.checked = false;
+  pauseTimer();
+  renderTimer();
+  renderGroups();
+  renderTextBox();
+  setActiveTool("");
+  writeState();
 }
 
 function widgetPosition(widget) {
@@ -125,6 +173,32 @@ function applyWidgetPosition(widget, position) {
   widget.style.bottom = position.bottom || "";
   widget.style.width = position.width || "";
   widget.style.height = position.height || "";
+}
+
+function keepWidgetVisible(widget) {
+  if (widget.classList.contains("hidden")) return;
+
+  const stageRect = els.stage.getBoundingClientRect();
+  const rect = widget.getBoundingClientRect();
+  const minWidth = widget.dataset.widget === "timer" ? 210 : 220;
+  const minHeight = widget.dataset.widget === "timer" ? 150 : 110;
+
+  if (rect.width < minWidth) widget.style.width = `${minWidth}px`;
+  if (rect.height < minHeight) widget.style.height = `${minHeight}px`;
+
+  const nextRect = widget.getBoundingClientRect();
+  const isOutside =
+    nextRect.right < stageRect.left + 24 ||
+    nextRect.bottom < stageRect.top + 24 ||
+    nextRect.left > stageRect.right - 24 ||
+    nextRect.top > stageRect.bottom - 24;
+
+  if (isOutside) {
+    widget.style.left = "";
+    widget.style.top = "24px";
+    widget.style.right = "24px";
+    widget.style.bottom = "";
+  }
 }
 
 function parseSlidesInput(raw) {
@@ -303,6 +377,7 @@ function renderTimer() {
   els.stageTimerTitle.textContent = title;
   els.stageTimer.textContent = formatTime(timerRemaining);
   els.timerWidget.classList.toggle("hidden", !els.showTimer.checked);
+  keepWidgetVisible(els.timerWidget);
   els.timerWidget.classList.toggle("warning", timerRemaining > 0 && timerRemaining <= 30);
   els.timerWidget.classList.toggle("done", timerRemaining === 0);
 
@@ -470,6 +545,27 @@ function renderGroups() {
   });
 }
 
+function readTextBoxSize() {
+  const size = Number(els.textBoxSize.value);
+  if (!Number.isFinite(size)) return 44;
+  return Math.min(320, Math.max(8, size));
+}
+
+function normalizeTextBoxSize() {
+  els.textBoxSize.value = String(Math.round(readTextBoxSize()));
+  renderTextBox();
+  writeState();
+}
+
+function renderTextBox() {
+  const size = readTextBoxSize();
+  els.stageTextBox.textContent = els.textBoxContent.value.trim() || "文字框";
+  els.stageTextBox.style.fontSize = `${size}px`;
+  els.stageTextBox.style.color = els.textBoxColor.value || "#ffffff";
+  els.textWidget.classList.toggle("hidden", !els.showTextBox.checked);
+  keepWidgetVisible(els.textWidget);
+}
+
 async function copyGroups() {
   const text = groupText();
   if (!text) {
@@ -564,8 +660,8 @@ function moveResize(event) {
   const rect = widget.getBoundingClientRect();
   const left = rect.left - stageRect.left;
   const top = rect.top - stageRect.top;
-  const minWidth = widget.dataset.widget === "timer" ? 190 : 220;
-  const minHeight = widget.dataset.widget === "timer" ? 118 : 130;
+  const minWidth = widget.dataset.widget === "timer" ? 190 : widget.dataset.widget === "text" ? 180 : 220;
+  const minHeight = widget.dataset.widget === "timer" ? 118 : widget.dataset.widget === "text" ? 110 : 130;
   const maxWidth = Math.max(minWidth, stageRect.width - left - 8);
   const maxHeight = Math.max(minHeight, stageRect.height - top - 8);
   const width = Math.min(maxWidth, Math.max(minWidth, startWidth + event.clientX - startX));
@@ -589,17 +685,23 @@ function restore() {
   els.timerTitle.value = state.timerTitle || "Timer";
   els.showTimer.checked = Boolean(state.showTimer);
   els.showGroups.checked = Boolean(state.showGroups);
+  els.showTextBox.checked = Boolean(state.showTextBox);
+  els.textBoxContent.value = state.textBoxContent || "文字框";
+  els.textBoxSize.value = state.textBoxSize || "44";
+  els.textBoxColor.value = state.textBoxColor || "#ffffff";
   els.studentList.value = state.studentList || "";
   els.groupCount.value = state.groupCount || "4";
   els.shuffleGroups.checked = state.shuffleGroups !== false;
   slidesMode = state.slidesMode || "preview";
   currentSlides = state.currentSlides || parseSlidesInput(state.slidesUrl || "");
   activeTool = state.activeTool || "";
+  dockCollapsed = Boolean(state.dockCollapsed);
   groups = Array.isArray(state.groups) ? state.groups : [];
   manualGroups = Array.isArray(state.manualGroups) ? state.manualGroups : groups;
 
   applyWidgetPosition(els.timerWidget, state.widgets?.timer);
   applyWidgetPosition(els.groupsWidget, state.widgets?.groups);
+  applyWidgetPosition(els.textWidget, state.widgets?.text);
 
   if (currentSlides) updateOpenSlidesLink();
 
@@ -613,7 +715,9 @@ function restore() {
   resetTimer();
   if (manualGroups.length > 0) buildManualGroups(manualGroups);
   renderGroups();
+  renderTextBox();
   setActiveTool(activeTool);
+  setDockCollapsed(dockCollapsed);
 }
 
 els.loadSlides.addEventListener("click", loadSlides);
@@ -628,9 +732,15 @@ els.frame.addEventListener("load", () => {
   }
 });
 els.fullscreenButton.addEventListener("click", () => els.stage.requestFullscreen?.());
+els.hideWidgets.addEventListener("click", hideAllWidgets);
+els.collapseDock.addEventListener("click", () => setDockCollapsed(true));
+els.expandDock.addEventListener("click", () => setDockCollapsed(false));
 els.timerStart.addEventListener("click", startTimer);
 els.timerPause.addEventListener("click", pauseTimer);
 els.timerReset.addEventListener("click", resetTimer);
+els.stageTimerStart.addEventListener("click", startTimer);
+els.stageTimerPause.addEventListener("click", pauseTimer);
+els.stageTimerReset.addEventListener("click", resetTimer);
 els.timerMinutes.addEventListener("change", resetTimer);
 els.timerSeconds.addEventListener("change", resetTimer);
 els.timerTitle.addEventListener("input", () => {
@@ -643,6 +753,23 @@ els.showTimer.addEventListener("change", () => {
 });
 els.showGroups.addEventListener("change", () => {
   renderGroups();
+  writeState();
+});
+els.showTextBox.addEventListener("change", () => {
+  renderTextBox();
+  writeState();
+});
+els.textBoxContent.addEventListener("input", () => {
+  renderTextBox();
+  writeState();
+});
+els.textBoxSize.addEventListener("input", () => {
+  renderTextBox();
+  writeState();
+});
+els.textBoxSize.addEventListener("change", normalizeTextBoxSize);
+els.textBoxColor.addEventListener("input", () => {
+  renderTextBox();
   writeState();
 });
 els.makeGroups.addEventListener("click", makeGroups);

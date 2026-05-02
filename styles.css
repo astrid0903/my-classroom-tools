@@ -85,6 +85,7 @@ button:disabled,
 
 textarea,
 input[type="text"],
+input[type="color"],
 input[type="number"] {
   width: 100%;
   border: 1px solid var(--line);
@@ -110,8 +111,14 @@ input[type="text"] {
   padding: 0 10px;
 }
 
+input[type="color"] {
+  min-height: 40px;
+  padding: 4px;
+}
+
 textarea:focus,
 input[type="text"]:focus,
+input[type="color"]:focus,
 input[type="number"]:focus {
   border-color: var(--blue);
   box-shadow: 0 0 0 3px rgba(35, 100, 170, 0.14);
@@ -319,7 +326,8 @@ h3 {
 }
 
 .time-grid,
-.group-controls {
+.group-controls,
+.text-controls {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
@@ -396,11 +404,11 @@ h3 {
   left: 50%;
   bottom: 22px;
   z-index: 14;
-  width: min(840px, calc(100vw - 28px));
+  width: min(1040px, calc(100vw - 28px));
   min-height: 82px;
   transform: translateX(-50%);
   display: grid;
-  grid-template-columns: repeat(5, minmax(74px, 1fr));
+  grid-template-columns: repeat(7, minmax(66px, 1fr));
   gap: 4px;
   align-items: center;
   padding: 10px 12px;
@@ -408,6 +416,26 @@ h3 {
   border-radius: 9px;
   background: var(--dock);
   box-shadow: 0 20px 52px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(16px);
+}
+
+.tool-dock.collapsed {
+  display: none;
+}
+
+.dock-mini {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 14;
+  min-width: 54px;
+  min-height: 44px;
+  border: 1px solid var(--dock-line);
+  border-radius: 999px;
+  padding: 0 14px;
+  background: var(--dock);
+  color: #e7f1fb;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.28);
   backdrop-filter: blur(16px);
 }
 
@@ -530,6 +558,29 @@ h3 {
   font-weight: 650;
 }
 
+.stage-timer-actions {
+  margin-top: 12px;
+  padding-right: 26px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.stage-timer-actions button {
+  min-height: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 6px;
+  padding: 0 8px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+
+.stage-timer-actions button:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
 .timer-widget.warning .stage-timer {
   color: var(--amber);
 }
@@ -541,34 +592,62 @@ h3 {
 .groups-widget {
   left: 24px;
   bottom: 124px;
-  width: min(360px, calc(100% - 48px));
-  min-width: 220px;
-  min-height: 130px;
+  width: min(720px, calc(100% - 48px));
+  min-width: 320px;
+  min-height: 180px;
   max-height: min(52vh, 520px);
   padding: 14px;
   overflow: auto;
+  background: rgba(15, 22, 31, 0.86);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.28);
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.34);
+}
+
+.text-widget {
+  left: 50%;
+  top: 18%;
+  width: min(460px, calc(100% - 48px));
+  min-width: 180px;
+  min-height: 110px;
+  padding: 18px 42px 18px 18px;
+  overflow: auto;
+}
+
+.stage-text-box {
+  color: #fff;
+  font-size: 44px;
+  font-weight: 800;
+  line-height: 1.25;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.38);
 }
 
 .stage-groups {
   margin-top: 8px;
   display: grid;
-  gap: 8px;
+  gap: 0;
 }
 
 .stage-group {
   border-top: 1px solid rgba(255, 255, 255, 0.18);
-  padding-top: 8px;
+  padding: 8px 0;
 }
 
 .stage-group strong {
   display: block;
   margin-bottom: 4px;
   color: #9bd8bd;
+  font-size: 1rem;
 }
 
 .stage-group span {
   color: #f2f7fa;
+  font-size: 1rem;
+  font-weight: 650;
   line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 720px) {
@@ -583,7 +662,7 @@ h3 {
   .tool-dock {
     bottom: 10px;
     min-height: 74px;
-    grid-template-columns: repeat(5, minmax(56px, 1fr));
+    grid-template-columns: repeat(7, minmax(44px, 1fr));
     padding: 8px;
   }
 
@@ -601,7 +680,8 @@ h3 {
   .button-row,
   .button-row.three,
   .time-grid,
-  .group-controls {
+  .group-controls,
+  .text-controls {
     grid-template-columns: 1fr;
   }
 

@@ -32,6 +32,11 @@
           <div id="stage-timer-title" class="widget-label">Timer</div>
           <div id="stage-timer" class="stage-timer">05:00</div>
           <div id="stage-timer-note" class="stage-note">準備中</div>
+          <div class="stage-timer-actions" aria-label="計時器控制">
+            <button id="stage-timer-start" type="button">開始</button>
+            <button id="stage-timer-pause" type="button">暫停</button>
+            <button id="stage-timer-reset" type="button">重設</button>
+          </div>
           <button class="resize-handle" type="button" aria-label="縮放計時器"></button>
         </article>
 
@@ -40,6 +45,12 @@
           <div class="widget-label">Groups</div>
           <div id="stage-groups" class="stage-groups"></div>
           <button class="resize-handle" type="button" aria-label="縮放分組名單"></button>
+        </article>
+
+        <article id="text-widget" class="widget text-widget hidden" data-widget="text" aria-label="文字框小工具">
+          <button class="drag-handle" type="button" aria-label="拖曳文字框">⋮⋮</button>
+          <div id="stage-text-box" class="stage-text-box">文字框</div>
+          <button class="resize-handle" type="button" aria-label="縮放文字框"></button>
         </article>
       </div>
     </section>
@@ -123,6 +134,28 @@
         </div>
         <div id="groups-output" class="groups-output" aria-live="polite"></div>
       </section>
+
+      <section id="text-panel" class="tool-section" data-panel="text">
+        <div class="section-head">
+          <h2>文字框</h2>
+          <label class="switch">
+            <input id="show-text-box" type="checkbox">
+            <span>顯示</span>
+          </label>
+        </div>
+        <label for="text-box-content">文字內容</label>
+        <textarea id="text-box-content" rows="4" placeholder="輸入要顯示在簡報上的文字">文字框</textarea>
+        <div class="text-controls">
+          <label>
+            字體大小
+            <input id="text-box-size" type="number" min="8" max="320" step="1" value="44" inputmode="numeric">
+          </label>
+          <label>
+            顏色
+            <input id="text-box-color" type="color" value="#ffffff">
+          </label>
+        </div>
+      </section>
     </aside>
 
     <nav class="tool-dock" aria-label="小工具列">
@@ -138,15 +171,24 @@
         <span class="dock-icon">▦</span>
         <span>groups</span>
       </button>
-      <a class="dock-item" href="./tools/coordinate-hunter/" aria-label="座標獵人">
-        <span class="dock-icon">⌖</span>
-        <span>hunter</span>
-      </a>
+      <button class="dock-item" type="button" data-tool="text" aria-label="文字框">
+        <span class="dock-icon">Aa</span>
+        <span>text</span>
+      </button>
       <button id="fullscreen-button" class="dock-item" type="button" aria-label="全螢幕播放">
         <span class="dock-icon">⛶</span>
         <span>full</span>
       </button>
+      <button id="hide-widgets" class="dock-item" type="button" aria-label="關閉所有小工具">
+        <span class="dock-icon">×</span>
+        <span>clear</span>
+      </button>
+      <button id="collapse-dock" class="dock-item" type="button" aria-label="收合工具列">
+        <span class="dock-icon">⌄</span>
+        <span>hide</span>
+      </button>
     </nav>
+    <button id="expand-dock" class="dock-mini hidden" type="button" aria-label="展開工具列">工具</button>
   </main>
 
   <script src="./script.js"></script>
