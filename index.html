@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Google Slides 教學播放台</title>
-  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./styles.css?v=20260502-1848">
 </head>
 <body>
   <main class="studio">
@@ -26,6 +26,7 @@
             </div>
           </div>
         </div>
+        <div id="snap-guides" class="snap-guides" aria-hidden="true"></div>
 
         <article id="timer-widget" class="widget timer-widget hidden" data-widget="timer" aria-label="計時器小工具">
           <button class="drag-handle" type="button" aria-label="拖曳計時器">⋮⋮</button>
@@ -40,9 +41,16 @@
           <button class="resize-handle" type="button" aria-label="縮放計時器"></button>
         </article>
 
+        <article id="clock-widget" class="widget clock-widget hidden" data-widget="clock" aria-label="現在時間小工具">
+          <button class="drag-handle" type="button" aria-label="拖曳現在時間">⋮⋮</button>
+          <div id="stage-clock-title" class="widget-label">Clock</div>
+          <div id="stage-clock" class="stage-clock">--:--</div>
+          <button class="resize-handle" type="button" aria-label="縮放現在時間"></button>
+        </article>
+
         <article id="groups-widget" class="widget groups-widget hidden" data-widget="groups" aria-label="分組名單小工具">
           <button class="drag-handle" type="button" aria-label="拖曳分組名單">⋮⋮</button>
-          <div class="widget-label">Groups</div>
+          <div id="stage-groups-title" class="widget-label">Groups</div>
           <div id="stage-groups" class="stage-groups"></div>
           <button class="resize-handle" type="button" aria-label="縮放分組名單"></button>
         </article>
@@ -51,6 +59,24 @@
           <button class="drag-handle" type="button" aria-label="拖曳文字框">⋮⋮</button>
           <div id="stage-text-box" class="stage-text-box">文字框</div>
           <button class="resize-handle" type="button" aria-label="縮放文字框"></button>
+        </article>
+
+        <article id="image-widget" class="widget image-widget hidden" data-widget="image" aria-label="圖片小工具">
+          <button class="drag-handle" type="button" aria-label="拖曳圖片">⋮⋮</button>
+          <div id="stage-image-title" class="widget-label">Image</div>
+          <img id="stage-image" alt="">
+          <div id="stage-image-empty" class="stage-empty">選擇圖片或貼上圖片網址</div>
+          <button class="resize-handle" type="button" aria-label="縮放圖片"></button>
+        </article>
+
+        <article id="youtube-widget" class="widget youtube-widget hidden" data-widget="youtube" aria-label="YouTube 播放器小工具">
+          <button class="drag-handle" type="button" aria-label="拖曳 YouTube 播放器">⋮⋮</button>
+          <div id="stage-youtube-title" class="widget-label">YouTube</div>
+          <div class="youtube-frame-wrap">
+            <iframe id="youtube-frame" title="YouTube 播放器" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+            <div id="stage-youtube-empty" class="stage-empty">貼上 YouTube 連結或影片 ID</div>
+          </div>
+          <button class="resize-handle" type="button" aria-label="縮放 YouTube 播放器"></button>
         </article>
       </div>
     </section>
@@ -100,6 +126,18 @@
         </div>
       </section>
 
+      <section id="clock-panel" class="tool-section" data-panel="clock">
+        <div class="section-head">
+          <h2>現在時間</h2>
+          <label class="switch">
+            <input id="show-clock" type="checkbox">
+            <span>顯示</span>
+          </label>
+        </div>
+        <label for="clock-title">標題</label>
+        <input id="clock-title" type="text" placeholder="例如：現在時間" value="Clock">
+      </section>
+
       <section id="groups-panel" class="tool-section" data-panel="groups">
         <div class="section-head">
           <h2>學員分組</h2>
@@ -108,6 +146,8 @@
             <span>顯示</span>
           </label>
         </div>
+        <label for="groups-title">顯示標題</label>
+        <input id="groups-title" type="text" placeholder="例如：今日分組" value="Groups">
         <label for="student-list">學員名單</label>
         <textarea id="student-list" rows="7" placeholder="一行一位，也可以用逗號分隔"></textarea>
         <div class="group-controls">
@@ -156,6 +196,70 @@
           </label>
         </div>
       </section>
+
+      <section id="image-panel" class="tool-section" data-panel="image">
+        <div class="section-head">
+          <h2>圖片</h2>
+          <label class="switch">
+            <input id="show-image" type="checkbox">
+            <span>顯示</span>
+          </label>
+        </div>
+        <label for="image-title">標題</label>
+        <input id="image-title" type="text" placeholder="例如：範例圖片" value="Image">
+        <label for="image-url">圖片網址</label>
+        <input id="image-url" type="text" placeholder="https://...jpg">
+        <label for="image-file">或選擇本機圖片</label>
+        <input id="image-file" type="file" accept="image/*">
+        <div class="button-row">
+          <button id="load-image" type="button">載入圖片</button>
+          <button id="clear-image" class="secondary" type="button">清除圖片</button>
+        </div>
+        <p id="image-message" class="hint" aria-live="polite"></p>
+      </section>
+
+      <section id="youtube-panel" class="tool-section" data-panel="youtube">
+        <div class="section-head">
+          <h2>YouTube</h2>
+          <label class="switch">
+            <input id="show-youtube" type="checkbox">
+            <span>顯示</span>
+          </label>
+        </div>
+        <label for="youtube-title">標題</label>
+        <input id="youtube-title" type="text" placeholder="例如：示範影片" value="YouTube">
+        <label for="youtube-url">YouTube 連結或影片 ID</label>
+        <input id="youtube-url" type="text" placeholder="https://www.youtube.com/watch?v=...">
+        <div class="button-row">
+          <button id="load-youtube" type="button">載入影片</button>
+          <button id="clear-youtube" class="secondary" type="button">清除影片</button>
+        </div>
+        <a id="open-youtube" class="link-button secondary disabled" href="#" target="_blank" rel="noreferrer">另開影片</a>
+        <p id="youtube-message" class="hint" aria-live="polite"></p>
+      </section>
+
+      <section id="layouts-panel" class="tool-section" data-panel="layouts">
+        <h2>儲存版本</h2>
+        <label for="layout-name">版本名稱</label>
+        <input id="layout-name" type="text" placeholder="例如：分組討論版、影片導入版">
+        <button id="save-layout" type="button">儲存目前設定</button>
+        <label for="saved-layouts">已儲存版本</label>
+        <select id="saved-layouts"></select>
+        <div class="button-row">
+          <button id="load-layout" class="secondary" type="button">載入選取版本</button>
+          <button id="delete-layout" class="danger" type="button">刪除選取版本</button>
+        </div>
+        <div class="button-row">
+          <button id="export-layouts" class="secondary" type="button">匯出版本檔</button>
+          <button id="sync-layouts" type="button">同步到雲端</button>
+        </div>
+        <label for="import-layouts">匯入版本檔</label>
+        <input id="import-layouts" type="file" accept="application/json,.json">
+        <label for="sync-code">跨電腦同步碼</label>
+        <input id="sync-code" type="text" placeholder="例如：gisele-classroom">
+        <button id="load-cloud-layouts" class="secondary" type="button">從雲端載入</button>
+        <p id="layout-message" class="hint" aria-live="polite"></p>
+      </section>
     </aside>
 
     <nav class="tool-dock" aria-label="小工具列">
@@ -167,6 +271,10 @@
         <span class="dock-icon">◷</span>
         <span>timer</span>
       </button>
+      <button class="dock-item" type="button" data-tool="clock" aria-label="現在時間">
+        <span class="dock-icon">◴</span>
+        <span>clock</span>
+      </button>
       <button class="dock-item" type="button" data-tool="groups" aria-label="學員分組">
         <span class="dock-icon">▦</span>
         <span>groups</span>
@@ -174,6 +282,18 @@
       <button class="dock-item" type="button" data-tool="text" aria-label="文字框">
         <span class="dock-icon">Aa</span>
         <span>text</span>
+      </button>
+      <button class="dock-item" type="button" data-tool="image" aria-label="圖片">
+        <span class="dock-icon">▧</span>
+        <span>image</span>
+      </button>
+      <button class="dock-item" type="button" data-tool="youtube" aria-label="YouTube 播放器">
+        <span class="dock-icon">▶</span>
+        <span>video</span>
+      </button>
+      <button class="dock-item" type="button" data-tool="layouts" aria-label="儲存版本">
+        <span class="dock-icon">▤</span>
+        <span>versions</span>
       </button>
       <button id="fullscreen-button" class="dock-item" type="button" aria-label="全螢幕播放">
         <span class="dock-icon">⛶</span>
@@ -191,6 +311,6 @@
     <button id="expand-dock" class="dock-mini hidden" type="button" aria-label="展開工具列">工具</button>
   </main>
 
-  <script src="./script.js"></script>
+  <script src="./script.js?v=20260502-1848"></script>
 </body>
 </html>
