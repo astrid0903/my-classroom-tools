@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Google Slides 教學播放台</title>
-  <link rel="stylesheet" href="./styles.css?v=20260503-1700">
+  <link rel="stylesheet" href="./styles.css?v=20260503-1730">
 </head>
 <body>
   <main class="studio">
@@ -32,6 +32,23 @@
               </div>
             </div>
           </header>
+          <div class="post-board-note-wrap">
+            <div class="post-board-note-toolbar">
+              <button type="button" class="note-cmd-btn" data-cmd="bold" title="粗體"><b>B</b></button>
+              <button type="button" class="note-cmd-btn" data-cmd="italic" title="斜體"><i>I</i></button>
+              <span class="note-tool-sep"></span>
+              <button type="button" class="note-size-btn" data-size="2" title="小字">小</button>
+              <button type="button" class="note-size-btn" data-size="3" title="中字">中</button>
+              <button type="button" class="note-size-btn" data-size="5" title="大字">大</button>
+              <button type="button" class="note-size-btn" data-size="7" title="特大字">特大</button>
+              <span class="note-tool-sep"></span>
+              <label class="note-color-wrap" title="文字顏色">
+                <span>顏色</span>
+                <input type="color" id="post-board-note-color" value="#1e252c">
+              </label>
+            </div>
+            <div id="post-board-note" class="post-board-note" contenteditable="true" data-placeholder="點此輸入公告文字…"></div>
+          </div>
           <div id="post-board-message" class="post-board-message" aria-live="polite"></div>
           <div id="post-board-grid" class="post-board-grid"></div>
         </section>
@@ -412,6 +429,7 @@
           <h1 id="participant-title">貼文板</h1>
         </header>
       </main>
+      <div id="participant-note" class="participant-note"></div>
       <div id="participant-board-body" class="participant-board-body"></div>
       <button id="participant-open-form" class="participant-fab" type="button">✏ 新增貼文</button>
     </div>
@@ -448,6 +466,6 @@
     <img id="image-viewer-img" alt="貼文圖片預覽">
   </div>
 
-  <script src="./script.js?v=20260503-1700"></script>
+  <script src="./script.js?v=20260503-1730"></script>
 </body>
 </html>

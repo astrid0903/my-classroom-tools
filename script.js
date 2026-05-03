@@ -52,8 +52,11 @@ const els = {
   postBoardQrModalTitle: document.querySelector("#post-board-qr-modal-title"),
   postBoardQrModalImg: document.querySelector("#post-board-qr-modal-img"),
   postBoardQrModalClose: document.querySelector("#post-board-qr-modal-close"),
+  postBoardNote: document.querySelector("#post-board-note"),
+  postBoardNoteColor: document.querySelector("#post-board-note-color"),
   postBoardGrid: document.querySelector("#post-board-grid"),
   postBoardMessage: document.querySelector("#post-board-message"),
+  participantNote: document.querySelector("#participant-note"),
   snapGuides: document.querySelector("#snap-guides"),
   fullscreenButton: document.querySelector("#fullscreen-button"),
   showTimer: document.querySelector("#show-timer"),
@@ -310,6 +313,7 @@ function normalizePages(value) {
       if (type === "posts") {
         normalizedPage.boardId = String(page?.boardId || page?.id || makeBoardId()).trim();
         normalizedPage.sections = normalizePostSections(page?.sections);
+        normalizedPage.noteHtml = String(page?.noteHtml || "");
       }
       return normalizedPage;
     })
@@ -352,7 +356,7 @@ function normalizePostSections(value) {
     }))
     .filter((section) => section.id && section.name)
     .slice(0, 12);
-  return normalized.length > 0 ? normalized : defaultPostSections();
+  return normalized;
 }
 
 function renderPages() {
@@ -1435,6 +1439,7 @@ async function ensurePostBoardDoc(page) {
         title: page.name || "貼文板",
         adminUid: api.auth.currentUser?.uid || "",
         sections: normalizePostSections(page.sections),
+        note: page.noteHtml || "",
         updatedAt: api.serverTimestamp(),
         kind: "postBoard",
         version: 1,
@@ -1506,10 +1511,6 @@ async function deletePostSection(sectionId) {
   const page = activePage();
   if (page.type !== "posts") return;
   const sections = normalizePostSections(page.sections);
-  if (sections.length <= 1) {
-    alert("至少需要保留一個區段。");
-    return;
-  }
   const section = sections.find((item) => item.id === sectionId);
   if (!section) return;
   const postCount = postsForSection(postBoardPosts, sectionId).length;
@@ -1539,6 +1540,7 @@ async function savePostSections(sections) {
         title: page.name || "貼文板",
         adminUid: api.auth.currentUser?.uid || "",
         sections: nextSections,
+        note: page.noteHtml || "",
         updatedAt: api.serverTimestamp(),
         kind: "postBoard",
         version: 1,
@@ -1688,8 +1690,49 @@ function renderPostBoard() {
   els.postBoardLink.href = joinUrl || "#";
   els.postBoardMessage.textContent = postBoardPosts.length === 0 ? "等待參與者投稿中。" : `已收到 ${postBoardPosts.length} 則貼文。`;
   els.postBoardMessage.classList.remove("error");
+  if (document.activeElement !== els.postBoardNote) {
+    els.postBoardNote.innerHTML = page.noteHtml || "";
+    els.postBoardNote.classList.toggle("is-empty", !els.postBoardNote.textContent.trim());
+  }
   renderPostBoardColumns(page, sections);
   updatePostBoardControls();
+}
+
+let noteHtmlSaveTimer = null;
+
+function onPostBoardNoteInput() {
+  const html = els.postBoardNote.innerHTML;
+  const isEmpty = !els.postBoardNote.textContent.trim();
+  els.postBoardNote.classList.toggle("is-empty", isEmpty);
+  const page = activePage();
+  if (page.type !== "posts") return;
+  const noteHtml = isEmpty ? "" : html;
+  pages = pages.map((p) => (p.id === page.id ? { ...p, noteHtml } : p));
+  writeState();
+  clearTimeout(noteHtmlSaveTimer);
+  noteHtmlSaveTimer = setTimeout(() => syncNoteToFirestore(noteHtml), 800);
+}
+
+async function syncNoteToFirestore(noteHtml) {
+  const page = activePage();
+  if (!page?.boardId) return;
+  try {
+    const api = await loadFirebaseApi();
+    await ensureFirebaseAuth(api);
+    await api.setDoc(
+      postBoardDocRef(api, page.boardId),
+      {
+        title: page.name || "貼文板",
+        adminUid: api.auth.currentUser?.uid || "",
+        sections: normalizePostSections(page.sections),
+        note: noteHtml,
+        updatedAt: api.serverTimestamp(),
+        kind: "postBoard",
+        version: 1,
+      },
+      { merge: true },
+    );
+  } catch { /* silent */ }
 }
 
 function unsubscribePostBoard() {
@@ -1772,8 +1815,23 @@ function showParticipantForm(sectionId) {
   els.participantContent.focus();
 }
 
+function sanitizeNoteHtml(html) {
+  const div = document.createElement("div");
+  div.innerHTML = html;
+  div.querySelectorAll("script,style,[onclick],[onload],[onerror],[onmouseover]").forEach((el) => el.remove());
+  return div.innerHTML;
+}
+
+function renderParticipantNote(html) {
+  const safe = sanitizeNoteHtml(html);
+  els.participantNote.innerHTML = safe;
+  els.participantNote.classList.toggle("hidden", !safe.trim());
+}
+
 function renderParticipantBoard(sections, posts) {
   els.participantBoardBody.innerHTML = "";
+  els.participantOpenForm.classList.toggle("hidden", sections.length === 0);
+  if (sections.length === 0) return;
   const columns = createEl("div", "post-board-columns participant-board-columns");
   sections.forEach((section) => {
     const column = createEl("section", "post-section");
@@ -1801,7 +1859,9 @@ function renderParticipantSections(sections, selectedId = "") {
     option.textContent = section.name;
     els.participantSection.appendChild(option);
   });
-  els.participantSection.value = normalized.some((section) => section.id === selectedId) ? selectedId : normalized[0].id;
+  if (normalized.length > 0) {
+    els.participantSection.value = normalized.some((s) => s.id === selectedId) ? selectedId : normalized[0].id;
+  }
 }
 
 async function imageFileToPostDataUrl(file) {
@@ -1888,12 +1948,14 @@ async function initParticipantMode() {
       els.participantTitle.textContent = boardSnapshot.data().title;
       document.title = boardSnapshot.data().title;
     }
-    participantBoardSections = normalizePostSections(boardSnapshot.data()?.sections || defaultPostSections());
+    participantBoardSections = normalizePostSections(boardSnapshot.data()?.sections || []);
+    renderParticipantNote(boardSnapshot.data()?.note || "");
     renderParticipantSections(participantBoardSections, selectedSectionId);
     renderParticipantBoard(participantBoardSections, participantBoardPosts);
 
     api.onSnapshot(postBoardDocRef(api, boardId), (snapshot) => {
-      participantBoardSections = normalizePostSections(snapshot.data()?.sections || defaultPostSections());
+      participantBoardSections = normalizePostSections(snapshot.data()?.sections || []);
+      renderParticipantNote(snapshot.data()?.note || "");
       renderParticipantSections(participantBoardSections, els.participantSection.value || selectedSectionId);
       renderParticipantBoard(participantBoardSections, participantBoardPosts);
     });
@@ -3279,6 +3341,29 @@ els.postBoardQrExpand.addEventListener("click", () => {
   els.postBoardQrModal.classList.remove("hidden");
 });
 els.postBoardQrModalClose.addEventListener("click", () => els.postBoardQrModal.classList.add("hidden"));
+document.querySelectorAll(".note-cmd-btn").forEach((btn) => {
+  btn.addEventListener("mousedown", (e) => {
+    e.preventDefault();
+    document.execCommand(btn.dataset.cmd, false, null);
+  });
+});
+document.querySelectorAll(".note-size-btn").forEach((btn) => {
+  btn.addEventListener("mousedown", (e) => {
+    e.preventDefault();
+    document.execCommand("fontSize", false, btn.dataset.size);
+  });
+});
+els.postBoardNoteColor.addEventListener("input", (e) => {
+  document.execCommand("foreColor", false, e.target.value);
+  els.postBoardNote.focus();
+});
+els.postBoardNote.addEventListener("input", onPostBoardNoteInput);
+els.postBoardNote.addEventListener("focus", () => {
+  els.postBoardNote.classList.remove("is-empty");
+});
+els.postBoardNote.addEventListener("blur", () => {
+  els.postBoardNote.classList.toggle("is-empty", !els.postBoardNote.textContent.trim());
+});
 els.postBoardQrModal.addEventListener("click", (event) => {
   if (event.target === els.postBoardQrModal) els.postBoardQrModal.classList.add("hidden");
 });
