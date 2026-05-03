@@ -415,6 +415,31 @@ h3 {
   color: #2364aa;
 }
 
+.post-section-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.post-section-actions .post-section-add {
+  flex: 1;
+}
+
+.post-section-delete {
+  min-height: 58px;
+  width: 58px;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(220, 53, 69, 0.08);
+  color: #c0392b;
+  font-size: 1.1rem;
+  cursor: pointer;
+  box-shadow: 0 12px 28px rgba(28, 42, 56, 0.08);
+}
+
+.post-section-delete:hover {
+  background: rgba(220, 53, 69, 0.18);
+}
+
 .post-section-body {
   column-count: 1;
   column-gap: 18px;

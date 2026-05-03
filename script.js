@@ -334,11 +334,7 @@ function makeSectionId() {
 }
 
 function defaultPostSections() {
-  return [
-    { id: "section-a", name: "A.初階_數據整理" },
-    { id: "section-b", name: "B.進階_數據分析" },
-    { id: "section-c", name: "多模態生成" },
-  ];
+  return [{ id: "section-a", name: "預設區段" }];
 }
 
 function normalizePostSections(value) {
@@ -1500,6 +1496,25 @@ async function renamePostSection(sectionId) {
   await savePostSections(sections.map((item) => (item.id === sectionId ? { ...item, name: name.trim().slice(0, 40) } : item)));
 }
 
+async function deletePostSection(sectionId) {
+  const page = activePage();
+  if (page.type !== "posts") return;
+  const sections = normalizePostSections(page.sections);
+  if (sections.length <= 1) {
+    alert("至少需要保留一個區段。");
+    return;
+  }
+  const section = sections.find((item) => item.id === sectionId);
+  if (!section) return;
+  const postCount = postsForSection(postBoardPosts, sectionId).length;
+  const confirm = window.confirm(
+    `確定要刪除區段「${section.name}」嗎？` +
+    (postCount > 0 ? `\n此區段內有 ${postCount} 則貼文，貼文資料不會被刪除。` : "")
+  );
+  if (!confirm) return;
+  await savePostSections(sections.filter((item) => item.id !== sectionId));
+}
+
 async function savePostSections(sections) {
   const page = activePage();
   if (page.type !== "posts" || !page.boardId) return;
@@ -1635,7 +1650,13 @@ function renderPostBoardColumns(page, sections) {
     addLink.target = "_blank";
     addLink.rel = "noreferrer";
     addLink.title = `到「${section.name}」投稿`;
-    head.append(titleButton, addLink);
+    const deleteBtn = createEl("button", "post-section-delete", "✕");
+    deleteBtn.type = "button";
+    deleteBtn.title = "刪除區段";
+    deleteBtn.addEventListener("click", () => deletePostSection(section.id));
+    const sectionActions = createEl("div", "post-section-actions");
+    sectionActions.append(addLink, deleteBtn);
+    head.append(titleButton, sectionActions);
     const body = createEl("div", "post-section-body");
     renderPostCards(body, postsForSection(postBoardPosts, section.id), { canManage: true });
     column.append(head, body);
