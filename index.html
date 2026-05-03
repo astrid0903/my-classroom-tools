@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Google Slides 教學播放台</title>
-  <link rel="stylesheet" href="./styles.css?v=20260503-1350">
+  <link rel="stylesheet" href="./styles.css?v=20260503-1505">
 </head>
 <body>
   <main class="studio">
@@ -400,6 +400,8 @@
       <form id="participant-form" class="participant-form">
         <label for="participant-name">名稱</label>
         <input id="participant-name" type="text" maxlength="40" placeholder="可填座號、組別或暱稱">
+        <label for="participant-section">投稿區段</label>
+        <select id="participant-section"></select>
         <label for="participant-content">貼文內容</label>
         <textarea id="participant-content" rows="5" maxlength="600" placeholder="寫下你的想法、問題或回饋"></textarea>
         <label for="participant-image">上傳圖片</label>
@@ -414,6 +416,14 @@
     </main>
   </section>
 
-  <script src="./script.js?v=20260503-1350"></script>
+  <div id="image-viewer" class="image-viewer hidden" role="dialog" aria-modal="true" aria-label="貼文圖片預覽">
+    <div class="image-viewer-bar">
+      <a id="image-viewer-download" class="link-button" href="#" download="貼文圖片.jpg">下載圖片</a>
+      <button id="image-viewer-close" type="button">關閉</button>
+    </div>
+    <img id="image-viewer-img" alt="貼文圖片預覽">
+  </div>
+
+  <script src="./script.js?v=20260503-1505"></script>
 </body>
 </html>

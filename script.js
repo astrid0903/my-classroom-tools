@@ -143,11 +143,16 @@ const els = {
   participantTitle: document.querySelector("#participant-title"),
   participantForm: document.querySelector("#participant-form"),
   participantName: document.querySelector("#participant-name"),
+  participantSection: document.querySelector("#participant-section"),
   participantContent: document.querySelector("#participant-content"),
   participantImage: document.querySelector("#participant-image"),
   participantSubmit: document.querySelector("#participant-submit"),
   participantMessage: document.querySelector("#participant-message"),
   participantPosts: document.querySelector("#participant-posts"),
+  imageViewer: document.querySelector("#image-viewer"),
+  imageViewerImg: document.querySelector("#image-viewer-img"),
+  imageViewerDownload: document.querySelector("#image-viewer-download"),
+  imageViewerClose: document.querySelector("#image-viewer-close"),
 };
 
 let timerTotal = 5 * 60;
@@ -178,7 +183,9 @@ let moreToolsOpen = false;
 let selectedWidgets = new Set();
 let topWidgetZ = 20;
 let postBoardUnsubscribe = null;
+let postBoardMetadataUnsubscribe = null;
 let postBoardPosts = [];
+let postBoardSections = [];
 let participantUnsubscribe = null;
 const DEFAULT_PAGE = { id: "main", name: "主簡報", type: "slides" };
 const PAGE_TYPES = new Set(["slides", "dark", "posts"]);
@@ -288,7 +295,10 @@ function normalizePages(value) {
         name: String(page?.name || "").trim(),
         type,
       };
-      if (type === "posts") normalizedPage.boardId = String(page?.boardId || page?.id || makeBoardId()).trim();
+      if (type === "posts") {
+        normalizedPage.boardId = String(page?.boardId || page?.id || makeBoardId()).trim();
+        normalizedPage.sections = normalizePostSections(page?.sections);
+      }
       return normalizedPage;
     })
     .filter((page) => page.id && page.name);
@@ -311,6 +321,30 @@ function makePageId() {
 function makeBoardId() {
   const random = Math.random().toString(36).slice(2, 8);
   return `board-${Date.now().toString(36)}-${random}`;
+}
+
+function makeSectionId() {
+  return `section-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function defaultPostSections() {
+  return [
+    { id: "section-a", name: "A.初階_數據整理" },
+    { id: "section-b", name: "B.進階_數據分析" },
+    { id: "section-c", name: "多模態生成" },
+  ];
+}
+
+function normalizePostSections(value) {
+  const source = Array.isArray(value) ? value : [];
+  const normalized = source
+    .map((section) => ({
+      id: String(section?.id || "").trim(),
+      name: String(section?.name || "").trim(),
+    }))
+    .filter((section) => section.id && section.name)
+    .slice(0, 12);
+  return normalized.length > 0 ? normalized : defaultPostSections();
 }
 
 function renderPages() {
@@ -455,7 +489,7 @@ function addDarkPage() {
 
 function addPostBoardPage() {
   const name = els.pageName.value.trim() || `貼文板 ${pages.filter((page) => page.type === "posts").length + 1}`;
-  const page = { id: makePageId(), name, type: "posts", boardId: makeBoardId() };
+  const page = { id: makePageId(), name, type: "posts", boardId: makeBoardId(), sections: defaultPostSections() };
   pages = [...pages, page];
   activePageId = page.id;
   els.pageMessage.textContent = `已新增「${name}」，QR Code 會連到這一頁的投稿入口。`;
@@ -1330,6 +1364,8 @@ async function loadFirebaseApi() {
         addDoc: firestoreModule.addDoc,
         getDoc: firestoreModule.getDoc,
         setDoc: firestoreModule.setDoc,
+        updateDoc: firestoreModule.updateDoc,
+        deleteDoc: firestoreModule.deleteDoc,
         query: firestoreModule.query,
         orderBy: firestoreModule.orderBy,
         onSnapshot: firestoreModule.onSnapshot,
@@ -1373,6 +1409,12 @@ function postBoardJoinUrl(page) {
   return url.toString();
 }
 
+function postBoardSectionJoinUrl(page, sectionId) {
+  const url = new URL(postBoardJoinUrl(page));
+  if (sectionId) url.searchParams.set("section", sectionId);
+  return url.toString();
+}
+
 async function ensurePostBoardDoc(page) {
   if (!page?.boardId) return;
   try {
@@ -1382,6 +1424,8 @@ async function ensurePostBoardDoc(page) {
       postBoardDocRef(api, page.boardId),
       {
         title: page.name || "貼文板",
+        adminUid: api.auth.currentUser?.uid || "",
+        sections: normalizePostSections(page.sections),
         updatedAt: api.serverTimestamp(),
         kind: "postBoard",
         version: 1,
@@ -1404,7 +1448,120 @@ function updatePostBoardControls() {
   els.openPostBoardLink.href = url || "#";
 }
 
-function renderPostCards(container, posts) {
+function postImageFilename(post) {
+  const source = String(post?.imageDataUrl || "");
+  const extension = source.startsWith("data:image/png") ? "png" : source.startsWith("data:image/webp") ? "webp" : "jpg";
+  const id = String(post?.id || Date.now()).replace(/[^a-zA-Z0-9_-]+/g, "-").slice(0, 36);
+  return `post-image-${id || "download"}.${extension}`;
+}
+
+function openImageViewer(imageDataUrl, filename) {
+  if (!imageDataUrl) return;
+  els.imageViewerImg.src = imageDataUrl;
+  els.imageViewerDownload.href = imageDataUrl;
+  els.imageViewerDownload.download = filename || "貼文圖片.jpg";
+  els.imageViewer.classList.remove("hidden");
+}
+
+function closeImageViewer() {
+  els.imageViewer.classList.add("hidden");
+  els.imageViewerImg.removeAttribute("src");
+  els.imageViewerDownload.href = "#";
+}
+
+function postsForSection(posts, sectionId) {
+  return posts.filter((post) => (post.sectionId || "section-a") === sectionId);
+}
+
+async function addPostSection() {
+  const page = activePage();
+  if (page.type !== "posts") return;
+  const name = window.prompt("新增區段名稱", `新增區段 ${normalizePostSections(page.sections).length + 1}`);
+  if (!name?.trim()) return;
+  const sections = [...normalizePostSections(page.sections), { id: makeSectionId(), name: name.trim().slice(0, 40) }];
+  await savePostSections(sections);
+}
+
+async function renamePostSection(sectionId) {
+  const page = activePage();
+  if (page.type !== "posts") return;
+  const sections = normalizePostSections(page.sections);
+  const section = sections.find((item) => item.id === sectionId);
+  if (!section) return;
+  const name = window.prompt("重新命名區段", section.name);
+  if (!name?.trim()) return;
+  await savePostSections(sections.map((item) => (item.id === sectionId ? { ...item, name: name.trim().slice(0, 40) } : item)));
+}
+
+async function savePostSections(sections) {
+  const page = activePage();
+  if (page.type !== "posts" || !page.boardId) return;
+  const nextSections = normalizePostSections(sections);
+  pages = pages.map((item) => (item.id === page.id ? { ...item, sections: nextSections } : item));
+  postBoardSections = nextSections;
+  renderPostBoard();
+  writeState();
+
+  try {
+    const api = await loadFirebaseApi();
+    await ensureFirebaseAuth(api);
+    await api.setDoc(
+      postBoardDocRef(api, page.boardId),
+      {
+        title: page.name || "貼文板",
+        adminUid: api.auth.currentUser?.uid || "",
+        sections: nextSections,
+        updatedAt: api.serverTimestamp(),
+        kind: "postBoard",
+        version: 1,
+      },
+      { merge: true },
+    );
+  } catch (error) {
+    els.postBoardMessage.textContent = `區段儲存失敗：${error.message || "請確認權限。"}`;
+    els.postBoardMessage.classList.add("error");
+  }
+}
+
+async function editPost(post) {
+  const page = activePage();
+  if (page.type !== "posts" || !page.boardId || !post?.id) return;
+  const nextContent = window.prompt("編輯貼文內容", post.content || "");
+  if (nextContent === null) return;
+  const nextAuthor = window.prompt("編輯名稱", post.author || "匿名");
+  if (nextAuthor === null) return;
+
+  try {
+    const api = await loadFirebaseApi();
+    await ensureFirebaseAuth(api);
+    await api.updateDoc(api.doc(api.db, POST_BOARDS_COLLECTION, page.boardId, "posts", post.id), {
+      author: nextAuthor.trim().slice(0, 40),
+      content: nextContent.trim().slice(0, 600),
+      sectionId: post.sectionId || "section-a",
+      updatedAt: api.serverTimestamp(),
+    });
+  } catch (error) {
+    els.postBoardMessage.textContent = `貼文編輯失敗：${error.message || "請確認權限。"}`;
+    els.postBoardMessage.classList.add("error");
+  }
+}
+
+async function deletePost(post) {
+  const page = activePage();
+  if (page.type !== "posts" || !page.boardId || !post?.id) return;
+  if (!window.confirm("確定要刪除這則貼文？刪除後不能復原。")) return;
+
+  try {
+    const api = await loadFirebaseApi();
+    await ensureFirebaseAuth(api);
+    await api.deleteDoc(api.doc(api.db, POST_BOARDS_COLLECTION, page.boardId, "posts", post.id));
+  } catch (error) {
+    els.postBoardMessage.textContent = `貼文刪除失敗：${error.message || "請確認權限。"}`;
+    els.postBoardMessage.classList.add("error");
+  }
+}
+
+function renderPostCards(container, posts, options = {}) {
   container.innerHTML = "";
   if (posts.length === 0) {
     const empty = createEl("div", "post-card empty-post", "目前還沒有貼文");
@@ -1419,23 +1576,75 @@ function renderPostCards(container, posts) {
     const time = createEl("span", "", formatPostTime(post.createdAt));
     meta.append(author, time);
     card.appendChild(meta);
+    if (options.canManage) {
+      const manageActions = createEl("div", "post-manage-actions");
+      const edit = createEl("button", "secondary", "編輯");
+      const remove = createEl("button", "danger", "刪除");
+      edit.type = remove.type = "button";
+      edit.addEventListener("click", () => editPost(post));
+      remove.addEventListener("click", () => deletePost(post));
+      manageActions.append(edit, remove);
+      card.appendChild(manageActions);
+    }
     if (post.content) {
       const content = createEl("p", "post-content", post.content);
       card.appendChild(content);
     }
     if (post.imageDataUrl) {
+      const filename = postImageFilename(post);
+      const imageWrap = createEl("div", "post-image-wrap");
       const image = document.createElement("img");
       image.src = post.imageDataUrl;
       image.alt = post.content ? `貼文圖片：${post.content.slice(0, 24)}` : "貼文圖片";
-      card.appendChild(image);
+      image.addEventListener("click", () => openImageViewer(post.imageDataUrl, filename));
+
+      const imageActions = createEl("div", "post-image-actions");
+      const expand = createEl("button", "secondary", "展開");
+      expand.type = "button";
+      expand.addEventListener("click", () => openImageViewer(post.imageDataUrl, filename));
+      const download = createEl("a", "link-button secondary", "下載");
+      download.href = post.imageDataUrl;
+      download.download = filename;
+      imageActions.append(expand, download);
+      imageWrap.append(image, imageActions);
+      card.appendChild(imageWrap);
     }
     container.appendChild(card);
   });
 }
 
+function renderPostBoardColumns(page, sections) {
+  els.postBoardGrid.innerHTML = "";
+  const boardColumns = createEl("div", "post-board-columns");
+  sections.forEach((section) => {
+    const column = createEl("section", "post-section");
+    const head = createEl("div", "post-section-head");
+    const titleButton = createEl("button", "post-section-title", section.name);
+    titleButton.type = "button";
+    titleButton.title = "重新命名區段";
+    titleButton.addEventListener("click", () => renamePostSection(section.id));
+    const addLink = createEl("a", "post-section-add", "+");
+    addLink.href = postBoardSectionJoinUrl(page, section.id);
+    addLink.target = "_blank";
+    addLink.rel = "noreferrer";
+    addLink.title = `到「${section.name}」投稿`;
+    head.append(titleButton, addLink);
+    const body = createEl("div", "post-section-body");
+    renderPostCards(body, postsForSection(postBoardPosts, section.id), { canManage: true });
+    column.append(head, body);
+    boardColumns.appendChild(column);
+  });
+  const addSection = createEl("button", "post-section-new", "新增區段");
+  addSection.type = "button";
+  addSection.addEventListener("click", addPostSection);
+  boardColumns.appendChild(addSection);
+  els.postBoardGrid.appendChild(boardColumns);
+}
+
 function renderPostBoard() {
   const page = activePage();
   if (page.type !== "posts") return;
+  const sections = normalizePostSections(postBoardSections.length > 0 ? postBoardSections : page.sections);
   const joinUrl = postBoardJoinUrl(page);
   els.postBoardTitle.textContent = page.name || "貼文板";
   els.postBoardDetail.textContent = "參與者掃描 QR Code 後可以新增文字貼文或上傳圖片。";
@@ -1443,7 +1652,7 @@ function renderPostBoard() {
   els.postBoardLink.href = joinUrl || "#";
   els.postBoardMessage.textContent = postBoardPosts.length === 0 ? "等待參與者投稿中。" : `已收到 ${postBoardPosts.length} 則貼文。`;
   els.postBoardMessage.classList.remove("error");
-  renderPostCards(els.postBoardGrid, postBoardPosts);
+  renderPostBoardColumns(page, sections);
   updatePostBoardControls();
 }
 
@@ -1452,6 +1661,10 @@ function unsubscribePostBoard() {
     postBoardUnsubscribe();
     postBoardUnsubscribe = null;
   }
+  if (postBoardMetadataUnsubscribe) {
+    postBoardMetadataUnsubscribe();
+    postBoardMetadataUnsubscribe = null;
+  }
 }
 
 async function subscribeActivePostBoard() {
@@ -1459,11 +1672,19 @@ async function subscribeActivePostBoard() {
   if (page.type !== "posts" || !page.boardId) return;
   unsubscribePostBoard();
   postBoardPosts = [];
+  postBoardSections = normalizePostSections(page.sections);
   renderPostBoard();
   await ensurePostBoardDoc(page);
   try {
     const api = await loadFirebaseApi();
     await ensureFirebaseAuth(api);
+    postBoardMetadataUnsubscribe = api.onSnapshot(postBoardDocRef(api, page.boardId), (snapshot) => {
+      const nextSections = normalizePostSections(snapshot.data()?.sections || page.sections);
+      postBoardSections = nextSections;
+      pages = pages.map((item) => (item.id === page.id ? { ...item, sections: nextSections } : item));
+      renderPostBoard();
+      writeState();
+    });
     const postsQuery = api.query(postBoardPostsRef(api, page.boardId), api.orderBy("createdAt", "desc"));
     postBoardUnsubscribe = api.onSnapshot(
       postsQuery,
@@ -1501,6 +1722,18 @@ function setParticipantMessage(text, isError = false) {
   els.participantMessage.classList.toggle("error", isError);
 }
 
+function renderParticipantSections(sections, selectedId = "") {
+  const normalized = normalizePostSections(sections);
+  els.participantSection.innerHTML = "";
+  normalized.forEach((section) => {
+    const option = document.createElement("option");
+    option.value = section.id;
+    option.textContent = section.name;
+    els.participantSection.appendChild(option);
+  });
+  els.participantSection.value = normalized.some((section) => section.id === selectedId) ? selectedId : normalized[0].id;
+}
+
 async function imageFileToPostDataUrl(file) {
   if (!file) return "";
   if (!file.type.startsWith("image/")) throw new Error("請選擇圖片檔。");
@@ -1527,6 +1760,7 @@ async function submitParticipantPost(event) {
   const params = new URLSearchParams(window.location.search);
   const boardId = params.get("board");
   const author = els.participantName.value.trim().slice(0, 40);
+  const sectionId = els.participantSection.value || params.get("section") || "section-a";
   const content = els.participantContent.value.trim().slice(0, 600);
   const file = els.participantImage.files?.[0] || null;
   if (!boardId) return;
@@ -1546,6 +1780,7 @@ async function submitParticipantPost(event) {
     await ensureFirebaseAuth(api);
     await api.addDoc(postBoardPostsRef(api, boardId), {
       author,
+      sectionId,
       content,
       imageDataUrl,
       createdAt: api.serverTimestamp(),
@@ -1564,6 +1799,7 @@ async function initParticipantMode() {
   const params = new URLSearchParams(window.location.search);
   const boardId = params.get("board");
   const title = params.get("title") || "貼文板投稿";
+  const selectedSectionId = params.get("section") || "";
   if (!boardId) return;
 
   els.studio.classList.add("hidden");
@@ -1580,6 +1816,10 @@ async function initParticipantMode() {
       els.participantTitle.textContent = boardSnapshot.data().title;
       document.title = `${boardSnapshot.data().title} - 投稿`;
     }
+    renderParticipantSections(boardSnapshot.data()?.sections || defaultPostSections(), selectedSectionId);
+    api.onSnapshot(postBoardDocRef(api, boardId), (snapshot) => {
+      renderParticipantSections(snapshot.data()?.sections || defaultPostSections(), els.participantSection.value || selectedSectionId);
+    });
     const postsQuery = api.query(postBoardPostsRef(api, boardId), api.orderBy("createdAt", "desc"));
     participantUnsubscribe = api.onSnapshot(
       postsQuery,
@@ -2948,6 +3188,13 @@ els.alignRightWidgets.addEventListener("click", () => arrangeWidgets("right"));
 els.distributeHorizontalWidgets.addEventListener("click", () => arrangeWidgets("horizontal"));
 els.distributeVerticalWidgets.addEventListener("click", () => arrangeWidgets("vertical"));
 els.clearWidgetSelection.addEventListener("click", clearWidgetSelection);
+els.imageViewerClose.addEventListener("click", closeImageViewer);
+els.imageViewer.addEventListener("click", (event) => {
+  if (event.target === els.imageViewer) closeImageViewer();
+});
+window.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !els.imageViewer.classList.contains("hidden")) closeImageViewer();
+});
 els.makeGroups.addEventListener("click", makeGroups);
 els.copyGroups.addEventListener("click", copyGroups);
 els.buildManualGroups.addEventListener("click", () => buildManualGroups());

@@ -11,18 +11,26 @@ service cloud.firestore {
     }
 
     function isPostBoardMetadata() {
-      return request.resource.data.keys().hasOnly(['title', 'updatedAt', 'kind', 'version'])
+      return request.auth != null
+        && request.resource.data.keys().hasOnly(['title', 'adminUid', 'sections', 'updatedAt', 'kind', 'version'])
         && request.resource.data.title is string
         && request.resource.data.title.size() > 0
         && request.resource.data.title.size() <= 80
+        && request.resource.data.adminUid == request.auth.uid
+        && request.resource.data.sections is list
+        && request.resource.data.sections.size() > 0
+        && request.resource.data.sections.size() <= 12
         && request.resource.data.updatedAt == request.time
         && request.resource.data.kind == 'postBoard'
         && request.resource.data.version == 1;
     }
 
     function isPost() {
-      return request.resource.data.keys().hasOnly(['author', 'content', 'imageDataUrl', 'createdAt'])
+      return request.resource.data.keys().hasOnly(['author', 'sectionId', 'content', 'imageDataUrl', 'createdAt'])
         && isOptionalString(request.resource.data.author, 40)
+        && request.resource.data.sectionId is string
+        && request.resource.data.sectionId.size() > 0
+        && request.resource.data.sectionId.size() <= 80
         && isOptionalString(request.resource.data.content, 600)
         && isOptionalString(request.resource.data.imageDataUrl, 950000)
         && request.resource.data.createdAt == request.time
@@ -30,6 +38,27 @@ service cloud.firestore {
           (request.resource.data.content is string && request.resource.data.content.size() > 0)
           || (request.resource.data.imageDataUrl is string && request.resource.data.imageDataUrl.size() > 0)
         );
+    }
+
+    function isPostEdit() {
+      return request.resource.data.keys().hasOnly(['author', 'sectionId', 'content', 'imageDataUrl', 'createdAt', 'updatedAt'])
+        && isOptionalString(request.resource.data.author, 40)
+        && request.resource.data.sectionId is string
+        && request.resource.data.sectionId.size() > 0
+        && request.resource.data.sectionId.size() <= 80
+        && isOptionalString(request.resource.data.content, 600)
+        && request.resource.data.imageDataUrl == resource.data.imageDataUrl
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.updatedAt == request.time
+        && (
+          (request.resource.data.content is string && request.resource.data.content.size() > 0)
+          || (request.resource.data.imageDataUrl is string && request.resource.data.imageDataUrl.size() > 0)
+        );
+    }
+
+    function isBoardAdmin(boardId) {
+      return request.auth != null
+        && get(/databases/$(database)/documents/classroomPostBoards/$(boardId)).data.adminUid == request.auth.uid;
     }
 
     match /classroomToolLayouts/{syncCode} {
@@ -43,13 +72,20 @@ service cloud.firestore {
 
     match /classroomPostBoards/{boardId} {
       allow read: if isShortId(boardId);
-      allow create, update: if isShortId(boardId) && isPostBoardMetadata();
+      allow create: if isShortId(boardId) && isPostBoardMetadata();
+      allow update: if isShortId(boardId)
+        && isPostBoardMetadata()
+        && (
+          !resource.data.keys().hasAny(['adminUid'])
+          || resource.data.adminUid == request.auth.uid
+        );
       allow delete: if false;
 
       match /posts/{postId} {
         allow read: if isShortId(boardId);
         allow create: if isShortId(boardId) && isPost();
-        allow update, delete: if false;
+        allow update: if isShortId(boardId) && isBoardAdmin(boardId) && isPostEdit();
+        allow delete: if isShortId(boardId) && isBoardAdmin(boardId);
       }
     }
   }
