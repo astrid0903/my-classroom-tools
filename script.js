@@ -16,6 +16,7 @@ const els = {
   slidesUrl: document.querySelector("#slides-url"),
   loadSlides: document.querySelector("#load-slides"),
   clearSlides: document.querySelector("#clear-slides"),
+  addSlidesWidget: document.querySelector("#add-slides-widget"),
   switchSlidesMode: document.querySelector("#switch-slides-mode"),
   openSlides: document.querySelector("#open-slides"),
   openOnlineApp: document.querySelector("#open-online-app"),
@@ -26,6 +27,14 @@ const els = {
   retrySlides: document.querySelector("#retry-slides"),
   loadingOpenSlides: document.querySelector("#loading-open-slides"),
   slidesMessage: document.querySelector("#slides-message"),
+  pageSelect: document.querySelector("#page-select"),
+  pageName: document.querySelector("#page-name"),
+  addPage: document.querySelector("#add-page"),
+  deletePage: document.querySelector("#delete-page"),
+  pageMessage: document.querySelector("#page-message"),
+  pageTabs: document.querySelector("#page-tabs"),
+  emptyStateTitle: document.querySelector("#empty-state strong"),
+  emptyStateDetail: document.querySelector("#empty-state span"),
   snapGuides: document.querySelector("#snap-guides"),
   fullscreenButton: document.querySelector("#fullscreen-button"),
   showTimer: document.querySelector("#show-timer"),
@@ -53,6 +62,7 @@ const els = {
   textBoxContent: document.querySelector("#text-box-content"),
   textBoxSize: document.querySelector("#text-box-size"),
   textBoxColor: document.querySelector("#text-box-color"),
+  textBoxAlign: document.querySelector("#text-box-align"),
   textWidget: document.querySelector("#text-widget"),
   stageTextBox: document.querySelector("#stage-text-box"),
   showImage: document.querySelector("#show-image"),
@@ -88,6 +98,13 @@ const els = {
   syncLayouts: document.querySelector("#sync-layouts"),
   loadCloudLayouts: document.querySelector("#load-cloud-layouts"),
   layoutMessage: document.querySelector("#layout-message"),
+  alignLeftWidgets: document.querySelector("#align-left-widgets"),
+  alignCenterWidgets: document.querySelector("#align-center-widgets"),
+  alignRightWidgets: document.querySelector("#align-right-widgets"),
+  distributeHorizontalWidgets: document.querySelector("#distribute-horizontal-widgets"),
+  distributeVerticalWidgets: document.querySelector("#distribute-vertical-widgets"),
+  clearWidgetSelection: document.querySelector("#clear-widget-selection"),
+  arrangeMessage: document.querySelector("#arrange-message"),
   studentList: document.querySelector("#student-list"),
   groupCount: document.querySelector("#group-count"),
   shuffleGroups: document.querySelector("#shuffle-groups"),
@@ -102,6 +119,8 @@ const els = {
   stageGroups: document.querySelector("#stage-groups"),
   toolDock: document.querySelector(".tool-dock"),
   hideWidgets: document.querySelector("#hide-widgets"),
+  moreTools: document.querySelector("#more-tools"),
+  moreToolItems: document.querySelectorAll(".more-tool"),
   collapseDock: document.querySelector("#collapse-dock"),
   expandDock: document.querySelector("#expand-dock"),
   dockItems: document.querySelectorAll(".dock-item[data-tool]"),
@@ -130,7 +149,13 @@ let firebaseApi = null;
 let firebaseLoadPromise = null;
 let dynamicWidgets = [];
 let dynamicWidgetCounter = 0;
-const DYNAMIC_WIDGET_TYPES = new Set(["timer", "clock", "groups", "text", "image", "youtube"]);
+let pages = [];
+let activePageId = "main";
+let moreToolsOpen = false;
+let selectedWidgets = new Set();
+let topWidgetZ = 20;
+const DEFAULT_PAGE = { id: "main", name: "主簡報", type: "slides" };
+const DYNAMIC_WIDGET_TYPES = new Set(["timer", "clock", "groups", "text", "image", "youtube", "slides", "qr"]);
 const SNAP_GRID = 12;
 const SNAP_DISTANCE = 8;
 
@@ -163,6 +188,7 @@ function buildState(extra = {}) {
     textBoxContent: els.textBoxContent.value,
     textBoxSize: els.textBoxSize.value,
     textBoxColor: els.textBoxColor.value,
+    textBoxAlign: els.textBoxAlign.value,
     showImage: els.showImage.checked,
     imageTitle: els.imageTitle.value,
     imageUrl: els.imageUrl.value,
@@ -181,6 +207,9 @@ function buildState(extra = {}) {
     currentSlides,
     activeTool,
     dockCollapsed,
+    moreToolsOpen,
+    pages,
+    activePageId,
     groups,
     manualGroups: readManualGroups(),
     dynamicWidgets: serializeDynamicWidgets(),
@@ -219,6 +248,211 @@ function formatSavedAt(value) {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
+  });
+}
+
+function normalizePages(value) {
+  const source = Array.isArray(value) ? value : [];
+  const normalized = source
+    .map((page) => ({
+      id: String(page?.id || "").trim(),
+      name: String(page?.name || "").trim(),
+      type: page?.type === "dark" ? "dark" : "slides",
+    }))
+    .filter((page) => page.id && page.name);
+  const hasMain = normalized.some((page) => page.id === DEFAULT_PAGE.id);
+  return hasMain ? normalized : [DEFAULT_PAGE, ...normalized];
+}
+
+function activePage() {
+  return pages.find((page) => page.id === activePageId) || pages[0] || DEFAULT_PAGE;
+}
+
+function activePageShowsMainSlides() {
+  return activePage().type === "slides";
+}
+
+function makePageId() {
+  return `page-${Date.now().toString(36)}`;
+}
+
+function renderPages() {
+  els.pageSelect.innerHTML = "";
+  els.pageTabs.innerHTML = "";
+  pages.forEach((page) => {
+    const option = document.createElement("option");
+    option.value = page.id;
+    option.textContent = page.name;
+    els.pageSelect.appendChild(option);
+
+    const tab = document.createElement("button");
+    tab.type = "button";
+    tab.className = "page-tab";
+    tab.textContent = page.name;
+    tab.classList.toggle("active", page.id === activePage().id);
+    tab.setAttribute("aria-current", page.id === activePage().id ? "page" : "false");
+    tab.addEventListener("click", () => switchPage(page.id));
+    els.pageTabs.appendChild(tab);
+  });
+  els.pageSelect.value = activePage().id;
+  els.pageName.value = activePage().id === DEFAULT_PAGE.id ? "" : activePage().name;
+  els.deletePage.disabled = activePage().id === DEFAULT_PAGE.id;
+}
+
+function updateDynamicWidgetVisibility() {
+  dynamicWidgets.forEach((widget) => {
+    widget.element.classList.toggle("page-hidden", widget.pageId !== activePage().id);
+  });
+  pruneWidgetSelection();
+}
+
+function updateStageForPage() {
+  const page = activePage();
+  const showMainSlides = page.type === "slides" && Boolean(currentSlides);
+  els.stage.classList.toggle("blank-page", page.type === "dark");
+  els.stage.classList.toggle("has-slides", showMainSlides);
+
+  if (page.type === "dark") {
+    setLoading(false);
+    els.emptyStateTitle.textContent = "";
+    els.emptyStateDetail.textContent = "";
+  } else {
+    els.emptyStateTitle.textContent = "Google Slides 教學播放台";
+    els.emptyStateDetail.textContent = "從下方 slides 貼上簡報連結。";
+  }
+
+  updateDynamicWidgetVisibility();
+  renderPages();
+}
+
+function setMoreToolsOpen(isOpen) {
+  moreToolsOpen = isOpen;
+  els.toolDock.classList.toggle("more-open", moreToolsOpen);
+  els.moreTools.setAttribute("aria-expanded", String(moreToolsOpen));
+  els.moreTools.querySelector("span:last-child").textContent = moreToolsOpen ? "less" : "more";
+  els.moreToolItems.forEach((item) => item.classList.toggle("hidden", !moreToolsOpen));
+  writeState();
+}
+
+function widgetSelectionId(widget) {
+  return widget.dataset.dynamicId ? `dynamic:${widget.dataset.dynamicId}` : `fixed:${widget.dataset.widget}`;
+}
+
+function selectedVisibleWidgets() {
+  return visibleWidgets(null).filter((widget) => selectedWidgets.has(widgetSelectionId(widget)));
+}
+
+function updateSelectionMessage() {
+  const selectedCount = selectedVisibleWidgets().length;
+  els.arrangeMessage.textContent =
+    selectedCount > 0 ? `已選取 ${selectedCount} 個小工具；Ctrl 或 Command 點擊可多選。` : "點小工具可選取，再點一次取消；按住 Ctrl 或 Command 可多選。";
+  els.arrangeMessage.classList.remove("error");
+}
+
+function renderWidgetSelection() {
+  visibleWidgets(null).forEach((widget) => {
+    widget.classList.toggle("selected-widget", selectedWidgets.has(widgetSelectionId(widget)));
+  });
+  updateSelectionMessage();
+}
+
+function pruneWidgetSelection() {
+  const visibleIds = new Set(visibleWidgets(null).map(widgetSelectionId));
+  selectedWidgets = new Set([...selectedWidgets].filter((id) => visibleIds.has(id)));
+  renderWidgetSelection();
+}
+
+function clearWidgetSelection() {
+  selectedWidgets.clear();
+  renderWidgetSelection();
+}
+
+function shouldIgnoreWidgetSelection(event) {
+  return Boolean(event.target.closest("button, a, input, textarea, select, iframe, .dynamic-settings, .drag-handle, .dynamic-drag, .resize-handle"));
+}
+
+function handleWidgetClick(event) {
+  const widget = event.target.closest(".widget");
+  if (!widget || widget.classList.contains("hidden") || widget.classList.contains("page-hidden")) return;
+  if (shouldIgnoreWidgetSelection(event)) return;
+  bringWidgetToFront(widget);
+
+  const id = widgetSelectionId(widget);
+  const isMulti = event.ctrlKey || event.metaKey;
+
+  if (selectedWidgets.has(id)) {
+    selectedWidgets.delete(id);
+  } else {
+    if (!isMulti) selectedWidgets.clear();
+    selectedWidgets.add(id);
+  }
+  renderWidgetSelection();
+}
+
+function bringWidgetToFront(widget) {
+  topWidgetZ += 1;
+  widget.style.zIndex = String(topWidgetZ);
+}
+
+function addDarkPage() {
+  const name = els.pageName.value.trim() || `暗色頁面 ${pages.length}`;
+  const page = { id: makePageId(), name, type: "dark" };
+  pages = [...pages, page];
+  activePageId = page.id;
+  els.pageMessage.textContent = `已新增「${name}」。`;
+  els.pageMessage.classList.remove("error");
+  updateStageForPage();
+  writeState();
+}
+
+function switchPage(pageId) {
+  if (!pages.some((page) => page.id === pageId)) return;
+  activePageId = pageId;
+  updateStageForPage();
+  writeState();
+}
+
+function renameActivePage(name) {
+  const page = activePage();
+  if (page.id === DEFAULT_PAGE.id) return;
+  const nextName = name.trim();
+  if (!nextName) return;
+  pages = pages.map((item) => (item.id === page.id ? { ...item, name: nextName } : item));
+  updateStageForPage();
+  writeState();
+}
+
+function deleteActivePage() {
+  const page = activePage();
+  if (page.id === DEFAULT_PAGE.id) {
+    els.pageMessage.textContent = "主簡報頁不能刪除。";
+    els.pageMessage.classList.add("error");
+    return;
+  }
+  dynamicWidgets
+    .filter((widget) => widget.pageId === page.id)
+    .forEach((widget) => removeDynamicWidget(widget.id, false));
+  pages = pages.filter((item) => item.id !== page.id);
+  activePageId = DEFAULT_PAGE.id;
+  els.pageMessage.textContent = `已刪除「${page.name}」。`;
+  els.pageMessage.classList.remove("error");
+  updateStageForPage();
+  writeState();
+}
+
+function addSlidesWidgetFromInput() {
+  const slides = parseSlidesInput(els.slidesUrl.value);
+  if (!slides) {
+    createDynamicWidget("slides");
+    return;
+  }
+  createDynamicWidget("slides", {
+    title: "Slides",
+    slidesUrl: els.slidesUrl.value,
+    mode: slidesMode,
+    embedUrl: buildSlidesUrl(slides),
+    editUrl: slides.editUrl,
+    settingsOpen: false,
   });
 }
 
@@ -390,6 +624,7 @@ function serializeDynamicWidgets() {
   return dynamicWidgets.map((widget) => ({
     id: widget.id,
     type: widget.type,
+    pageId: widget.pageId,
     state: sanitizeDynamicState(widget.state),
     position: widgetPosition(widget.element),
   }));
@@ -407,9 +642,11 @@ function defaultDynamicState(type) {
   if (type === "timer") return { title: "Timer", titleSize: "13", minutes: "5", seconds: "0", remaining: 300, settingsOpen: false };
   if (type === "clock") return { title: "Clock", titleSize: "13", settingsOpen: false };
   if (type === "groups") return { title: "Groups", titleSize: "13", studentList: "", groupCount: "4", shuffle: true, groups: [], settingsOpen: true };
-  if (type === "text") return { title: "Text", titleSize: "13", content: "文字框", size: "44", color: "#ffffff", settingsOpen: true };
-  if (type === "image") return { title: "Image", titleSize: "13", imageUrl: "", imageSource: "", settingsOpen: true };
+  if (type === "text") return { title: "Text", titleSize: "13", content: "文字框", size: "44", color: "#ffffff", align: "center", settingsOpen: true };
+  if (type === "image") return { title: "Image", titleSize: "13", imageUrl: "", imageSource: "", imageScale: "100", settingsOpen: true };
   if (type === "youtube") return { title: "YouTube", titleSize: "13", youtubeUrl: "", embedUrl: "", watchUrl: "", settingsOpen: true, minimized: false };
+  if (type === "slides") return { title: "Slides", titleSize: "13", slidesUrl: "", embedUrl: "", editUrl: "", mode: "preview", settingsOpen: true };
+  if (type === "qr") return { title: "QR Code", titleSize: "13", qrUrl: "", qrImageUrl: "", qrSize: "320", settingsOpen: true };
   return { title: "Widget", titleSize: "13", settingsOpen: true };
 }
 
@@ -446,13 +683,40 @@ function dynamicTextarea(value = "", rows = 3) {
   return textarea;
 }
 
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => resolve(String(reader.result || "")));
+    reader.addEventListener("error", () => reject(reader.error || new Error("file read failed")));
+    reader.readAsDataURL(file);
+  });
+}
+
+function alignmentSelect(value = "center") {
+  const select = document.createElement("select");
+  [
+    ["left", "靠左"],
+    ["center", "置中"],
+    ["right", "靠右"],
+  ].forEach(([optionValue, label]) => {
+    const option = document.createElement("option");
+    option.value = optionValue;
+    option.textContent = label;
+    select.appendChild(option);
+  });
+  select.value = ["left", "center", "right"].includes(value) ? value : "center";
+  return select;
+}
+
 function createDynamicWidget(type, state = {}, position = null) {
   if (!DYNAMIC_WIDGET_TYPES.has(type)) return null;
 
   const id = state.id || makeWidgetId();
+  const pageId = state.pageId && pages.some((page) => page.id === state.pageId) ? state.pageId : activePage().id;
   const nextState = {
     ...defaultDynamicState(type),
     ...cloneValue(state),
+    pageId,
   };
   delete nextState.id;
 
@@ -461,6 +725,7 @@ function createDynamicWidget(type, state = {}, position = null) {
   widget.dataset.widget = type;
   widget.dataset.widgetType = type;
   widget.dataset.dynamicId = id;
+  widget.dataset.pageId = pageId;
   widget.style.left = `${24 + (dynamicWidgets.length % 6) * 28}px`;
   widget.style.top = `${24 + (dynamicWidgets.length % 6) * 28}px`;
 
@@ -502,6 +767,7 @@ function createDynamicWidget(type, state = {}, position = null) {
   const instance = {
     id,
     type,
+    pageId,
     state: nextState,
     element: widget,
     title,
@@ -531,6 +797,7 @@ function createDynamicWidget(type, state = {}, position = null) {
     writeState();
   });
   settingsButton.addEventListener("click", () => {
+    bringWidgetToFront(widget);
     instance.state.settingsOpen = !instance.state.settingsOpen;
     renderDynamicWidget(instance);
     writeState();
@@ -541,6 +808,8 @@ function createDynamicWidget(type, state = {}, position = null) {
   renderDynamicWidget(instance);
   applyWidgetPosition(widget, position);
   keepWidgetVisible(widget);
+  updateDynamicWidgetVisibility();
+  renderWidgetSelection();
   writeState();
   return instance;
 }
@@ -624,9 +893,11 @@ function buildDynamicSettings(instance) {
     size.max = "320";
     const color = addLabeledInput(row, "顏色", dynamicInput(state.color || "#ffffff", "color"));
     settings.appendChild(row);
+    const align = addLabeledInput(settings, "文字對齊", alignmentSelect(state.align || "center"));
     content.addEventListener("input", () => updateDynamicState(instance, { content: content.value }));
     size.addEventListener("input", () => updateDynamicState(instance, { size: size.value }));
     color.addEventListener("input", () => updateDynamicState(instance, { color: color.value }));
+    align.addEventListener("change", () => updateDynamicState(instance, { align: align.value }));
   }
 
   if (type === "image") {
@@ -645,8 +916,36 @@ function buildDynamicSettings(instance) {
     file.addEventListener("change", () => {
       const selected = file.files?.[0];
       if (!selected || !selected.type.startsWith("image/")) return;
-      updateDynamicState(instance, { imageSource: URL.createObjectURL(selected) });
+      fileToDataUrl(selected)
+        .then((imageDataUrl) => updateDynamicState(instance, { imageSource: imageDataUrl, imageUrl: "" }))
+        .catch(() => updateDynamicState(instance, { imageSource: "" }));
     });
+  }
+
+  if (type === "qr") {
+    const url = addLabeledInput(settings, "網址連結", dynamicTextarea(state.qrUrl || "", 3));
+    const size = addLabeledInput(settings, "QR 圖片尺寸", dynamicInput(state.qrSize || "320", "number"));
+    size.min = "120";
+    size.max = "900";
+    size.step = "20";
+    const row = createEl("div", "button-row");
+    const load = createEl("button", "", "產生 QR Code");
+    const clear = createEl("button", "secondary", "清除");
+    load.type = clear.type = "button";
+    row.append(load, clear);
+    settings.appendChild(row);
+    url.addEventListener("input", () => updateDynamicState(instance, { qrUrl: url.value }));
+    size.addEventListener("input", () => updateDynamicState(instance, { qrSize: size.value }));
+    load.addEventListener("click", () => {
+      const qrUrl = url.value.trim();
+      if (!qrUrl) return;
+      updateDynamicState(instance, {
+        qrUrl,
+        qrSize: size.value,
+        qrImageUrl: buildQrCodeUrl(qrUrl, size.value),
+      });
+    });
+    clear.addEventListener("click", () => updateDynamicState(instance, { qrUrl: "", qrImageUrl: "" }));
   }
 
   if (type === "youtube") {
@@ -669,6 +968,46 @@ function buildDynamicSettings(instance) {
         embedUrl: buildYoutubeEmbedUrl(videoId),
         watchUrl: buildYoutubeWatchUrl(videoId),
       });
+    });
+  }
+
+  if (type === "slides") {
+    const url = addLabeledInput(settings, "Google Slides 連結或 ID", dynamicTextarea(state.slidesUrl || "", 3));
+    const mode = addLabeledInput(settings, "嵌入模式", document.createElement("select"));
+    [
+      ["preview", "preview"],
+      ["embed", "embed"],
+    ].forEach(([value, label]) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = label;
+      mode.appendChild(option);
+    });
+    mode.value = state.mode || "preview";
+    const row = createEl("div", "button-row");
+    const load = createEl("button", "", "載入簡報");
+    const open = createEl("a", "link-button secondary", "另開簡報");
+    load.type = "button";
+    open.href = state.editUrl || "#";
+    open.target = "_blank";
+    open.rel = "noreferrer";
+    open.classList.toggle("disabled", !state.editUrl);
+    row.append(load, open);
+    settings.appendChild(row);
+    url.addEventListener("input", () => updateDynamicState(instance, { slidesUrl: url.value }));
+    mode.addEventListener("change", () => updateDynamicState(instance, { mode: mode.value }));
+    load.addEventListener("click", () => {
+      const slides = parseSlidesInput(url.value);
+      if (!slides) return;
+      const embedUrl = buildSlidesUrl(slides, mode.value);
+      updateDynamicState(instance, {
+        slidesUrl: url.value,
+        mode: mode.value,
+        embedUrl,
+        editUrl: slides.editUrl,
+      });
+      open.href = slides.editUrl;
+      open.classList.remove("disabled");
     });
   }
 }
@@ -715,15 +1054,37 @@ function renderDynamicWidget(instance) {
     display.textContent = state.content || "文字框";
     display.style.fontSize = `${Math.min(320, Math.max(8, Number(state.size) || 44))}px`;
     display.style.color = state.color || "#ffffff";
+    display.style.textAlign = ["left", "center", "right"].includes(state.align) ? state.align : "center";
   } else if (type === "image") {
     display.innerHTML = "";
     if (state.imageSource) {
       const image = document.createElement("img");
       image.src = state.imageSource;
       image.alt = state.title || "圖片";
-      display.appendChild(image);
+      image.style.setProperty("--image-scale", `${Math.min(200, Math.max(25, Number(state.imageScale) || 100))}%`);
+      const sliderWrap = createEl("div", "image-scale-control");
+      const slider = dynamicInput(state.imageScale || "100", "range");
+      slider.min = "25";
+      slider.max = "200";
+      slider.step = "5";
+      slider.setAttribute("aria-label", "圖片大小");
+      slider.addEventListener("input", () => updateDynamicState(instance, { imageScale: slider.value }));
+      sliderWrap.appendChild(slider);
+      display.append(image, sliderWrap);
     } else {
       display.textContent = "尚未載入圖片";
+    }
+  } else if (type === "qr") {
+    display.innerHTML = "";
+    const qrImageUrl = state.qrImageUrl || (state.qrUrl ? buildQrCodeUrl(state.qrUrl, state.qrSize) : "");
+    if (qrImageUrl) {
+      const image = document.createElement("img");
+      image.className = "qr-code-image";
+      image.src = qrImageUrl;
+      image.alt = state.qrUrl ? `QR Code: ${state.qrUrl}` : "QR Code";
+      display.appendChild(image);
+    } else {
+      display.textContent = "貼上網址後產生 QR Code";
     }
   } else if (type === "youtube") {
     display.innerHTML = "";
@@ -768,6 +1129,17 @@ function renderDynamicWidget(instance) {
       display.appendChild(iframe);
     } else {
       display.textContent = "尚未載入影片";
+    }
+  } else if (type === "slides") {
+    display.innerHTML = "";
+    if (state.embedUrl) {
+      const iframe = document.createElement("iframe");
+      iframe.src = state.embedUrl;
+      iframe.title = state.title || "Google Slides";
+      iframe.allowFullscreen = true;
+      display.appendChild(iframe);
+    } else {
+      display.textContent = "尚未載入簡報";
     }
   } else {
     instance.element.classList.remove("is-minimized");
@@ -846,23 +1218,27 @@ function copyDynamicWidget(id) {
   });
 }
 
-function removeDynamicWidget(id) {
+function removeDynamicWidget(id, persist = true) {
   const widget = getDynamicWidget(id);
   if (!widget) return;
   window.clearInterval(widget.timerId);
   window.clearInterval(widget.clockId);
+  selectedWidgets.delete(widgetSelectionId(widget.element));
   widget.element.remove();
   dynamicWidgets = dynamicWidgets.filter((item) => item.id !== id);
-  writeState();
+  renderWidgetSelection();
+  if (persist) writeState();
 }
 
 function clearDynamicWidgets() {
   dynamicWidgets.forEach((widget) => {
     window.clearInterval(widget.timerId);
     window.clearInterval(widget.clockId);
+    selectedWidgets.delete(widgetSelectionId(widget.element));
     widget.element.remove();
   });
   dynamicWidgets = [];
+  renderWidgetSelection();
 }
 
 function normalizeSyncCode(value) {
@@ -1025,6 +1401,7 @@ function setDockCollapsed(isCollapsed) {
 
 function hideAllWidgets() {
   clearDynamicWidgets();
+  clearWidgetSelection();
   els.showTimer.checked = false;
   els.showClock.checked = false;
   els.showGroups.checked = false;
@@ -1064,12 +1441,12 @@ function applyWidgetPosition(widget, position) {
 }
 
 function keepWidgetVisible(widget) {
-  if (widget.classList.contains("hidden")) return;
+  if (widget.classList.contains("hidden") || widget.classList.contains("page-hidden")) return;
 
   const stageRect = els.stage.getBoundingClientRect();
   const rect = widget.getBoundingClientRect();
-  const minWidth = widget.dataset.widget === "timer" ? 210 : 220;
-  const minHeight = widget.dataset.widget === "timer" ? 150 : 110;
+  const minWidth = widget.dataset.widget === "timer" ? 210 : widget.dataset.widget === "slides" ? 320 : 220;
+  const minHeight = widget.dataset.widget === "timer" ? 150 : widget.dataset.widget === "slides" ? 220 : 110;
 
   if (rect.width < minWidth) widget.style.width = `${minWidth}px`;
   if (rect.height < minHeight) widget.style.height = `${minHeight}px`;
@@ -1091,8 +1468,113 @@ function keepWidgetVisible(widget) {
 
 function visibleWidgets(excludedWidget) {
   return [...els.stage.querySelectorAll(".widget")]
-    .filter((widget) => widget !== excludedWidget && !widget.classList.contains("hidden"))
+    .filter((widget) => widget !== excludedWidget && !widget.classList.contains("hidden") && !widget.classList.contains("page-hidden"))
     .filter((widget) => widget.offsetWidth > 0 && widget.offsetHeight > 0);
+}
+
+function currentWidgetBoxes() {
+  const stageRect = els.stage.getBoundingClientRect();
+  const selected = selectedVisibleWidgets();
+  const widgets = selected.length > 0 ? selected : visibleWidgets(null);
+  return widgets.map((widget) => {
+    const rect = widget.getBoundingClientRect();
+    const box = {
+      widget,
+      left: Math.round(rect.left - stageRect.left),
+      top: Math.round(rect.top - stageRect.top),
+      width: Math.round(rect.width),
+      height: Math.round(rect.height),
+    };
+    box.right = box.left + box.width;
+    box.bottom = box.top + box.height;
+    widget.style.left = `${box.left}px`;
+    widget.style.top = `${box.top}px`;
+    widget.style.right = "";
+    widget.style.bottom = "";
+    widget.style.width = `${box.width}px`;
+    widget.style.height = `${box.height}px`;
+    return box;
+  });
+}
+
+function selectionBounds(boxes) {
+  return {
+    left: Math.min(...boxes.map((box) => box.left)),
+    top: Math.min(...boxes.map((box) => box.top)),
+    right: Math.max(...boxes.map((box) => box.right)),
+    bottom: Math.max(...boxes.map((box) => box.bottom)),
+  };
+}
+
+function moveWidgetBox(box, left, top) {
+  const stageRect = els.stage.getBoundingClientRect();
+  const nextLeft = Math.round(Math.min(Math.max(8, stageRect.width - box.width - 8), Math.max(8, left)));
+  const nextTop = Math.round(Math.min(Math.max(8, stageRect.height - box.height - 8), Math.max(8, top)));
+  box.widget.style.left = `${nextLeft}px`;
+  box.widget.style.top = `${nextTop}px`;
+  box.widget.style.right = "";
+  box.widget.style.bottom = "";
+}
+
+function setArrangeMessage(text, isError = false) {
+  els.arrangeMessage.textContent = text;
+  els.arrangeMessage.classList.toggle("error", isError);
+}
+
+function arrangeWidgets(mode) {
+  const boxes = currentWidgetBoxes();
+  if (boxes.length < 2) {
+    setArrangeMessage("至少需要 2 個小工具才能排列。請先選取，或讓目前頁面有 2 個以上可見小工具。", true);
+    return;
+  }
+  const scopeText = selectedVisibleWidgets().length > 0 ? "選取的" : "目前頁面可見的";
+
+  const bounds = selectionBounds(boxes);
+  if (mode === "left") {
+    boxes.forEach((box) => moveWidgetBox(box, bounds.left, box.top));
+    setArrangeMessage(`已將 ${scopeText} ${boxes.length} 個小工具靠左對齊。`);
+  }
+  if (mode === "center") {
+    const center = (bounds.left + bounds.right) / 2;
+    boxes.forEach((box) => moveWidgetBox(box, center - box.width / 2, box.top));
+    setArrangeMessage(`已將 ${scopeText} ${boxes.length} 個小工具置中對齊。`);
+  }
+  if (mode === "right") {
+    boxes.forEach((box) => moveWidgetBox(box, bounds.right - box.width, box.top));
+    setArrangeMessage(`已將 ${scopeText} ${boxes.length} 個小工具靠右對齊。`);
+  }
+  if (mode === "horizontal") {
+    if (boxes.length < 3) {
+      setArrangeMessage("水平平均分配至少需要 3 個小工具。", true);
+      return;
+    }
+    const sorted = boxes.slice().sort((a, b) => a.left - b.left);
+    const totalWidth = sorted.reduce((sum, box) => sum + box.width, 0);
+    const gap = (bounds.right - bounds.left - totalWidth) / (sorted.length - 1);
+    let nextLeft = bounds.left;
+    sorted.forEach((box) => {
+      moveWidgetBox(box, nextLeft, box.top);
+      nextLeft += box.width + gap;
+    });
+    setArrangeMessage(`已將 ${scopeText} ${boxes.length} 個小工具水平平均分配。`);
+  }
+  if (mode === "vertical") {
+    if (boxes.length < 3) {
+      setArrangeMessage("垂直平均分配至少需要 3 個小工具。", true);
+      return;
+    }
+    const sorted = boxes.slice().sort((a, b) => a.top - b.top);
+    const totalHeight = sorted.reduce((sum, box) => sum + box.height, 0);
+    const gap = (bounds.bottom - bounds.top - totalHeight) / (sorted.length - 1);
+    let nextTop = bounds.top;
+    sorted.forEach((box) => {
+      moveWidgetBox(box, box.left, nextTop);
+      nextTop += box.height + gap;
+    });
+    setArrangeMessage(`已將 ${scopeText} ${boxes.length} 個小工具垂直平均分配。`);
+  }
+
+  writeState();
 }
 
 function snapValue(value, targets, distance = SNAP_DISTANCE) {
@@ -1116,6 +1598,10 @@ function snapNumber(value, targets, distance = SNAP_DISTANCE) {
   return snapValue(value, targets, distance).value;
 }
 
+function normalizeSnapTargets(targets, max) {
+  return [...new Set(targets.map((target) => Math.round(target)).filter((target) => target >= 0 && target <= max))];
+}
+
 function stageSnapTargets(stageRect, excludedWidget) {
   const xTargets = [8, 24, stageRect.width / 2, stageRect.width - 24, stageRect.width - 8];
   const yTargets = [8, 24, stageRect.height / 2, stageRect.height - 24, stageRect.height - 8];
@@ -1133,46 +1619,72 @@ function stageSnapTargets(stageRect, excludedWidget) {
     yTargets.push(top, top + rect.height / 2, bottom);
   });
 
-  return { xTargets, yTargets };
+  return {
+    xTargets: normalizeSnapTargets(xTargets, stageRect.width),
+    yTargets: normalizeSnapTargets(yTargets, stageRect.height),
+  };
+}
+
+function bestEdgeSnap(edges, targets) {
+  let best = null;
+
+  edges.forEach((edge) => {
+    targets.forEach((target) => {
+      const distance = Math.abs(edge.value - target);
+      if (distance > SNAP_DISTANCE) return;
+      if (!best || distance < best.distance) {
+        best = {
+          distance,
+          target,
+          origin: edge.origin,
+          value: edge.value,
+        };
+      }
+    });
+  });
+
+  return best;
 }
 
 function snapWidgetPosition(left, top, width, height, stageRect, widget) {
   const { xTargets, yTargets } = stageSnapTargets(stageRect, widget);
   const guides = [];
-  const leftSnap = snapValue(left, xTargets);
-  const topSnap = snapValue(top, yTargets);
-  let nextLeft = leftSnap.value;
-  let nextTop = topSnap.value;
-  if (leftSnap.matched !== null) guides.push({ axis: "x", value: leftSnap.matched });
-  if (topSnap.matched !== null) guides.push({ axis: "y", value: topSnap.matched });
+  const xSnap = bestEdgeSnap(
+    [
+      { origin: "start", value: left },
+      { origin: "center", value: left + width / 2 },
+      { origin: "end", value: left + width },
+    ],
+    xTargets,
+  );
+  const ySnap = bestEdgeSnap(
+    [
+      { origin: "start", value: top },
+      { origin: "center", value: top + height / 2 },
+      { origin: "end", value: top + height },
+    ],
+    yTargets,
+  );
+  let nextLeft = left;
+  let nextTop = top;
 
-  const centerX = snapValue(left + width / 2, xTargets);
-  if (centerX.matched !== null) {
-    nextLeft = centerX.value - width / 2;
-    guides.push({ axis: "x", value: centerX.matched });
+  if (xSnap) {
+    if (xSnap.origin === "start") nextLeft = xSnap.target;
+    if (xSnap.origin === "center") nextLeft = xSnap.target - width / 2;
+    if (xSnap.origin === "end") nextLeft = xSnap.target - width;
+    guides.push({ axis: "x", value: xSnap.target });
   }
 
-  const right = snapValue(left + width, xTargets);
-  if (right.matched !== null) {
-    nextLeft = right.value - width;
-    guides.push({ axis: "x", value: right.matched });
-  }
-
-  const centerY = snapValue(top + height / 2, yTargets);
-  if (centerY.matched !== null) {
-    nextTop = centerY.value - height / 2;
-    guides.push({ axis: "y", value: centerY.matched });
-  }
-
-  const bottom = snapValue(top + height, yTargets);
-  if (bottom.matched !== null) {
-    nextTop = bottom.value - height;
-    guides.push({ axis: "y", value: bottom.matched });
+  if (ySnap) {
+    if (ySnap.origin === "start") nextTop = ySnap.target;
+    if (ySnap.origin === "center") nextTop = ySnap.target - height / 2;
+    if (ySnap.origin === "end") nextTop = ySnap.target - height;
+    guides.push({ axis: "y", value: ySnap.target });
   }
 
   return {
-    left: Math.min(Math.max(8, stageRect.width - width - 8), Math.max(8, nextLeft)),
-    top: Math.min(Math.max(8, stageRect.height - height - 8), Math.max(8, nextTop)),
+    left: Math.round(Math.min(Math.max(8, stageRect.width - width - 8), Math.max(8, nextLeft))),
+    top: Math.round(Math.min(Math.max(8, stageRect.height - height - 8), Math.max(8, nextTop))),
     guides,
   };
 }
@@ -1181,19 +1693,15 @@ function snapWidgetSize(left, top, width, height, minWidth, minHeight, maxWidth,
   const { xTargets, yTargets } = stageSnapTargets(stageRect, widget);
   const right = snapValue(left + width, xTargets);
   const bottom = snapValue(top + height, yTargets);
-  const widthSnap = snapValue(width, xTargets.map((target) => target - left));
-  const heightSnap = snapValue(height, yTargets.map((target) => target - top));
   const guides = [];
-  const nextWidth = right.matched !== null ? right.value - left : widthSnap.value;
-  const nextHeight = bottom.matched !== null ? bottom.value - top : heightSnap.value;
+  const nextWidth = right.matched !== null ? right.value - left : width;
+  const nextHeight = bottom.matched !== null ? bottom.value - top : height;
   if (right.matched !== null) guides.push({ axis: "x", value: right.matched });
   if (bottom.matched !== null) guides.push({ axis: "y", value: bottom.matched });
-  if (right.matched === null && widthSnap.matched !== null) guides.push({ axis: "x", value: left + widthSnap.matched });
-  if (bottom.matched === null && heightSnap.matched !== null) guides.push({ axis: "y", value: top + heightSnap.matched });
 
   return {
-    width: Math.min(maxWidth, Math.max(minWidth, nextWidth)),
-    height: Math.min(maxHeight, Math.max(minHeight, nextHeight)),
+    width: Math.round(Math.min(maxWidth, Math.max(minWidth, nextWidth))),
+    height: Math.round(Math.min(maxHeight, Math.max(minHeight, nextHeight))),
     guides,
   };
 }
@@ -1316,8 +1824,8 @@ function loadPlayerUrl(playerUrl) {
   window.setTimeout(() => {
     els.frame.src = playerUrl;
   }, 60);
-  els.stage.classList.add("has-slides");
-  setLoading(true);
+  updateStageForPage();
+  if (activePageShowsMainSlides()) setLoading(true);
 }
 
 function loadSlides() {
@@ -1343,12 +1851,12 @@ function loadSlides() {
 
 function clearSlides() {
   els.frame.removeAttribute("src");
-  els.stage.classList.remove("has-slides");
   setLoading(false);
   els.slidesUrl.value = "";
   currentSlides = null;
   updateOpenSlidesLink();
   updateSlidesDebug("");
+  updateStageForPage();
   setSlidesMessage("若一般連結看不到，請先在 Google Slides 設為「知道連結的人可檢視」。");
   writeState({ currentEmbedUrl: "", currentSlides: null });
 }
@@ -1604,6 +2112,7 @@ function renderTextBox() {
   els.stageTextBox.textContent = els.textBoxContent.value.trim() || "文字框";
   els.stageTextBox.style.fontSize = `${size}px`;
   els.stageTextBox.style.color = els.textBoxColor.value || "#ffffff";
+  els.stageTextBox.style.textAlign = els.textBoxAlign.value || "center";
   els.textWidget.classList.toggle("hidden", !els.showTextBox.checked);
   keepWidgetVisible(els.textWidget);
 }
@@ -1631,17 +2140,22 @@ function loadImageFromUrl() {
   writeState();
 }
 
-function loadImageFromFile(file) {
+async function loadImageFromFile(file) {
   if (!file) return;
   if (!file.type.startsWith("image/")) {
     els.imageMessage.textContent = "請選擇圖片檔。";
     return;
   }
   if (imageObjectUrl) URL.revokeObjectURL(imageObjectUrl);
-  imageObjectUrl = URL.createObjectURL(file);
+  imageObjectUrl = "";
   els.showImage.checked = true;
-  setImageSource(imageObjectUrl, "已載入本機圖片；重新開啟頁面後需重新選擇。");
-  writeState();
+  try {
+    const imageDataUrl = await fileToDataUrl(file);
+    setImageSource(imageDataUrl, "已載入本機圖片，重新整理後仍會保留。");
+    writeState();
+  } catch {
+    setImageSource("", "圖片讀取失敗，請重新選擇圖片檔。");
+  }
 }
 
 function clearImage() {
@@ -1708,6 +2222,16 @@ function buildYoutubeEmbedUrl(videoId) {
 
 function buildYoutubeWatchUrl(videoId) {
   return videoId ? `https://www.youtube.com/watch?v=${videoId}` : "";
+}
+
+function buildQrCodeUrl(value, sizeValue = "320") {
+  const size = clampNumber(sizeValue, 120, 900);
+  const params = new URLSearchParams({
+    size: `${size}x${size}`,
+    margin: "16",
+    data: value,
+  });
+  return `https://api.qrserver.com/v1/create-qr-code/?${params.toString()}`;
 }
 
 function updateOpenYoutubeLink() {
@@ -1789,6 +2313,7 @@ function startDrag(event) {
 
   event.preventDefault();
   event.stopPropagation();
+  bringWidgetToFront(widget);
 
   const rect = widget.getBoundingClientRect();
   const stageRect = els.stage.getBoundingClientRect();
@@ -1866,9 +2391,21 @@ function moveResize(event) {
   const left = rect.left - stageRect.left;
   const top = rect.top - stageRect.top;
   const minWidth =
-    widget.dataset.widget === "timer" || widget.dataset.widget === "clock" ? 190 : widget.dataset.widget === "text" ? 180 : widget.dataset.widget === "youtube" ? 280 : 220;
+    widget.dataset.widget === "timer" || widget.dataset.widget === "clock"
+      ? 190
+      : widget.dataset.widget === "text"
+      ? 180
+      : widget.dataset.widget === "youtube" || widget.dataset.widget === "slides"
+      ? 280
+      : 220;
   const minHeight =
-    widget.dataset.widget === "timer" || widget.dataset.widget === "clock" ? 118 : widget.dataset.widget === "text" ? 110 : widget.dataset.widget === "youtube" ? 210 : 150;
+    widget.dataset.widget === "timer" || widget.dataset.widget === "clock"
+      ? 118
+      : widget.dataset.widget === "text"
+      ? 110
+      : widget.dataset.widget === "youtube" || widget.dataset.widget === "slides"
+      ? 210
+      : 150;
   const maxWidth = Math.max(minWidth, stageRect.width - left - 8);
   const maxHeight = Math.max(minHeight, stageRect.height - top - 8);
   const rawWidth = Math.min(maxWidth, Math.max(minWidth, startWidth + event.clientX - startX));
@@ -1889,6 +2426,8 @@ function stopResize() {
 
 function restore() {
   const state = readState();
+  pages = normalizePages(state.pages);
+  activePageId = pages.some((page) => page.id === state.activePageId) ? state.activePageId : DEFAULT_PAGE.id;
   els.slidesUrl.value = state.slidesUrl || "";
   els.timerMinutes.value = state.timerMinutes || "5";
   els.timerSeconds.value = state.timerSeconds || "0";
@@ -1902,6 +2441,7 @@ function restore() {
   els.textBoxContent.value = state.textBoxContent || "文字框";
   els.textBoxSize.value = state.textBoxSize || "44";
   els.textBoxColor.value = state.textBoxColor || "#ffffff";
+  els.textBoxAlign.value = ["left", "center", "right"].includes(state.textBoxAlign) ? state.textBoxAlign : "center";
   els.showImage.checked = Boolean(state.showImage);
   els.imageTitle.value = state.imageTitle || "Image";
   els.imageUrl.value = state.imageUrl || "";
@@ -1922,6 +2462,7 @@ function restore() {
   currentSlides = state.currentSlides || parseSlidesInput(state.slidesUrl || "");
   activeTool = state.activeTool || "";
   dockCollapsed = Boolean(state.dockCollapsed);
+  moreToolsOpen = Boolean(state.moreToolsOpen);
   groups = Array.isArray(state.groups) ? state.groups : [];
   manualGroups = Array.isArray(state.manualGroups) ? state.manualGroups : groups;
 
@@ -1947,7 +2488,7 @@ function restore() {
   if (Array.isArray(state.dynamicWidgets)) {
     clearDynamicWidgets();
     state.dynamicWidgets.forEach((widget) => {
-      createDynamicWidget(widget.type, widget.state || {}, widget.position);
+      createDynamicWidget(widget.type, { ...(widget.state || {}), pageId: widget.pageId || widget.state?.pageId }, widget.position);
     });
   }
   renderGroups();
@@ -1957,11 +2498,18 @@ function restore() {
   renderSavedLayouts();
   setActiveTool(activeTool);
   setDockCollapsed(dockCollapsed);
+  setMoreToolsOpen(moreToolsOpen);
+  updateStageForPage();
 }
 
 els.loadSlides.addEventListener("click", loadSlides);
 els.clearSlides.addEventListener("click", clearSlides);
+els.addSlidesWidget.addEventListener("click", addSlidesWidgetFromInput);
 els.switchSlidesMode.addEventListener("click", switchSlidesMode);
+els.pageSelect.addEventListener("change", () => switchPage(els.pageSelect.value));
+els.pageName.addEventListener("change", () => renameActivePage(els.pageName.value));
+els.addPage.addEventListener("click", addDarkPage);
+els.deletePage.addEventListener("click", deleteActivePage);
 els.retrySlides.addEventListener("click", () => {
   if (currentPlayerUrl) loadPlayerUrl(currentPlayerUrl);
 });
@@ -1972,6 +2520,7 @@ els.frame.addEventListener("load", () => {
 });
 els.fullscreenButton.addEventListener("click", () => els.stage.requestFullscreen?.());
 els.hideWidgets.addEventListener("click", hideAllWidgets);
+els.moreTools.addEventListener("click", () => setMoreToolsOpen(!moreToolsOpen));
 els.collapseDock.addEventListener("click", () => setDockCollapsed(true));
 els.expandDock.addEventListener("click", () => setDockCollapsed(false));
 els.timerStart.addEventListener("click", startTimer);
@@ -2023,6 +2572,10 @@ els.textBoxColor.addEventListener("input", () => {
   renderTextBox();
   writeState();
 });
+els.textBoxAlign.addEventListener("change", () => {
+  renderTextBox();
+  writeState();
+});
 els.showImage.addEventListener("change", () => {
   renderImage();
   writeState();
@@ -2054,6 +2607,12 @@ els.importLayouts.addEventListener("change", () => importLayoutsFromFile(els.imp
 els.syncCode.addEventListener("input", writeState);
 els.syncLayouts.addEventListener("click", syncLayoutsToCloud);
 els.loadCloudLayouts.addEventListener("click", loadLayoutsFromCloud);
+els.alignLeftWidgets.addEventListener("click", () => arrangeWidgets("left"));
+els.alignCenterWidgets.addEventListener("click", () => arrangeWidgets("center"));
+els.alignRightWidgets.addEventListener("click", () => arrangeWidgets("right"));
+els.distributeHorizontalWidgets.addEventListener("click", () => arrangeWidgets("horizontal"));
+els.distributeVerticalWidgets.addEventListener("click", () => arrangeWidgets("vertical"));
+els.clearWidgetSelection.addEventListener("click", clearWidgetSelection);
 els.makeGroups.addEventListener("click", makeGroups);
 els.copyGroups.addEventListener("click", copyGroups);
 els.buildManualGroups.addEventListener("click", () => buildManualGroups());
@@ -2064,8 +2623,18 @@ els.groupCount.addEventListener("change", () => {
   writeState();
 });
 els.shuffleGroups.addEventListener("change", writeState);
+els.stage.addEventListener("click", handleWidgetClick);
 els.dockItems.forEach((item) => {
   item.addEventListener("click", () => {
+    if (item.dataset.tool === "slides") {
+      toggleActiveTool("slides");
+      return;
+    }
+    if (item.dataset.tool === "slides-widget") {
+      addSlidesWidgetFromInput();
+      setActiveTool("");
+      return;
+    }
     if (DYNAMIC_WIDGET_TYPES.has(item.dataset.tool)) {
       createDynamicWidget(item.dataset.tool);
       setActiveTool("");
