@@ -44,8 +44,14 @@ const els = {
   postBoardStage: document.querySelector("#post-board-stage"),
   postBoardTitle: document.querySelector("#post-board-title"),
   postBoardDetail: document.querySelector("#post-board-detail"),
+  postBoardJoinTitle: document.querySelector("#post-board-join-title"),
   postBoardQr: document.querySelector("#post-board-qr"),
   postBoardLink: document.querySelector("#post-board-link"),
+  postBoardQrExpand: document.querySelector("#post-board-qr-expand"),
+  postBoardQrModal: document.querySelector("#post-board-qr-modal"),
+  postBoardQrModalTitle: document.querySelector("#post-board-qr-modal-title"),
+  postBoardQrModalImg: document.querySelector("#post-board-qr-modal-img"),
+  postBoardQrModalClose: document.querySelector("#post-board-qr-modal-close"),
   postBoardGrid: document.querySelector("#post-board-grid"),
   postBoardMessage: document.querySelector("#post-board-message"),
   snapGuides: document.querySelector("#snap-guides"),
@@ -1674,7 +1680,9 @@ function renderPostBoard() {
   if (page.type !== "posts") return;
   const sections = normalizePostSections(postBoardSections.length > 0 ? postBoardSections : page.sections);
   const joinUrl = postBoardJoinUrl(page);
-  els.postBoardTitle.textContent = page.name || "貼文板";
+  const boardName = page.name || "貼文板";
+  els.postBoardTitle.textContent = boardName;
+  els.postBoardJoinTitle.textContent = boardName;
   els.postBoardDetail.textContent = "參與者掃描 QR Code 後可以新增文字貼文或上傳圖片。";
   els.postBoardQr.src = buildQrCodeUrl(joinUrl, "260");
   els.postBoardLink.href = joinUrl || "#";
@@ -3263,8 +3271,25 @@ els.imageViewerClose.addEventListener("click", closeImageViewer);
 els.imageViewer.addEventListener("click", (event) => {
   if (event.target === els.imageViewer) closeImageViewer();
 });
+els.postBoardQrExpand.addEventListener("click", () => {
+  const page = activePage();
+  const joinUrl = postBoardJoinUrl(page);
+  els.postBoardQrModalTitle.textContent = page.name || "貼文板";
+  els.postBoardQrModalImg.src = buildQrCodeUrl(joinUrl, "480");
+  els.postBoardQrModal.classList.remove("hidden");
+});
+els.postBoardQrModalClose.addEventListener("click", () => els.postBoardQrModal.classList.add("hidden"));
+els.postBoardQrModal.addEventListener("click", (event) => {
+  if (event.target === els.postBoardQrModal) els.postBoardQrModal.classList.add("hidden");
+});
 window.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && !els.imageViewer.classList.contains("hidden")) closeImageViewer();
+  if (event.key === "Escape") {
+    if (!els.postBoardQrModal.classList.contains("hidden")) {
+      els.postBoardQrModal.classList.add("hidden");
+    } else if (!els.imageViewer.classList.contains("hidden")) {
+      closeImageViewer();
+    }
+  }
 });
 els.makeGroups.addEventListener("click", makeGroups);
 els.copyGroups.addEventListener("click", copyGroups);

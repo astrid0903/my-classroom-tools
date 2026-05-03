@@ -292,6 +292,7 @@ h3 {
   justify-content: space-between;
   gap: 24px;
   margin-bottom: 22px;
+  padding-right: 250px;
 }
 
 .post-board-kicker {
@@ -329,17 +330,103 @@ h3 {
   box-shadow: 0 16px 36px rgba(28, 42, 56, 0.14);
 }
 
+.post-board-join-title {
+  font-size: 0.82rem;
+  font-weight: 850;
+  color: #1e252c;
+  text-align: center;
+  word-break: break-all;
+  line-height: 1.3;
+}
+
 .post-board-join-card img {
   width: 138px;
   height: 138px;
   border-radius: 6px;
 }
 
-.post-board-join-card a {
+.post-board-join-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.post-board-join-footer a {
   color: #2364aa;
   font-size: 0.86rem;
   font-weight: 850;
   text-decoration: none;
+}
+
+.post-board-qr-expand {
+  border: 0;
+  background: none;
+  color: #5c6670;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.post-board-qr-expand:hover {
+  background: rgba(30, 37, 44, 0.08);
+  color: #1e252c;
+}
+
+.post-board-qr-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(7, 12, 18, 0.72);
+  backdrop-filter: blur(6px);
+}
+
+.post-board-qr-modal.hidden {
+  display: none;
+}
+
+.post-board-qr-modal-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 32px 36px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.32);
+}
+
+.post-board-qr-modal-title {
+  font-size: 1.4rem;
+  font-weight: 900;
+  color: #1e252c;
+  text-align: center;
+  margin: 0;
+}
+
+.post-board-qr-modal-inner img {
+  width: 320px;
+  height: 320px;
+  border-radius: 8px;
+}
+
+.post-board-qr-modal-close {
+  min-width: 120px;
+  min-height: 44px;
+  border: 0;
+  border-radius: 8px;
+  background: #1e252c;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.post-board-qr-modal-close:hover {
+  background: #2d3a45;
 }
 
 .post-board-message {
@@ -1444,6 +1531,7 @@ h3 {
 
   .post-board-hero {
     display: grid;
+    padding-right: 0;
   }
 
   .post-board-join-card {
@@ -1452,6 +1540,11 @@ h3 {
     grid-template-columns: 112px 1fr;
     align-items: center;
     justify-items: start;
+  }
+
+  .post-board-join-card .post-board-join-title {
+    grid-column: 1 / -1;
+    text-align: left;
   }
 
   .post-board-join-card img {

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Google Slides 教學播放台</title>
-  <link rel="stylesheet" href="./styles.css?v=20260503-1630">
+  <link rel="stylesheet" href="./styles.css?v=20260503-1700">
 </head>
 <body>
   <main class="studio">
@@ -24,13 +24,24 @@
               <p id="post-board-detail">參與者掃描 QR Code 後可以新增文字貼文或上傳圖片。</p>
             </div>
             <div class="post-board-join-card">
+              <span id="post-board-join-title" class="post-board-join-title"></span>
               <img id="post-board-qr" alt="貼文板 QR Code">
-              <a id="post-board-link" href="#" target="_blank" rel="noreferrer">開啟投稿頁</a>
+              <div class="post-board-join-footer">
+                <a id="post-board-link" href="#" target="_blank" rel="noreferrer">開啟投稿頁</a>
+                <button id="post-board-qr-expand" type="button" class="post-board-qr-expand" title="放大 QR Code">⛶</button>
+              </div>
             </div>
           </header>
           <div id="post-board-message" class="post-board-message" aria-live="polite"></div>
           <div id="post-board-grid" class="post-board-grid"></div>
         </section>
+        <div id="post-board-qr-modal" class="post-board-qr-modal hidden" role="dialog" aria-modal="true">
+          <div class="post-board-qr-modal-inner">
+            <p id="post-board-qr-modal-title" class="post-board-qr-modal-title"></p>
+            <img id="post-board-qr-modal-img" alt="貼文板 QR Code 大圖">
+            <button id="post-board-qr-modal-close" type="button" class="post-board-qr-modal-close">關閉</button>
+          </div>
+        </div>
         <div id="slides-loading" class="slides-loading hidden" aria-live="polite">
           <div class="loading-box">
             <div class="spinner" aria-hidden="true"></div>
@@ -437,6 +448,6 @@
     <img id="image-viewer-img" alt="貼文圖片預覽">
   </div>
 
-  <script src="./script.js?v=20260503-1630"></script>
+  <script src="./script.js?v=20260503-1700"></script>
 </body>
 </html>
