@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Google Slides 教學播放台</title>
-  <link rel="stylesheet" href="./styles.css?v=20260503-1730">
+  <link rel="stylesheet" href="./styles.css?v=20260503-1840">
 </head>
 <body>
   <main class="studio">
@@ -23,12 +23,15 @@
               <h1 id="post-board-title">貼文板</h1>
               <p id="post-board-detail">參與者掃描 QR Code 後可以新增文字貼文或上傳圖片。</p>
             </div>
-            <div class="post-board-join-card">
-              <span id="post-board-join-title" class="post-board-join-title"></span>
-              <img id="post-board-qr" alt="貼文板 QR Code">
-              <div class="post-board-join-footer">
-                <a id="post-board-link" href="#" target="_blank" rel="noreferrer">開啟投稿頁</a>
-                <button id="post-board-qr-expand" type="button" class="post-board-qr-expand" title="放大 QR Code">⛶</button>
+            <div class="post-board-join-card" id="post-board-join-card">
+              <button id="post-board-qr-toggle" type="button" class="post-board-qr-toggle" title="顯示／隱藏 QR Code">QR Code</button>
+              <div class="post-board-join-body">
+                <span id="post-board-join-title" class="post-board-join-title"></span>
+                <img id="post-board-qr" alt="貼文板 QR Code">
+                <div class="post-board-join-footer">
+                  <a id="post-board-link" href="#" target="_blank" rel="noreferrer">開啟投稿頁</a>
+                  <button id="post-board-qr-expand" type="button" class="post-board-qr-expand" title="放大 QR Code">⛶</button>
+                </div>
               </div>
             </div>
           </header>
@@ -444,8 +447,10 @@
         <form id="participant-form" class="participant-form">
           <label for="participant-name">名稱</label>
           <input id="participant-name" type="text" maxlength="40" placeholder="可填座號、組別或暱稱">
-          <label for="participant-section">投稿區段</label>
-          <select id="participant-section"></select>
+          <div id="participant-section-row">
+            <label for="participant-section">投稿區段</label>
+            <select id="participant-section"></select>
+          </div>
           <label for="participant-content">貼文內容</label>
           <textarea id="participant-content" rows="5" maxlength="600" placeholder="寫下你的想法、問題或回饋"></textarea>
           <label for="participant-image">上傳圖片</label>

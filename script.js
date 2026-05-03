@@ -47,6 +47,8 @@ const els = {
   postBoardJoinTitle: document.querySelector("#post-board-join-title"),
   postBoardQr: document.querySelector("#post-board-qr"),
   postBoardLink: document.querySelector("#post-board-link"),
+  postBoardJoinCard: document.querySelector("#post-board-join-card"),
+  postBoardQrToggle: document.querySelector("#post-board-qr-toggle"),
   postBoardQrExpand: document.querySelector("#post-board-qr-expand"),
   postBoardQrModal: document.querySelector("#post-board-qr-modal"),
   postBoardQrModalTitle: document.querySelector("#post-board-qr-modal-title"),
@@ -158,6 +160,7 @@ const els = {
   participantForm: document.querySelector("#participant-form"),
   participantName: document.querySelector("#participant-name"),
   participantSection: document.querySelector("#participant-section"),
+  participantSectionRow: document.querySelector("#participant-section-row"),
   participantContent: document.querySelector("#participant-content"),
   participantImage: document.querySelector("#participant-image"),
   participantSubmit: document.querySelector("#participant-submit"),
@@ -1646,8 +1649,48 @@ function renderPostCards(container, posts, options = {}) {
 function renderPostBoardColumns(page, sections) {
   els.postBoardGrid.innerHTML = "";
   const boardColumns = createEl("div", "post-board-columns");
-  sections.forEach((section) => {
+
+  if (sections.length === 0 && postBoardPosts.length > 0) {
+    const body = createEl("div", "post-section-body");
+    renderPostCards(body, postBoardPosts, { canManage: true });
+    boardColumns.appendChild(body);
+  }
+
+  let dragSrcIdx = null;
+
+  sections.forEach((section, idx) => {
     const column = createEl("section", "post-section");
+    column.draggable = true;
+
+    column.addEventListener("dragstart", (e) => {
+      dragSrcIdx = idx;
+      column.classList.add("dragging");
+      e.dataTransfer.effectAllowed = "move";
+    });
+    column.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      column.classList.add("drag-over");
+    });
+    column.addEventListener("dragleave", () => {
+      column.classList.remove("drag-over");
+    });
+    column.addEventListener("drop", (e) => {
+      e.preventDefault();
+      column.classList.remove("drag-over");
+      if (dragSrcIdx === null || dragSrcIdx === idx) return;
+      const next = [...sections];
+      const [moved] = next.splice(dragSrcIdx, 1);
+      next.splice(idx, 0, moved);
+      dragSrcIdx = null;
+      savePostSections(next);
+    });
+    column.addEventListener("dragend", () => {
+      column.classList.remove("dragging");
+      boardColumns.querySelectorAll(".post-section").forEach((c) => c.classList.remove("drag-over"));
+      dragSrcIdx = null;
+    });
+
     const head = createEl("div", "post-section-head");
     const titleButton = createEl("button", "post-section-title", section.name);
     titleButton.type = "button";
@@ -1670,8 +1713,9 @@ function renderPostBoardColumns(page, sections) {
     column.append(head, body);
     boardColumns.appendChild(column);
   });
-  const addSection = createEl("button", "post-section-new", "新增區段");
+  const addSection = createEl("button", "post-section-new", "+");
   addSection.type = "button";
+  addSection.title = "新增區段";
   addSection.addEventListener("click", addPostSection);
   boardColumns.appendChild(addSection);
   els.postBoardGrid.appendChild(boardColumns);
@@ -1830,8 +1874,13 @@ function renderParticipantNote(html) {
 
 function renderParticipantBoard(sections, posts) {
   els.participantBoardBody.innerHTML = "";
-  els.participantOpenForm.classList.toggle("hidden", sections.length === 0);
-  if (sections.length === 0) return;
+  els.participantOpenForm.classList.remove("hidden");
+  if (sections.length === 0) {
+    const body = createEl("div", "post-section-body");
+    renderPostCards(body, posts);
+    els.participantBoardBody.appendChild(body);
+    return;
+  }
   const columns = createEl("div", "post-board-columns participant-board-columns");
   sections.forEach((section) => {
     const column = createEl("section", "post-section");
@@ -1852,6 +1901,7 @@ function renderParticipantBoard(sections, posts) {
 
 function renderParticipantSections(sections, selectedId = "") {
   const normalized = normalizePostSections(sections);
+  els.participantSectionRow.classList.toggle("hidden", normalized.length === 0);
   els.participantSection.innerHTML = "";
   normalized.forEach((section) => {
     const option = document.createElement("option");
@@ -3332,6 +3382,9 @@ els.clearWidgetSelection.addEventListener("click", clearWidgetSelection);
 els.imageViewerClose.addEventListener("click", closeImageViewer);
 els.imageViewer.addEventListener("click", (event) => {
   if (event.target === els.imageViewer) closeImageViewer();
+});
+els.postBoardQrToggle.addEventListener("click", () => {
+  els.postBoardJoinCard.classList.toggle("expanded");
 });
 els.postBoardQrExpand.addEventListener("click", () => {
   const page = activePage();
