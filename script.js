@@ -9,6 +9,7 @@ const FIREBASE_CONFIG = {
   measurementId: "G-X9V70BGRZH",
 };
 const FIREBASE_COLLECTION = "classroomToolLayouts";
+const POST_BOARDS_COLLECTION = "classroomPostBoards";
 
 const els = {
   stage: document.querySelector("#slide-stage"),
@@ -30,11 +31,23 @@ const els = {
   pageSelect: document.querySelector("#page-select"),
   pageName: document.querySelector("#page-name"),
   addPage: document.querySelector("#add-page"),
+  addPostBoardPage: document.querySelector("#add-post-board-page"),
   deletePage: document.querySelector("#delete-page"),
   pageMessage: document.querySelector("#page-message"),
+  postBoardControls: document.querySelector("#post-board-controls"),
+  postBoardJoinUrl: document.querySelector("#post-board-join-url"),
+  copyPostBoardLink: document.querySelector("#copy-post-board-link"),
+  openPostBoardLink: document.querySelector("#open-post-board-link"),
   pageTabs: document.querySelector("#page-tabs"),
   emptyStateTitle: document.querySelector("#empty-state strong"),
   emptyStateDetail: document.querySelector("#empty-state span"),
+  postBoardStage: document.querySelector("#post-board-stage"),
+  postBoardTitle: document.querySelector("#post-board-title"),
+  postBoardDetail: document.querySelector("#post-board-detail"),
+  postBoardQr: document.querySelector("#post-board-qr"),
+  postBoardLink: document.querySelector("#post-board-link"),
+  postBoardGrid: document.querySelector("#post-board-grid"),
+  postBoardMessage: document.querySelector("#post-board-message"),
   snapGuides: document.querySelector("#snap-guides"),
   fullscreenButton: document.querySelector("#fullscreen-button"),
   showTimer: document.querySelector("#show-timer"),
@@ -125,6 +138,16 @@ const els = {
   expandDock: document.querySelector("#expand-dock"),
   dockItems: document.querySelectorAll(".dock-item[data-tool]"),
   toolPanels: document.querySelectorAll(".tool-section[data-panel]"),
+  studio: document.querySelector(".studio"),
+  participantView: document.querySelector("#participant-view"),
+  participantTitle: document.querySelector("#participant-title"),
+  participantForm: document.querySelector("#participant-form"),
+  participantName: document.querySelector("#participant-name"),
+  participantContent: document.querySelector("#participant-content"),
+  participantImage: document.querySelector("#participant-image"),
+  participantSubmit: document.querySelector("#participant-submit"),
+  participantMessage: document.querySelector("#participant-message"),
+  participantPosts: document.querySelector("#participant-posts"),
 };
 
 let timerTotal = 5 * 60;
@@ -154,7 +177,11 @@ let activePageId = "main";
 let moreToolsOpen = false;
 let selectedWidgets = new Set();
 let topWidgetZ = 20;
+let postBoardUnsubscribe = null;
+let postBoardPosts = [];
+let participantUnsubscribe = null;
 const DEFAULT_PAGE = { id: "main", name: "主簡報", type: "slides" };
+const PAGE_TYPES = new Set(["slides", "dark", "posts"]);
 const DYNAMIC_WIDGET_TYPES = new Set(["timer", "clock", "groups", "text", "image", "youtube", "slides", "qr"]);
 const SNAP_GRID = 12;
 const SNAP_DISTANCE = 8;
@@ -254,11 +281,16 @@ function formatSavedAt(value) {
 function normalizePages(value) {
   const source = Array.isArray(value) ? value : [];
   const normalized = source
-    .map((page) => ({
-      id: String(page?.id || "").trim(),
-      name: String(page?.name || "").trim(),
-      type: page?.type === "dark" ? "dark" : "slides",
-    }))
+    .map((page) => {
+      const type = PAGE_TYPES.has(page?.type) ? page.type : "slides";
+      const normalizedPage = {
+        id: String(page?.id || "").trim(),
+        name: String(page?.name || "").trim(),
+        type,
+      };
+      if (type === "posts") normalizedPage.boardId = String(page?.boardId || page?.id || makeBoardId()).trim();
+      return normalizedPage;
+    })
     .filter((page) => page.id && page.name);
   const hasMain = normalized.some((page) => page.id === DEFAULT_PAGE.id);
   return hasMain ? normalized : [DEFAULT_PAGE, ...normalized];
@@ -274,6 +306,11 @@ function activePageShowsMainSlides() {
 
 function makePageId() {
   return `page-${Date.now().toString(36)}`;
+}
+
+function makeBoardId() {
+  const random = Math.random().toString(36).slice(2, 8);
+  return `board-${Date.now().toString(36)}-${random}`;
 }
 
 function renderPages() {
@@ -297,6 +334,7 @@ function renderPages() {
   els.pageSelect.value = activePage().id;
   els.pageName.value = activePage().id === DEFAULT_PAGE.id ? "" : activePage().name;
   els.deletePage.disabled = activePage().id === DEFAULT_PAGE.id;
+  updatePostBoardControls();
 }
 
 function updateDynamicWidgetVisibility() {
@@ -310,15 +348,25 @@ function updateStageForPage() {
   const page = activePage();
   const showMainSlides = page.type === "slides" && Boolean(currentSlides);
   els.stage.classList.toggle("blank-page", page.type === "dark");
+  els.stage.classList.toggle("post-page", page.type === "posts");
   els.stage.classList.toggle("has-slides", showMainSlides);
+  els.postBoardStage.classList.toggle("hidden", page.type !== "posts");
 
   if (page.type === "dark") {
     setLoading(false);
+    unsubscribePostBoard();
     els.emptyStateTitle.textContent = "";
     els.emptyStateDetail.textContent = "";
+  } else if (page.type === "posts") {
+    setLoading(false);
+    els.emptyStateTitle.textContent = "";
+    els.emptyStateDetail.textContent = "";
+    renderPostBoard();
+    subscribeActivePostBoard();
   } else {
     els.emptyStateTitle.textContent = "Google Slides 教學播放台";
     els.emptyStateDetail.textContent = "從下方 slides 貼上簡報連結。";
+    unsubscribePostBoard();
   }
 
   updateDynamicWidgetVisibility();
@@ -405,6 +453,18 @@ function addDarkPage() {
   writeState();
 }
 
+function addPostBoardPage() {
+  const name = els.pageName.value.trim() || `貼文板 ${pages.filter((page) => page.type === "posts").length + 1}`;
+  const page = { id: makePageId(), name, type: "posts", boardId: makeBoardId() };
+  pages = [...pages, page];
+  activePageId = page.id;
+  els.pageMessage.textContent = `已新增「${name}」，QR Code 會連到這一頁的投稿入口。`;
+  els.pageMessage.classList.remove("error");
+  updateStageForPage();
+  ensurePostBoardDoc(page);
+  writeState();
+}
+
 function switchPage(pageId) {
   if (!pages.some((page) => page.id === pageId)) return;
   activePageId = pageId;
@@ -419,6 +479,7 @@ function renameActivePage(name) {
   if (!nextName) return;
   pages = pages.map((item) => (item.id === page.id ? { ...item, name: nextName } : item));
   updateStageForPage();
+  if (activePage().type === "posts") ensurePostBoardDoc(activePage());
   writeState();
 }
 
@@ -1256,15 +1317,24 @@ async function loadFirebaseApi() {
     firebaseLoadPromise = Promise.all([
       import("https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js"),
       import("https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js"),
-    ]).then(([appModule, firestoreModule]) => {
+      import("https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js"),
+    ]).then(([appModule, firestoreModule, authModule]) => {
       const app = appModule.initializeApp(FIREBASE_CONFIG);
       const db = firestoreModule.getFirestore(app);
+      const auth = authModule.getAuth(app);
       firebaseApi = {
+        auth,
         db,
         doc: firestoreModule.doc,
+        collection: firestoreModule.collection,
+        addDoc: firestoreModule.addDoc,
         getDoc: firestoreModule.getDoc,
         setDoc: firestoreModule.setDoc,
+        query: firestoreModule.query,
+        orderBy: firestoreModule.orderBy,
+        onSnapshot: firestoreModule.onSnapshot,
         serverTimestamp: firestoreModule.serverTimestamp,
+        signInAnonymously: authModule.signInAnonymously,
       };
       return firebaseApi;
     });
@@ -1272,8 +1342,258 @@ async function loadFirebaseApi() {
   return firebaseLoadPromise;
 }
 
+async function ensureFirebaseAuth(api) {
+  if (api.auth?.currentUser) return;
+  try {
+    await api.signInAnonymously(api.auth);
+  } catch {
+    // Some classroom deployments use public Firestore rules and do not enable anonymous auth.
+  }
+}
+
 function cloudDocRef(api, syncCode) {
   return api.doc(api.db, FIREBASE_COLLECTION, syncCode);
+}
+
+function postBoardDocRef(api, boardId) {
+  return api.doc(api.db, POST_BOARDS_COLLECTION, boardId);
+}
+
+function postBoardPostsRef(api, boardId) {
+  return api.collection(api.db, POST_BOARDS_COLLECTION, boardId, "posts");
+}
+
+function postBoardJoinUrl(page) {
+  if (!page?.boardId) return "";
+  const url = new URL(window.location.href);
+  url.search = "";
+  url.hash = "";
+  url.searchParams.set("board", page.boardId);
+  url.searchParams.set("title", page.name || "貼文板");
+  return url.toString();
+}
+
+async function ensurePostBoardDoc(page) {
+  if (!page?.boardId) return;
+  try {
+    const api = await loadFirebaseApi();
+    await ensureFirebaseAuth(api);
+    await api.setDoc(
+      postBoardDocRef(api, page.boardId),
+      {
+        title: page.name || "貼文板",
+        updatedAt: api.serverTimestamp(),
+        kind: "postBoard",
+        version: 1,
+      },
+      { merge: true },
+    );
+  } catch (error) {
+    els.postBoardMessage.textContent = `貼文板雲端連線失敗：${error.message || "請確認 Firestore 規則。"}`;
+    els.postBoardMessage.classList.add("error");
+  }
+}
+
+function updatePostBoardControls() {
+  const page = activePage();
+  const isPostBoard = page.type === "posts";
+  els.postBoardControls.classList.toggle("hidden", !isPostBoard);
+  if (!isPostBoard) return;
+  const url = postBoardJoinUrl(page);
+  els.postBoardJoinUrl.value = url;
+  els.openPostBoardLink.href = url || "#";
+}
+
+function renderPostCards(container, posts) {
+  container.innerHTML = "";
+  if (posts.length === 0) {
+    const empty = createEl("div", "post-card empty-post", "目前還沒有貼文");
+    container.appendChild(empty);
+    return;
+  }
+
+  posts.forEach((post) => {
+    const card = createEl("article", "post-card");
+    const meta = createEl("div", "post-meta");
+    const author = createEl("strong", "", post.author || "匿名");
+    const time = createEl("span", "", formatPostTime(post.createdAt));
+    meta.append(author, time);
+    card.appendChild(meta);
+    if (post.content) {
+      const content = createEl("p", "post-content", post.content);
+      card.appendChild(content);
+    }
+    if (post.imageDataUrl) {
+      const image = document.createElement("img");
+      image.src = post.imageDataUrl;
+      image.alt = post.content ? `貼文圖片：${post.content.slice(0, 24)}` : "貼文圖片";
+      card.appendChild(image);
+    }
+    container.appendChild(card);
+  });
+}
+
+function renderPostBoard() {
+  const page = activePage();
+  if (page.type !== "posts") return;
+  const joinUrl = postBoardJoinUrl(page);
+  els.postBoardTitle.textContent = page.name || "貼文板";
+  els.postBoardDetail.textContent = "參與者掃描 QR Code 後可以新增文字貼文或上傳圖片。";
+  els.postBoardQr.src = buildQrCodeUrl(joinUrl, "260");
+  els.postBoardLink.href = joinUrl || "#";
+  els.postBoardMessage.textContent = postBoardPosts.length === 0 ? "等待參與者投稿中。" : `已收到 ${postBoardPosts.length} 則貼文。`;
+  els.postBoardMessage.classList.remove("error");
+  renderPostCards(els.postBoardGrid, postBoardPosts);
+  updatePostBoardControls();
+}
+
+function unsubscribePostBoard() {
+  if (postBoardUnsubscribe) {
+    postBoardUnsubscribe();
+    postBoardUnsubscribe = null;
+  }
+}
+
+async function subscribeActivePostBoard() {
+  const page = activePage();
+  if (page.type !== "posts" || !page.boardId) return;
+  unsubscribePostBoard();
+  postBoardPosts = [];
+  renderPostBoard();
+  await ensurePostBoardDoc(page);
+  try {
+    const api = await loadFirebaseApi();
+    await ensureFirebaseAuth(api);
+    const postsQuery = api.query(postBoardPostsRef(api, page.boardId), api.orderBy("createdAt", "desc"));
+    postBoardUnsubscribe = api.onSnapshot(
+      postsQuery,
+      (snapshot) => {
+        postBoardPosts = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        renderPostBoard();
+      },
+      (error) => {
+        els.postBoardMessage.textContent = `貼文載入失敗：${error.message || "請確認 Firestore 規則。"}`;
+        els.postBoardMessage.classList.add("error");
+      },
+    );
+  } catch (error) {
+    els.postBoardMessage.textContent = `貼文板無法連線：${error.message || "請確認網路與 Firestore 設定。"}`;
+    els.postBoardMessage.classList.add("error");
+  }
+}
+
+function formatPostTime(value) {
+  const date = value?.toDate ? value.toDate() : value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) return "剛剛";
+  return date.toLocaleTimeString("zh-Hant", { hour: "2-digit", minute: "2-digit" });
+}
+
+function sortPosts(posts) {
+  return [...posts].sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+}
+
+function isParticipantMode() {
+  return Boolean(new URLSearchParams(window.location.search).get("board"));
+}
+
+function setParticipantMessage(text, isError = false) {
+  els.participantMessage.textContent = text;
+  els.participantMessage.classList.toggle("error", isError);
+}
+
+async function imageFileToPostDataUrl(file) {
+  if (!file) return "";
+  if (!file.type.startsWith("image/")) throw new Error("請選擇圖片檔。");
+
+  const source = await fileToDataUrl(file);
+  const image = await new Promise((resolve, reject) => {
+    const img = new Image();
+    img.addEventListener("load", () => resolve(img));
+    img.addEventListener("error", () => reject(new Error("圖片讀取失敗。")));
+    img.src = source;
+  });
+  const maxSide = 1280;
+  const scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+  canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+  const context = canvas.getContext("2d");
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", 0.78);
+}
+
+async function submitParticipantPost(event) {
+  event.preventDefault();
+  const params = new URLSearchParams(window.location.search);
+  const boardId = params.get("board");
+  const author = els.participantName.value.trim().slice(0, 40);
+  const content = els.participantContent.value.trim().slice(0, 600);
+  const file = els.participantImage.files?.[0] || null;
+  if (!boardId) return;
+  if (!content && !file) {
+    setParticipantMessage("請先輸入內容或選擇圖片。", true);
+    return;
+  }
+
+  try {
+    els.participantSubmit.disabled = true;
+    setParticipantMessage("正在送出...");
+    const imageDataUrl = file ? await imageFileToPostDataUrl(file) : "";
+    if (imageDataUrl.length > 950000) {
+      throw new Error("圖片太大，請換一張較小的圖片。");
+    }
+    const api = await loadFirebaseApi();
+    await ensureFirebaseAuth(api);
+    await api.addDoc(postBoardPostsRef(api, boardId), {
+      author,
+      content,
+      imageDataUrl,
+      createdAt: api.serverTimestamp(),
+    });
+    els.participantContent.value = "";
+    els.participantImage.value = "";
+    setParticipantMessage("已送出。");
+  } catch (error) {
+    setParticipantMessage(error.message || "送出失敗，請稍後再試。", true);
+  } finally {
+    els.participantSubmit.disabled = false;
+  }
+}
+
+async function initParticipantMode() {
+  const params = new URLSearchParams(window.location.search);
+  const boardId = params.get("board");
+  const title = params.get("title") || "貼文板投稿";
+  if (!boardId) return;
+
+  els.studio.classList.add("hidden");
+  els.participantView.classList.remove("hidden");
+  els.participantTitle.textContent = title;
+  document.title = `${title} - 投稿`;
+  els.participantForm.addEventListener("submit", submitParticipantPost);
+
+  try {
+    const api = await loadFirebaseApi();
+    await ensureFirebaseAuth(api);
+    const boardSnapshot = await api.getDoc(postBoardDocRef(api, boardId));
+    if (boardSnapshot.exists() && boardSnapshot.data()?.title) {
+      els.participantTitle.textContent = boardSnapshot.data().title;
+      document.title = `${boardSnapshot.data().title} - 投稿`;
+    }
+    const postsQuery = api.query(postBoardPostsRef(api, boardId), api.orderBy("createdAt", "desc"));
+    participantUnsubscribe = api.onSnapshot(
+      postsQuery,
+      (snapshot) => {
+        const posts = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        renderPostCards(els.participantPosts, posts);
+      },
+      (error) => {
+        setParticipantMessage(`貼文載入失敗：${error.message || "請確認連線。"}`, true);
+      },
+    );
+  } catch (error) {
+    setParticipantMessage(`貼文板無法連線：${error.message || "請確認網路。"}`, true);
+  }
 }
 
 async function syncLayoutsToCloud() {
@@ -1296,6 +1616,7 @@ async function syncLayoutsToCloud() {
     els.layoutMessage.textContent = "正在同步到 Firebase...";
     els.layoutMessage.classList.remove("error");
     const api = await loadFirebaseApi();
+    await ensureFirebaseAuth(api);
     await api.setDoc(cloudDocRef(api, syncCode), {
       layouts,
       updatedAt: api.serverTimestamp(),
@@ -1325,6 +1646,7 @@ async function loadLayoutsFromCloud() {
     els.layoutMessage.textContent = "正在從 Firebase 載入...";
     els.layoutMessage.classList.remove("error");
     const api = await loadFirebaseApi();
+    await ensureFirebaseAuth(api);
     const snapshot = await api.getDoc(cloudDocRef(api, syncCode));
     if (!snapshot.exists()) {
       els.layoutMessage.textContent = "找不到這組同步碼的雲端版本。";
@@ -2509,7 +2831,20 @@ els.switchSlidesMode.addEventListener("click", switchSlidesMode);
 els.pageSelect.addEventListener("change", () => switchPage(els.pageSelect.value));
 els.pageName.addEventListener("change", () => renameActivePage(els.pageName.value));
 els.addPage.addEventListener("click", addDarkPage);
+els.addPostBoardPage.addEventListener("click", addPostBoardPage);
 els.deletePage.addEventListener("click", deleteActivePage);
+els.copyPostBoardLink.addEventListener("click", async () => {
+  const url = els.postBoardJoinUrl.value;
+  if (!url) return;
+  try {
+    await navigator.clipboard.writeText(url);
+    els.pageMessage.textContent = "已複製貼文板投稿連結。";
+    els.pageMessage.classList.remove("error");
+  } catch {
+    els.pageMessage.textContent = "瀏覽器沒有開放自動複製，請手動複製連結。";
+    els.pageMessage.classList.add("error");
+  }
+});
 els.retrySlides.addEventListener("click", () => {
   if (currentPlayerUrl) loadPlayerUrl(currentPlayerUrl);
 });
@@ -2665,4 +3000,8 @@ window.addEventListener("pointercancel", () => {
   stopResize();
 });
 
-restore();
+if (isParticipantMode()) {
+  initParticipantMode();
+} else {
+  restore();
+}

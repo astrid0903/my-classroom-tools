@@ -197,6 +197,14 @@ h3 {
   background: #080a0e;
 }
 
+.slide-stage.post-page {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(246, 248, 251, 0.72)),
+    radial-gradient(circle at 16% 12%, rgba(255, 197, 110, 0.34), transparent 20rem),
+    radial-gradient(circle at 88% 22%, rgba(84, 151, 210, 0.26), transparent 24rem),
+    linear-gradient(135deg, #e9f1f7, #fbf4e6 56%, #dce9de);
+}
+
 .page-tabs {
   position: absolute;
   top: 14px;
@@ -257,8 +265,151 @@ h3 {
   display: none;
 }
 
+.slide-stage.post-page #slides-frame {
+  display: none;
+}
+
 .slide-stage.blank-page .empty-state {
   display: none;
+}
+
+.slide-stage.post-page .empty-state {
+  display: none;
+}
+
+.post-board-stage {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  overflow: auto;
+  padding: 54px min(5vw, 72px) 132px;
+  color: #1e252c;
+}
+
+.post-board-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 22px;
+}
+
+.post-board-kicker {
+  color: #5c6670;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+}
+
+.post-board-hero h1 {
+  margin-top: 8px;
+  font-size: clamp(2rem, 4vw, 4.5rem);
+  line-height: 1.04;
+  letter-spacing: 0;
+}
+
+.post-board-hero p {
+  max-width: 620px;
+  margin-top: 10px;
+  color: #55606b;
+  font-size: clamp(1rem, 1.5vw, 1.22rem);
+  font-weight: 650;
+  line-height: 1.55;
+}
+
+.post-board-join-card {
+  width: 176px;
+  flex: 0 0 auto;
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  padding: 12px;
+  border: 1px solid rgba(30, 37, 44, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.84);
+  box-shadow: 0 16px 36px rgba(28, 42, 56, 0.14);
+}
+
+.post-board-join-card img {
+  width: 138px;
+  height: 138px;
+  border-radius: 6px;
+}
+
+.post-board-join-card a {
+  color: #2364aa;
+  font-size: 0.86rem;
+  font-weight: 850;
+  text-decoration: none;
+}
+
+.post-board-message {
+  min-height: 24px;
+  margin-bottom: 14px;
+  color: #5c6670;
+  font-weight: 750;
+}
+
+.post-board-message.error {
+  color: var(--red);
+}
+
+.post-board-grid {
+  column-count: 3;
+  column-gap: 18px;
+}
+
+.post-card {
+  display: inline-block;
+  width: 100%;
+  margin: 0 0 18px;
+  break-inside: avoid;
+  border: 1px solid rgba(30, 37, 44, 0.11);
+  border-radius: 8px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 14px 30px rgba(28, 42, 56, 0.12);
+}
+
+.post-card.empty-post {
+  color: #687481;
+  font-weight: 800;
+  text-align: center;
+}
+
+.post-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+  color: #56626e;
+}
+
+.post-meta strong {
+  color: #26313b;
+}
+
+.post-meta span {
+  flex: 0 0 auto;
+  font-size: 0.82rem;
+}
+
+.post-content {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: #1e252c;
+  font-size: 1.04rem;
+  line-height: 1.55;
+}
+
+.post-card img {
+  display: block;
+  width: 100%;
+  max-height: 420px;
+  margin-top: 12px;
+  border-radius: 7px;
+  object-fit: contain;
+  background: #eef2f5;
 }
 
 .empty-state {
@@ -470,6 +621,11 @@ h3 {
 
 .hidden {
   display: none !important;
+}
+
+.post-board-controls {
+  display: grid;
+  gap: 8px;
 }
 
 .groups-output {
@@ -1016,6 +1172,92 @@ h3 {
 
 .dynamic-settings .button-row button.secondary {
   background: rgba(255, 255, 255, 0.92);
+}
+
+.participant-view {
+  min-height: 100vh;
+  overflow: auto;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(246, 248, 251, 0.76)),
+    radial-gradient(circle at 15% 8%, rgba(255, 197, 110, 0.34), transparent 18rem),
+    radial-gradient(circle at 90% 16%, rgba(64, 143, 191, 0.24), transparent 22rem),
+    #eef3f5;
+}
+
+.participant-shell {
+  width: min(960px, calc(100vw - 28px));
+  margin: 0 auto;
+  padding: 34px 0 48px;
+}
+
+.participant-head {
+  margin-bottom: 18px;
+}
+
+.participant-head span {
+  color: #5f6974;
+  font-weight: 850;
+}
+
+.participant-head h1 {
+  margin-top: 8px;
+  color: #1d252d;
+  font-size: clamp(2rem, 7vw, 4rem);
+  line-height: 1.05;
+  letter-spacing: 0;
+}
+
+.participant-form {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 28px;
+  border: 1px solid rgba(30, 37, 44, 0.12);
+  border-radius: 8px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 16px 34px rgba(28, 42, 56, 0.12);
+}
+
+.participant-form button {
+  min-height: 48px;
+}
+
+.participant-preview h2 {
+  margin-bottom: 14px;
+  color: #1d252d;
+  font-size: 1.2rem;
+}
+
+.post-board-grid.compact {
+  column-count: 2;
+}
+
+@media (max-width: 860px) {
+  .post-board-stage {
+    padding: 38px 16px 118px;
+  }
+
+  .post-board-hero {
+    display: grid;
+  }
+
+  .post-board-join-card {
+    width: min(100%, 340px);
+    justify-self: start;
+    grid-template-columns: 112px 1fr;
+    align-items: center;
+    justify-items: start;
+  }
+
+  .post-board-join-card img {
+    width: 112px;
+    height: 112px;
+  }
+
+  .post-board-grid,
+  .post-board-grid.compact {
+    column-count: 1;
+  }
 }
 
 .timer-widget {
