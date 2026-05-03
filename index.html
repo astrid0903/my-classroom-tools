@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Google Slides 教學播放台</title>
-  <link rel="stylesheet" href="./styles.css?v=20260503-1505">
+  <link rel="stylesheet" href="./styles.css?v=20260503-1600">
 </head>
 <body>
   <main class="studio">
@@ -391,29 +391,42 @@
     <button id="expand-dock" class="dock-mini hidden" type="button" aria-label="展開工具列">工具</button>
   </main>
 
-  <section id="participant-view" class="participant-view hidden" aria-label="貼文板投稿頁">
-    <main class="participant-shell">
-      <header class="participant-head">
-        <span>Classroom Post Board</span>
-        <h1 id="participant-title">貼文板投稿</h1>
+  <section id="participant-view" class="participant-view hidden" aria-label="貼文板">
+
+    <!-- 看板畫面（預設） -->
+    <div id="participant-board-screen" class="participant-screen">
+      <main class="participant-shell">
+        <header class="participant-head">
+          <span>Classroom Post Board</span>
+          <h1 id="participant-title">貼文板</h1>
+        </header>
+      </main>
+      <div id="participant-board-body" class="participant-board-body"></div>
+      <button id="participant-open-form" class="participant-fab" type="button">✏ 新增貼文</button>
+    </div>
+
+    <!-- 投稿表單畫面 -->
+    <div id="participant-form-screen" class="participant-screen hidden">
+      <header class="participant-form-head">
+        <button id="participant-back" type="button" class="participant-back-btn">← 返回看板</button>
+        <span>新增貼文</span>
       </header>
-      <form id="participant-form" class="participant-form">
-        <label for="participant-name">名稱</label>
-        <input id="participant-name" type="text" maxlength="40" placeholder="可填座號、組別或暱稱">
-        <label for="participant-section">投稿區段</label>
-        <select id="participant-section"></select>
-        <label for="participant-content">貼文內容</label>
-        <textarea id="participant-content" rows="5" maxlength="600" placeholder="寫下你的想法、問題或回饋"></textarea>
-        <label for="participant-image">上傳圖片</label>
-        <input id="participant-image" type="file" accept="image/*">
-        <button id="participant-submit" type="submit">送出貼文</button>
-        <p id="participant-message" class="hint" aria-live="polite"></p>
-      </form>
-      <section class="participant-preview">
-        <h2>已收到的貼文</h2>
-        <div id="participant-posts" class="post-board-grid compact"></div>
-      </section>
-    </main>
+      <main class="participant-shell">
+        <form id="participant-form" class="participant-form">
+          <label for="participant-name">名稱</label>
+          <input id="participant-name" type="text" maxlength="40" placeholder="可填座號、組別或暱稱">
+          <label for="participant-section">投稿區段</label>
+          <select id="participant-section"></select>
+          <label for="participant-content">貼文內容</label>
+          <textarea id="participant-content" rows="5" maxlength="600" placeholder="寫下你的想法、問題或回饋"></textarea>
+          <label for="participant-image">上傳圖片</label>
+          <input id="participant-image" type="file" accept="image/*">
+          <button id="participant-submit" type="submit">送出貼文</button>
+          <p id="participant-message" class="hint" aria-live="polite"></p>
+        </form>
+      </main>
+    </div>
+
   </section>
 
   <div id="image-viewer" class="image-viewer hidden" role="dialog" aria-modal="true" aria-label="貼文圖片預覽">
@@ -424,6 +437,6 @@
     <img id="image-viewer-img" alt="貼文圖片預覽">
   </div>
 
-  <script src="./script.js?v=20260503-1505"></script>
+  <script src="./script.js?v=20260503-1600"></script>
 </body>
 </html>

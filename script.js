@@ -140,6 +140,11 @@ const els = {
   toolPanels: document.querySelectorAll(".tool-section[data-panel]"),
   studio: document.querySelector(".studio"),
   participantView: document.querySelector("#participant-view"),
+  participantBoardScreen: document.querySelector("#participant-board-screen"),
+  participantFormScreen: document.querySelector("#participant-form-screen"),
+  participantBoardBody: document.querySelector("#participant-board-body"),
+  participantOpenForm: document.querySelector("#participant-open-form"),
+  participantBack: document.querySelector("#participant-back"),
   participantTitle: document.querySelector("#participant-title"),
   participantForm: document.querySelector("#participant-form"),
   participantName: document.querySelector("#participant-name"),
@@ -148,7 +153,6 @@ const els = {
   participantImage: document.querySelector("#participant-image"),
   participantSubmit: document.querySelector("#participant-submit"),
   participantMessage: document.querySelector("#participant-message"),
-  participantPosts: document.querySelector("#participant-posts"),
   imageViewer: document.querySelector("#image-viewer"),
   imageViewerImg: document.querySelector("#image-viewer-img"),
   imageViewerDownload: document.querySelector("#image-viewer-download"),
@@ -187,6 +191,8 @@ let postBoardMetadataUnsubscribe = null;
 let postBoardPosts = [];
 let postBoardSections = [];
 let participantUnsubscribe = null;
+let participantBoardSections = [];
+let participantBoardPosts = [];
 const DEFAULT_PAGE = { id: "main", name: "主簡報", type: "slides" };
 const PAGE_TYPES = new Set(["slides", "dark", "posts"]);
 const DYNAMIC_WIDGET_TYPES = new Set(["timer", "clock", "groups", "text", "image", "youtube", "slides", "qr"]);
@@ -408,6 +414,7 @@ function updateStageForPage() {
 }
 
 function setMoreToolsOpen(isOpen) {
+  if (isOpen && activeTool) setActiveTool("");
   moreToolsOpen = isOpen;
   els.toolDock.classList.toggle("more-open", moreToolsOpen);
   els.moreTools.setAttribute("aria-expanded", String(moreToolsOpen));
@@ -1722,6 +1729,40 @@ function setParticipantMessage(text, isError = false) {
   els.participantMessage.classList.toggle("error", isError);
 }
 
+function showParticipantBoard() {
+  els.participantBoardScreen.classList.remove("hidden");
+  els.participantFormScreen.classList.add("hidden");
+}
+
+function showParticipantForm(sectionId) {
+  if (sectionId) els.participantSection.value = sectionId;
+  els.participantMessage.textContent = "";
+  els.participantMessage.classList.remove("error");
+  els.participantBoardScreen.classList.add("hidden");
+  els.participantFormScreen.classList.remove("hidden");
+  els.participantContent.focus();
+}
+
+function renderParticipantBoard(sections, posts) {
+  els.participantBoardBody.innerHTML = "";
+  const columns = createEl("div", "post-board-columns participant-board-columns");
+  sections.forEach((section) => {
+    const column = createEl("section", "post-section");
+    const head = createEl("div", "post-section-head");
+    const titleEl = createEl("div", "post-section-title participant-section-title", section.name);
+    const addBtn = createEl("button", "post-section-add", "+");
+    addBtn.type = "button";
+    addBtn.title = `投稿到「${section.name}」`;
+    addBtn.addEventListener("click", () => showParticipantForm(section.id));
+    head.append(titleEl, addBtn);
+    const body = createEl("div", "post-section-body");
+    renderPostCards(body, postsForSection(posts, section.id));
+    column.append(head, body);
+    columns.appendChild(column);
+  });
+  els.participantBoardBody.appendChild(columns);
+}
+
 function renderParticipantSections(sections, selectedId = "") {
   const normalized = normalizePostSections(sections);
   els.participantSection.innerHTML = "";
@@ -1787,7 +1828,7 @@ async function submitParticipantPost(event) {
     });
     els.participantContent.value = "";
     els.participantImage.value = "";
-    setParticipantMessage("已送出。");
+    showParticipantBoard();
   } catch (error) {
     setParticipantMessage(error.message || "送出失敗，請稍後再試。", true);
   } finally {
@@ -1798,15 +1839,17 @@ async function submitParticipantPost(event) {
 async function initParticipantMode() {
   const params = new URLSearchParams(window.location.search);
   const boardId = params.get("board");
-  const title = params.get("title") || "貼文板投稿";
+  const title = params.get("title") || "貼文板";
   const selectedSectionId = params.get("section") || "";
   if (!boardId) return;
 
   els.studio.classList.add("hidden");
   els.participantView.classList.remove("hidden");
   els.participantTitle.textContent = title;
-  document.title = `${title} - 投稿`;
+  document.title = title;
   els.participantForm.addEventListener("submit", submitParticipantPost);
+  els.participantOpenForm.addEventListener("click", () => showParticipantForm());
+  els.participantBack.addEventListener("click", showParticipantBoard);
 
   try {
     const api = await loadFirebaseApi();
@@ -1814,18 +1857,24 @@ async function initParticipantMode() {
     const boardSnapshot = await api.getDoc(postBoardDocRef(api, boardId));
     if (boardSnapshot.exists() && boardSnapshot.data()?.title) {
       els.participantTitle.textContent = boardSnapshot.data().title;
-      document.title = `${boardSnapshot.data().title} - 投稿`;
+      document.title = boardSnapshot.data().title;
     }
-    renderParticipantSections(boardSnapshot.data()?.sections || defaultPostSections(), selectedSectionId);
+    participantBoardSections = normalizePostSections(boardSnapshot.data()?.sections || defaultPostSections());
+    renderParticipantSections(participantBoardSections, selectedSectionId);
+    renderParticipantBoard(participantBoardSections, participantBoardPosts);
+
     api.onSnapshot(postBoardDocRef(api, boardId), (snapshot) => {
-      renderParticipantSections(snapshot.data()?.sections || defaultPostSections(), els.participantSection.value || selectedSectionId);
+      participantBoardSections = normalizePostSections(snapshot.data()?.sections || defaultPostSections());
+      renderParticipantSections(participantBoardSections, els.participantSection.value || selectedSectionId);
+      renderParticipantBoard(participantBoardSections, participantBoardPosts);
     });
+
     const postsQuery = api.query(postBoardPostsRef(api, boardId), api.orderBy("createdAt", "desc"));
     participantUnsubscribe = api.onSnapshot(
       postsQuery,
       (snapshot) => {
-        const posts = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-        renderPostCards(els.participantPosts, posts);
+        participantBoardPosts = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        renderParticipantBoard(participantBoardSections, participantBoardPosts);
       },
       (error) => {
         setParticipantMessage(`貼文載入失敗：${error.message || "請確認連線。"}`, true);
@@ -1919,6 +1968,7 @@ async function loadLayoutsFromCloud() {
 }
 
 function setActiveTool(tool) {
+  if (tool && moreToolsOpen) setMoreToolsOpen(false);
   activeTool = tool;
   els.dockItems.forEach((item) => {
     item.classList.toggle("active", item.dataset.tool === tool);
