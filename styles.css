@@ -1749,6 +1749,33 @@ h3 {
   min-height: 48px;
 }
 
+.participant-post-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.participant-post-edit,
+.participant-post-delete {
+  flex: 1;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  border: 1px solid;
+  cursor: pointer;
+  background: transparent;
+}
+
+.participant-post-edit {
+  color: #2563eb;
+  border-color: #2563eb40;
+}
+
+.participant-post-delete {
+  color: #dc2626;
+  border-color: #dc262640;
+}
+
 .post-edit-modal {
   position: fixed;
   inset: 0;

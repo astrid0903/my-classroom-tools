@@ -163,6 +163,7 @@ const els = {
   participantBoardBody: document.querySelector("#participant-board-body"),
   participantOpenForm: document.querySelector("#participant-open-form"),
   participantBack: document.querySelector("#participant-back"),
+  participantFormTitle: document.querySelector("#participant-form-title"),
   participantTitle: document.querySelector("#participant-title"),
   participantForm: document.querySelector("#participant-form"),
   participantName: document.querySelector("#participant-name"),
@@ -232,6 +233,8 @@ let dragPostId = null;
 let participantUnsubscribe = null;
 let participantBoardSections = [];
 let participantBoardPosts = [];
+let participantUid = null;
+let participantEditingPostId = null;
 const DEFAULT_PAGE = { id: "main", name: "主簡報", type: "slides" };
 const PAGE_TYPES = new Set(["slides", "dark", "posts"]);
 const DYNAMIC_WIDGET_TYPES = new Set(["timer", "clock", "groups", "text", "image", "youtube", "slides", "qr"]);
@@ -2129,6 +2132,8 @@ function setParticipantMessage(text, isError = false) {
 }
 
 function showParticipantBoard() {
+  participantEditingPostId = null;
+  els.participantFormTitle.textContent = "新增貼文";
   els.participantBoardScreen.classList.remove("hidden");
   els.participantFormScreen.classList.add("hidden");
 }
@@ -2140,6 +2145,33 @@ function showParticipantForm(sectionId) {
   els.participantBoardScreen.classList.add("hidden");
   els.participantFormScreen.classList.remove("hidden");
   els.participantContent.focus();
+}
+
+function showParticipantEditForm(post) {
+  participantEditingPostId = post.id;
+  els.participantFormTitle.textContent = "編輯貼文";
+  els.participantName.value = post.author || "";
+  els.participantContent.value = post.content || "";
+  if (els.participantSection && post.sectionId) els.participantSection.value = post.sectionId;
+  els.participantMessage.textContent = "";
+  els.participantMessage.classList.remove("error");
+  els.participantBoardScreen.classList.add("hidden");
+  els.participantFormScreen.classList.remove("hidden");
+  els.participantContent.focus();
+}
+
+async function deleteParticipantPost(postId) {
+  const params = new URLSearchParams(window.location.search);
+  const boardId = params.get("board");
+  if (!boardId) return;
+  try {
+    const api = await loadFirebaseApi();
+    await ensureFirebaseAuth(api);
+    const ref = api.doc(postBoardPostsRef(api, boardId), postId);
+    await api.deleteDoc(ref);
+  } catch (error) {
+    setParticipantMessage(error.message || "刪除失敗，請稍後再試。", true);
+  }
 }
 
 function sanitizeNoteHtml(html) {
@@ -2155,12 +2187,48 @@ function renderParticipantNote(html) {
   els.participantNote.classList.toggle("hidden", !safe.trim());
 }
 
+function renderParticipantPostCards(container, posts) {
+  container.innerHTML = "";
+  if (posts.length === 0) {
+    container.appendChild(createEl("div", "post-card empty-post", "目前還沒有貼文"));
+    return;
+  }
+  posts.forEach((post) => {
+    const card = createEl("article", "post-card");
+    const meta = createEl("div", "post-meta");
+    meta.append(createEl("strong", "", post.author || "匿名"), createEl("span", "", formatPostTime(post.createdAt)));
+    card.appendChild(meta);
+    if (post.content) card.appendChild(createEl("p", "post-content", post.content));
+    if (post.imageDataUrl) {
+      const img = document.createElement("img");
+      img.src = post.imageDataUrl;
+      img.className = "post-thumb";
+      img.alt = "";
+      card.appendChild(img);
+    }
+    if (participantUid && post.authorUid === participantUid) {
+      const actions = createEl("div", "participant-post-actions");
+      const editBtn = createEl("button", "participant-post-edit", "編輯");
+      editBtn.type = "button";
+      editBtn.addEventListener("click", () => showParticipantEditForm(post));
+      const delBtn = createEl("button", "participant-post-delete", "刪除");
+      delBtn.type = "button";
+      delBtn.addEventListener("click", async () => {
+        if (await showConfirmModal("確定要刪除這則貼文嗎？")) deleteParticipantPost(post.id);
+      });
+      actions.append(editBtn, delBtn);
+      card.appendChild(actions);
+    }
+    container.appendChild(card);
+  });
+}
+
 function renderParticipantBoard(sections, posts) {
   els.participantBoardBody.innerHTML = "";
   els.participantOpenForm.classList.remove("hidden");
   if (sections.length === 0) {
     const body = createEl("div", "post-section-body");
-    renderPostCards(body, posts);
+    renderParticipantPostCards(body, posts);
     els.participantBoardBody.appendChild(body);
     return;
   }
@@ -2175,7 +2243,7 @@ function renderParticipantBoard(sections, posts) {
     addBtn.addEventListener("click", () => showParticipantForm(section.id));
     head.append(titleEl, addBtn);
     const body = createEl("div", "post-section-body");
-    renderPostCards(body, postsForSection(posts, section.id));
+    renderParticipantPostCards(body, postsForSection(posts, section.id));
     column.append(head, body);
     columns.appendChild(column);
   });
@@ -2241,15 +2309,29 @@ async function submitParticipantPost(event) {
     }
     const api = await loadFirebaseApi();
     await ensureFirebaseAuth(api);
-    await api.addDoc(postBoardPostsRef(api, boardId), {
-      author,
-      sectionId,
-      content,
-      imageDataUrl,
-      createdAt: api.serverTimestamp(),
-    });
+    participantUid = api.auth.currentUser?.uid || null;
+    if (participantEditingPostId) {
+      const ref = api.doc(postBoardPostsRef(api, boardId), participantEditingPostId);
+      await api.updateDoc(ref, {
+        author,
+        sectionId,
+        content,
+        updatedAt: api.serverTimestamp(),
+      });
+      participantEditingPostId = null;
+    } else {
+      await api.addDoc(postBoardPostsRef(api, boardId), {
+        author,
+        sectionId,
+        content,
+        imageDataUrl,
+        createdAt: api.serverTimestamp(),
+        authorUid: participantUid || "",
+      });
+    }
     els.participantContent.value = "";
     els.participantImage.value = "";
+    els.participantFormTitle.textContent = "新增貼文";
     showParticipantBoard();
   } catch (error) {
     setParticipantMessage(error.message || "送出失敗，請稍後再試。", true);
@@ -2276,6 +2358,7 @@ async function initParticipantMode() {
   try {
     const api = await loadFirebaseApi();
     await ensureFirebaseAuth(api);
+    participantUid = api.auth.currentUser?.uid || null;
     const boardSnapshot = await api.getDoc(postBoardDocRef(api, boardId));
     if (boardSnapshot.exists() && boardSnapshot.data()?.title) {
       els.participantTitle.textContent = boardSnapshot.data().title;
