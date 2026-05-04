@@ -1663,7 +1663,9 @@ function editPost(post) {
   const page = activePage();
   if (page.type !== "posts" || !page.boardId || !post?.id) return;
 
-  const sections = normalizePostSections(postBoardSections.length > 0 ? postBoardSections : page.sections);
+  const pbSections = normalizePostSections(postBoardSections);
+  const pgSections = normalizePostSections(page.sections);
+  const sections = pbSections.length >= pgSections.length ? pbSections : pgSections;
   const hasSections = sections.length > 0;
   els.postEditSection.innerHTML = "";
   els.postEditSectionLabel.hidden = !hasSections;
