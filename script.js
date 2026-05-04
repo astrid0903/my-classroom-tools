@@ -178,6 +178,15 @@ const els = {
   postEditSave: document.querySelector("#post-edit-save"),
   postEditCancel: document.querySelector("#post-edit-cancel"),
   postEditMessage: document.querySelector("#post-edit-message"),
+  promptModal: document.querySelector("#prompt-modal"),
+  promptModalTitle: document.querySelector("#prompt-modal-title"),
+  promptModalInput: document.querySelector("#prompt-modal-input"),
+  promptModalOk: document.querySelector("#prompt-modal-ok"),
+  promptModalCancel: document.querySelector("#prompt-modal-cancel"),
+  confirmModal: document.querySelector("#confirm-modal"),
+  confirmModalMessage: document.querySelector("#confirm-modal-message"),
+  confirmModalOk: document.querySelector("#confirm-modal-ok"),
+  confirmModalCancel: document.querySelector("#confirm-modal-cancel"),
   imageViewer: document.querySelector("#image-viewer"),
   imageViewerImg: document.querySelector("#image-viewer-img"),
   imageViewerDownload: document.querySelector("#image-viewer-download"),
@@ -1534,7 +1543,7 @@ function postsForSection(posts, sectionId) {
 async function addPostSection() {
   const page = activePage();
   if (page.type !== "posts") return;
-  const name = window.prompt("新增區段名稱", `新增區段 ${normalizePostSections(page.sections).length + 1}`);
+  const name = await showPromptModal("新增區段名稱", `新增區段 ${normalizePostSections(page.sections).length + 1}`);
   if (!name?.trim()) return;
   const sections = [...normalizePostSections(page.sections), { id: makeSectionId(), name: name.trim().slice(0, 40) }];
   await savePostSections(sections);
@@ -1546,7 +1555,7 @@ async function renamePostSection(sectionId) {
   const sections = normalizePostSections(page.sections);
   const section = sections.find((item) => item.id === sectionId);
   if (!section) return;
-  const name = window.prompt("重新命名區段", section.name);
+  const name = await showPromptModal("重新命名區段", section.name);
   if (!name?.trim()) return;
   await savePostSections(sections.map((item) => (item.id === sectionId ? { ...item, name: name.trim().slice(0, 40) } : item)));
 }
@@ -1558,11 +1567,11 @@ async function deletePostSection(sectionId) {
   const section = sections.find((item) => item.id === sectionId);
   if (!section) return;
   const postCount = postsForSection(postBoardPosts, sectionId).length;
-  const confirm = window.confirm(
+  const confirmed = await showConfirmModal(
     `確定要刪除區段「${section.name}」嗎？` +
     (postCount > 0 ? `\n此區段內有 ${postCount} 則貼文，貼文資料不會被刪除。` : "")
   );
-  if (!confirm) return;
+  if (!confirmed) return;
   await savePostSections(sections.filter((item) => item.id !== sectionId));
 }
 
@@ -1595,6 +1604,56 @@ async function savePostSections(sections) {
     els.postBoardMessage.textContent = `區段儲存失敗：${error.message || "請確認權限。"}`;
     els.postBoardMessage.classList.add("error");
   }
+}
+
+function showPromptModal(title, defaultValue = "") {
+  return new Promise((resolve) => {
+    els.promptModalTitle.textContent = title;
+    els.promptModalInput.value = defaultValue;
+    els.promptModalInput.maxLength = 40;
+    els.promptModal.classList.remove("hidden");
+    els.promptModalInput.focus();
+    els.promptModalInput.select();
+
+    const cleanup = (value) => {
+      els.promptModal.classList.add("hidden");
+      els.promptModalOk.removeEventListener("click", onOk);
+      els.promptModalCancel.removeEventListener("click", onCancel);
+      els.promptModalInput.removeEventListener("keydown", onKey);
+      els.promptModal.removeEventListener("click", onBackdrop);
+      resolve(value);
+    };
+    const onOk = () => cleanup(els.promptModalInput.value);
+    const onCancel = () => cleanup(null);
+    const onKey = (e) => { if (e.key === "Enter") { e.preventDefault(); cleanup(els.promptModalInput.value); } else if (e.key === "Escape") cleanup(null); };
+    const onBackdrop = (e) => { if (e.target === els.promptModal) cleanup(null); };
+    els.promptModalOk.addEventListener("click", onOk);
+    els.promptModalCancel.addEventListener("click", onCancel);
+    els.promptModalInput.addEventListener("keydown", onKey);
+    els.promptModal.addEventListener("click", onBackdrop);
+  });
+}
+
+function showConfirmModal(message) {
+  return new Promise((resolve) => {
+    els.confirmModalMessage.textContent = message;
+    els.confirmModal.classList.remove("hidden");
+    els.confirmModalOk.focus();
+
+    const cleanup = (result) => {
+      els.confirmModal.classList.add("hidden");
+      els.confirmModalOk.removeEventListener("click", onOk);
+      els.confirmModalCancel.removeEventListener("click", onCancel);
+      els.confirmModal.removeEventListener("click", onBackdrop);
+      resolve(result);
+    };
+    const onOk = () => cleanup(true);
+    const onCancel = () => cleanup(false);
+    const onBackdrop = (e) => { if (e.target === els.confirmModal) cleanup(false); };
+    els.confirmModalOk.addEventListener("click", onOk);
+    els.confirmModalCancel.addEventListener("click", onCancel);
+    els.confirmModal.addEventListener("click", onBackdrop);
+  });
 }
 
 function editPost(post) {
@@ -1650,7 +1709,7 @@ function editPost(post) {
 async function deletePost(post) {
   const page = activePage();
   if (page.type !== "posts" || !page.boardId || !post?.id) return;
-  if (!window.confirm("確定要刪除這則貼文？刪除後不能復原。")) return;
+  if (!await showConfirmModal("確定要刪除這則貼文？刪除後不能復原。")) return;
 
   try {
     const api = await loadFirebaseApi();

@@ -492,6 +492,27 @@
     </div>
   </div>
 
+  <div id="prompt-modal" class="post-edit-modal hidden" role="dialog" aria-modal="true" aria-label="輸入">
+    <div class="post-edit-dialog post-simple-dialog">
+      <h3 id="prompt-modal-title">輸入</h3>
+      <input id="prompt-modal-input" type="text" maxlength="40">
+      <div class="button-row">
+        <button id="prompt-modal-ok" type="button">確定</button>
+        <button id="prompt-modal-cancel" class="secondary" type="button">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="confirm-modal" class="post-edit-modal hidden" role="dialog" aria-modal="true" aria-label="確認">
+    <div class="post-edit-dialog post-simple-dialog">
+      <p id="confirm-modal-message" class="confirm-modal-message"></p>
+      <div class="button-row">
+        <button id="confirm-modal-ok" class="danger" type="button">確定</button>
+        <button id="confirm-modal-cancel" class="secondary" type="button">取消</button>
+      </div>
+    </div>
+  </div>
+
   <div id="image-viewer" class="image-viewer hidden" role="dialog" aria-modal="true" aria-label="貼文圖片預覽">
     <div class="image-viewer-bar">
       <a id="image-viewer-download" class="link-button" href="#" download="貼文圖片.jpg">下載圖片</a>

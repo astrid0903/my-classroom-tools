@@ -1758,6 +1758,18 @@ h3 {
   min-height: 100px;
 }
 
+.post-simple-dialog {
+  max-width: 360px;
+  gap: 12px;
+}
+
+.confirm-modal-message {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  white-space: pre-line;
+}
+
 .image-viewer {
   position: fixed;
   inset: 0;
