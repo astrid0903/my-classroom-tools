@@ -173,6 +173,8 @@ const els = {
   participantSubmit: document.querySelector("#participant-submit"),
   participantMessage: document.querySelector("#participant-message"),
   postEditModal: document.querySelector("#post-edit-modal"),
+  postEditSection: document.querySelector("#post-edit-section"),
+  postEditSectionLabel: document.querySelector("#post-edit-section-label"),
   postEditAuthor: document.querySelector("#post-edit-author"),
   postEditContent: document.querySelector("#post-edit-content"),
   postEditSave: document.querySelector("#post-edit-save"),
@@ -1659,6 +1661,22 @@ function showConfirmModal(message) {
 function editPost(post) {
   const page = activePage();
   if (page.type !== "posts" || !page.boardId || !post?.id) return;
+
+  const sections = normalizePostSections(postBoardSections.length > 0 ? postBoardSections : page.sections);
+  const hasSections = sections.length > 0;
+  els.postEditSection.innerHTML = "";
+  els.postEditSectionLabel.hidden = !hasSections;
+  els.postEditSection.hidden = !hasSections;
+  if (hasSections) {
+    sections.forEach((s) => {
+      const opt = document.createElement("option");
+      opt.value = s.id;
+      opt.textContent = s.name;
+      if (s.id === (post.sectionId || "")) opt.selected = true;
+      els.postEditSection.appendChild(opt);
+    });
+  }
+
   els.postEditAuthor.value = post.author || "";
   els.postEditContent.value = post.content || "";
   els.postEditMessage.textContent = "";
@@ -1690,7 +1708,7 @@ function editPost(post) {
       await api.updateDoc(api.doc(api.db, POST_BOARDS_COLLECTION, page.boardId, "posts", post.id), {
         author: nextAuthor || "匿名",
         content: nextContent,
-        sectionId: post.sectionId || "section-a",
+        sectionId: (hasSections ? els.postEditSection.value : null) || post.sectionId || "section-a",
         updatedAt: api.serverTimestamp(),
       });
       cleanup();
