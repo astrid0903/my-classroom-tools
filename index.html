@@ -520,7 +520,14 @@
       <a id="image-viewer-download" class="link-button" href="#" download="貼文圖片.jpg">下載圖片</a>
       <button id="image-viewer-close" type="button">關閉</button>
     </div>
-    <img id="image-viewer-img" alt="貼文圖片預覽">
+    <div class="image-viewer-zoom-wrap">
+      <span class="image-viewer-zoom-label">縮放</span>
+      <input id="image-viewer-zoom" type="range" min="25" max="300" step="5" value="100">
+      <span id="image-viewer-zoom-value">100%</span>
+    </div>
+    <div class="image-viewer-scroll">
+      <img id="image-viewer-img" alt="貼文圖片預覽">
+    </div>
   </div>
 
   <script src="./script.js?v=20260503-1730"></script>

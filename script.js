@@ -193,6 +193,8 @@ const els = {
   imageViewerImg: document.querySelector("#image-viewer-img"),
   imageViewerDownload: document.querySelector("#image-viewer-download"),
   imageViewerClose: document.querySelector("#image-viewer-close"),
+  imageViewerZoom: document.querySelector("#image-viewer-zoom"),
+  imageViewerZoomValue: document.querySelector("#image-viewer-zoom-value"),
 };
 
 let timerTotal = 5 * 60;
@@ -1525,11 +1527,18 @@ function postImageFilename(post) {
   return `post-image-${id || "download"}.${extension}`;
 }
 
+function setImageViewerZoom(value) {
+  els.imageViewerImg.style.width = `${value}%`;
+  els.imageViewerZoomValue.textContent = `${value}%`;
+}
+
 function openImageViewer(imageDataUrl, filename) {
   if (!imageDataUrl) return;
   els.imageViewerImg.src = imageDataUrl;
   els.imageViewerDownload.href = imageDataUrl;
   els.imageViewerDownload.download = filename || "貼文圖片.jpg";
+  els.imageViewerZoom.value = 100;
+  setImageViewerZoom(100);
   els.imageViewer.classList.remove("hidden");
 }
 
@@ -1793,17 +1802,18 @@ function exportPostBoardToObsidian() {
       lines.push(`# ${section.name}`, ``);
       appendPosts(postsForSection(postBoardPosts, section.id));
     });
+    const sectionIds = new Set(sections.map((s) => s.id));
+    const orphanPosts = postBoardPosts.filter((post) => !sectionIds.has(post.sectionId || "section-a"));
+    if (orphanPosts.length > 0) {
+      lines.push(`# 未分類`, ``);
+      appendPosts(orphanPosts);
+    }
   }
 
   const md = lines.join("\n");
-  const filename = `${boardName.replace(/[\\/:*?"<>|]/g, "-")}.md`;
-  const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
+  const filename = boardName.replace(/[\\/:*?"<>|]/g, "-");
+  const obsidianUri = `obsidian://new?vault=OB&file=${encodeURIComponent(filename)}&content=${encodeURIComponent(md)}`;
+  window.open(obsidianUri, "_blank");
 }
 
 function renderPostCards(container, posts, options = {}) {
@@ -3701,6 +3711,9 @@ els.clearWidgetSelection.addEventListener("click", clearWidgetSelection);
 els.imageViewerClose.addEventListener("click", closeImageViewer);
 els.imageViewer.addEventListener("click", (event) => {
   if (event.target === els.imageViewer) closeImageViewer();
+});
+els.imageViewerZoom.addEventListener("input", () => {
+  setImageViewerZoom(Number(els.imageViewerZoom.value));
 });
 els.postBoardQrToggle.addEventListener("click", () => {
   els.postBoardJoinCard.classList.toggle("expanded");
