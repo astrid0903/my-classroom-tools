@@ -158,6 +158,19 @@
           <button id="add-post-board-page" class="secondary" type="button">新增貼文板</button>
           <button id="delete-page" class="danger" type="button">刪除目前頁面</button>
         </div>
+        <label for="page-title-color">標題文字顏色</label>
+        <div class="button-row">
+          <input id="page-title-color" type="color" value="#1a2330">
+          <button id="clear-page-title-color" class="secondary" type="button">清除顏色</button>
+        </div>
+        <label for="page-bg-color">背景顏色</label>
+        <div class="button-row">
+          <input id="page-bg-color" type="color" value="#080a0e">
+          <button id="clear-page-bg" class="secondary" type="button">清除背景</button>
+        </div>
+        <label for="page-bg-image-file">背景圖片（本機）</label>
+        <input id="page-bg-image-file" type="file" accept="image/*">
+        <p id="page-bg-status" class="hint" aria-live="polite"></p>
         <div id="post-board-controls" class="post-board-controls hidden">
           <label for="post-board-join-url">參與者投稿連結</label>
           <input id="post-board-join-url" type="text" readonly>
@@ -165,6 +178,7 @@
             <button id="copy-post-board-link" class="secondary" type="button">複製連結</button>
             <a id="open-post-board-link" class="link-button secondary" href="#" target="_blank" rel="noreferrer">開啟投稿頁</a>
           </div>
+          <button id="export-obsidian" class="secondary" type="button">匯出 Obsidian 筆記</button>
         </div>
         <p id="page-message" class="hint" aria-live="polite">可新增暗色白板或貼文板；小工具只會顯示在目前頁面。</p>
       </section>
@@ -462,6 +476,21 @@
     </div>
 
   </section>
+
+  <div id="post-edit-modal" class="post-edit-modal hidden" role="dialog" aria-modal="true" aria-label="編輯貼文">
+    <div class="post-edit-dialog">
+      <h3>編輯貼文</h3>
+      <label for="post-edit-author">名稱</label>
+      <input id="post-edit-author" type="text" maxlength="40">
+      <label for="post-edit-content">內容</label>
+      <textarea id="post-edit-content" maxlength="600" rows="5"></textarea>
+      <div class="button-row">
+        <button id="post-edit-save" type="button">儲存</button>
+        <button id="post-edit-cancel" class="secondary" type="button">取消</button>
+      </div>
+      <p id="post-edit-message" class="hint" aria-live="polite"></p>
+    </div>
+  </div>
 
   <div id="image-viewer" class="image-viewer hidden" role="dialog" aria-modal="true" aria-label="貼文圖片預覽">
     <div class="image-viewer-bar">

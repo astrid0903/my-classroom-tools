@@ -708,6 +708,7 @@ h3 {
 }
 
 .post-card {
+  position: relative;
   display: inline-block;
   width: 100%;
   margin: 0 0 18px;
@@ -731,6 +732,7 @@ h3 {
   justify-content: space-between;
   gap: 10px;
   margin-bottom: 10px;
+  padding-right: 28px;
   color: #56626e;
 }
 
@@ -743,15 +745,65 @@ h3 {
   font-size: 0.82rem;
 }
 
-.post-manage-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-bottom: 10px;
+.post-menu-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #8a96a2;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
 }
 
-.post-manage-actions button {
-  min-height: 34px;
+.post-menu-btn:hover {
+  background: rgba(30, 37, 44, 0.08);
+  color: #26313b;
+}
+
+.post-menu {
+  position: absolute;
+  top: 36px;
+  right: 8px;
+  z-index: 200;
+  min-width: 130px;
+  background: #fff;
+  border: 1px solid rgba(30, 37, 44, 0.12);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+  padding: 4px;
+}
+
+.post-menu button {
+  display: block;
+  width: 100%;
+  min-height: 0;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: #26313b;
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.post-menu button:hover {
+  background: rgba(30, 37, 44, 0.06);
+}
+
+.post-menu button.danger {
+  color: #c0392b;
 }
 
 .post-content {
@@ -760,6 +812,13 @@ h3 {
   color: #1e252c;
   font-size: 1.04rem;
   line-height: 1.55;
+}
+
+.post-content a {
+  color: #2572b8;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  word-break: break-all;
 }
 
 .post-image-wrap {
@@ -1664,6 +1723,39 @@ h3 {
 
 .participant-form button {
   min-height: 48px;
+}
+
+.post-edit-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  background: rgba(0, 0, 0, 0.48);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.post-edit-dialog {
+  width: 100%;
+  max-width: 480px;
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.post-edit-dialog h3 {
+  margin: 0 0 8px;
+  font-size: 1.1rem;
+}
+
+.post-edit-dialog textarea {
+  resize: vertical;
+  min-height: 100px;
 }
 
 .image-viewer {

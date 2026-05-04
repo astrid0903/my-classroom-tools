@@ -34,7 +34,14 @@ const els = {
   addPostBoardPage: document.querySelector("#add-post-board-page"),
   deletePage: document.querySelector("#delete-page"),
   pageMessage: document.querySelector("#page-message"),
+  pageTitleColor: document.querySelector("#page-title-color"),
+  clearPageTitleColor: document.querySelector("#clear-page-title-color"),
+  pageBgColor: document.querySelector("#page-bg-color"),
+  pageBgImageFile: document.querySelector("#page-bg-image-file"),
+  clearPageBg: document.querySelector("#clear-page-bg"),
+  pageBgStatus: document.querySelector("#page-bg-status"),
   postBoardControls: document.querySelector("#post-board-controls"),
+  exportObsidian: document.querySelector("#export-obsidian"),
   postBoardJoinUrl: document.querySelector("#post-board-join-url"),
   copyPostBoardLink: document.querySelector("#copy-post-board-link"),
   openPostBoardLink: document.querySelector("#open-post-board-link"),
@@ -165,6 +172,12 @@ const els = {
   participantImage: document.querySelector("#participant-image"),
   participantSubmit: document.querySelector("#participant-submit"),
   participantMessage: document.querySelector("#participant-message"),
+  postEditModal: document.querySelector("#post-edit-modal"),
+  postEditAuthor: document.querySelector("#post-edit-author"),
+  postEditContent: document.querySelector("#post-edit-content"),
+  postEditSave: document.querySelector("#post-edit-save"),
+  postEditCancel: document.querySelector("#post-edit-cancel"),
+  postEditMessage: document.querySelector("#post-edit-message"),
   imageViewer: document.querySelector("#image-viewer"),
   imageViewerImg: document.querySelector("#image-viewer-img"),
   imageViewerDownload: document.querySelector("#image-viewer-download"),
@@ -318,6 +331,9 @@ function normalizePages(value) {
         normalizedPage.sections = normalizePostSections(page?.sections);
         normalizedPage.noteHtml = String(page?.noteHtml || "");
       }
+      normalizedPage.bgColor = typeof page?.bgColor === "string" ? page.bgColor : "";
+      normalizedPage.bgImage = typeof page?.bgImage === "string" ? page.bgImage : "";
+      normalizedPage.titleColor = typeof page?.titleColor === "string" ? page.titleColor : "";
       return normalizedPage;
     })
     .filter((page) => page.id && page.name);
@@ -383,6 +399,11 @@ function renderPages() {
   els.pageSelect.value = activePage().id;
   els.pageName.value = activePage().id === DEFAULT_PAGE.id ? "" : activePage().name;
   els.deletePage.disabled = activePage().id === DEFAULT_PAGE.id;
+  const curPage = activePage();
+  els.pageTitleColor.value = curPage.titleColor || "#1a2330";
+  els.pageBgColor.value = curPage.bgColor || "#080a0e";
+  els.pageBgImageFile.value = "";
+  els.pageBgStatus.textContent = curPage.bgImage ? "已設定背景圖片。" : curPage.bgColor ? `背景顏色：${curPage.bgColor}` : "";
   updatePostBoardControls();
 }
 
@@ -393,12 +414,23 @@ function updateDynamicWidgetVisibility() {
   pruneWidgetSelection();
 }
 
+function applyPageBackground(page) {
+  if (page.bgImage) {
+    els.stage.style.background = `url("${page.bgImage}") center/cover no-repeat`;
+  } else if (page.bgColor) {
+    els.stage.style.background = page.bgColor;
+  } else {
+    els.stage.style.background = "";
+  }
+}
+
 function updateStageForPage() {
   const page = activePage();
   const showMainSlides = page.type === "slides" && Boolean(currentSlides);
   els.stage.classList.toggle("blank-page", page.type === "dark");
   els.stage.classList.toggle("post-page", page.type === "posts");
   els.stage.classList.toggle("has-slides", showMainSlides);
+  applyPageBackground(page);
   els.postBoardStage.classList.toggle("hidden", page.type !== "posts");
 
   if (page.type === "dark") {
@@ -792,6 +824,15 @@ function dynamicTextarea(value = "", rows = 3) {
   textarea.rows = rows;
   textarea.value = value;
   return textarea;
+}
+
+function linkifyText(text) {
+  const escaped = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return escaped.replace(/https?:\/\/\S+/g, (url) => {
+    const clean = url.replace(/[.,;:!?)\]。、！？）】]+$/, "");
+    const trailing = url.slice(clean.length);
+    return `<a href="${clean}" target="_blank" rel="noreferrer noopener">${clean}</a>${trailing}`;
+  });
 }
 
 function fileToDataUrl(file) {
@@ -1556,27 +1597,54 @@ async function savePostSections(sections) {
   }
 }
 
-async function editPost(post) {
+function editPost(post) {
   const page = activePage();
   if (page.type !== "posts" || !page.boardId || !post?.id) return;
-  const nextContent = window.prompt("編輯貼文內容", post.content || "");
-  if (nextContent === null) return;
-  const nextAuthor = window.prompt("編輯名稱", post.author || "匿名");
-  if (nextAuthor === null) return;
+  els.postEditAuthor.value = post.author || "";
+  els.postEditContent.value = post.content || "";
+  els.postEditMessage.textContent = "";
+  els.postEditModal.classList.remove("hidden");
+  els.postEditContent.focus();
 
-  try {
-    const api = await loadFirebaseApi();
-    await ensureFirebaseAuth(api);
-    await api.updateDoc(api.doc(api.db, POST_BOARDS_COLLECTION, page.boardId, "posts", post.id), {
-      author: nextAuthor.trim().slice(0, 40),
-      content: nextContent.trim().slice(0, 600),
-      sectionId: post.sectionId || "section-a",
-      updatedAt: api.serverTimestamp(),
-    });
-  } catch (error) {
-    els.postBoardMessage.textContent = `貼文編輯失敗：${error.message || "請確認權限。"}`;
-    els.postBoardMessage.classList.add("error");
-  }
+  const cleanup = () => {
+    els.postEditModal.classList.add("hidden");
+    els.postEditSave.removeEventListener("click", onSave);
+    els.postEditCancel.removeEventListener("click", onCancel);
+    els.postEditModal.removeEventListener("click", onBackdrop);
+  };
+
+  const onCancel = () => cleanup();
+  const onBackdrop = (e) => { if (e.target === els.postEditModal) cleanup(); };
+
+  const onSave = async () => {
+    const nextAuthor = els.postEditAuthor.value.trim().slice(0, 40);
+    const nextContent = els.postEditContent.value.trim().slice(0, 600);
+    if (!nextContent && !post.imageDataUrl) {
+      els.postEditMessage.textContent = "內容不能為空。";
+      return;
+    }
+    els.postEditSave.disabled = true;
+    els.postEditMessage.textContent = "儲存中…";
+    try {
+      const api = await loadFirebaseApi();
+      await ensureFirebaseAuth(api);
+      await api.updateDoc(api.doc(api.db, POST_BOARDS_COLLECTION, page.boardId, "posts", post.id), {
+        author: nextAuthor || "匿名",
+        content: nextContent,
+        sectionId: post.sectionId || "section-a",
+        updatedAt: api.serverTimestamp(),
+      });
+      cleanup();
+    } catch (error) {
+      els.postEditMessage.textContent = `儲存失敗：${error.message || "請確認網路與權限。"}`;
+    } finally {
+      els.postEditSave.disabled = false;
+    }
+  };
+
+  els.postEditSave.addEventListener("click", onSave);
+  els.postEditCancel.addEventListener("click", onCancel);
+  els.postEditModal.addEventListener("click", onBackdrop);
 }
 
 async function deletePost(post) {
@@ -1592,6 +1660,50 @@ async function deletePost(post) {
     els.postBoardMessage.textContent = `貼文刪除失敗：${error.message || "請確認權限。"}`;
     els.postBoardMessage.classList.add("error");
   }
+}
+
+function exportPostBoardToObsidian() {
+  const page = activePage();
+  if (page.type !== "posts") return;
+
+  const boardName = page.name || "貼文板";
+  const sections = normalizePostSections(postBoardSections.length > 0 ? postBoardSections : page.sections);
+  const date = new Date().toISOString().slice(0, 10);
+
+  const lines = [`---`, `date: ${date}`, `board: ${boardName}`, `---`, ``];
+
+  function appendPosts(posts) {
+    if (posts.length === 0) {
+      lines.push("_（尚無貼文）_", ``);
+      return;
+    }
+    posts.forEach((post) => {
+      const author = post.author || "匿名";
+      lines.push(`**${author}**`);
+      if (post.content) lines.push(post.content);
+      if (post.imageDataUrl) lines.push(`![](${post.imageDataUrl})`);
+      lines.push(``);
+    });
+  }
+
+  if (sections.length === 0) {
+    appendPosts(postBoardPosts);
+  } else {
+    sections.forEach((section) => {
+      lines.push(`# ${section.name}`, ``);
+      appendPosts(postsForSection(postBoardPosts, section.id));
+    });
+  }
+
+  const md = lines.join("\n");
+  const filename = `${boardName.replace(/[\\/:*?"<>|]/g, "-")}.md`;
+  const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 function renderPostCards(container, posts, options = {}) {
@@ -1610,17 +1722,29 @@ function renderPostCards(container, posts, options = {}) {
     meta.append(author, time);
     card.appendChild(meta);
     if (options.canManage) {
-      const manageActions = createEl("div", "post-manage-actions");
-      const edit = createEl("button", "secondary", "編輯");
-      const remove = createEl("button", "danger", "刪除");
-      edit.type = remove.type = "button";
-      edit.addEventListener("click", () => editPost(post));
-      remove.addEventListener("click", () => deletePost(post));
-      manageActions.append(edit, remove);
-      card.appendChild(manageActions);
+      const menuBtn = createEl("button", "post-menu-btn", "⋮");
+      menuBtn.type = "button";
+      menuBtn.title = "貼文選項";
+      const menu = createEl("div", "post-menu hidden");
+      const editBtn = createEl("button", "", "編輯貼文");
+      editBtn.type = "button";
+      const removeBtn = createEl("button", "danger", "刪除貼文");
+      removeBtn.type = "button";
+      editBtn.addEventListener("click", () => { menu.classList.add("hidden"); editPost(post); });
+      removeBtn.addEventListener("click", () => { menu.classList.add("hidden"); deletePost(post); });
+      menuBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const wasOpen = !menu.classList.contains("hidden");
+        document.querySelectorAll(".post-menu:not(.hidden)").forEach((m) => m.classList.add("hidden"));
+        if (!wasOpen) menu.classList.remove("hidden");
+      });
+      menu.addEventListener("click", (e) => e.stopPropagation());
+      menu.append(editBtn, removeBtn);
+      card.append(menuBtn, menu);
     }
     if (post.content) {
-      const content = createEl("p", "post-content", post.content);
+      const content = createEl("p", "post-content");
+      content.innerHTML = linkifyText(post.content);
       card.appendChild(content);
     }
     if (post.imageDataUrl) {
@@ -1713,6 +1837,21 @@ function renderPostBoardColumns(page, sections) {
     column.append(head, body);
     boardColumns.appendChild(column);
   });
+  if (sections.length > 0) {
+    const sectionIds = new Set(sections.map((s) => s.id));
+    const orphanPosts = postBoardPosts.filter((post) => !sectionIds.has(post.sectionId || "section-a"));
+    if (orphanPosts.length > 0) {
+      const column = createEl("section", "post-section");
+      const head = createEl("div", "post-section-head");
+      const titleEl = createEl("span", "post-section-title", "未分類");
+      head.appendChild(titleEl);
+      const body = createEl("div", "post-section-body");
+      renderPostCards(body, orphanPosts, { canManage: true });
+      column.append(head, body);
+      boardColumns.insertBefore(column, boardColumns.firstChild);
+    }
+  }
+
   const addSection = createEl("button", "post-section-new", "+");
   addSection.type = "button";
   addSection.title = "新增區段";
@@ -1728,6 +1867,7 @@ function renderPostBoard() {
   const joinUrl = postBoardJoinUrl(page);
   const boardName = page.name || "貼文板";
   els.postBoardTitle.textContent = boardName;
+  els.postBoardTitle.style.color = page.titleColor || "";
   els.postBoardJoinTitle.textContent = boardName;
   els.postBoardDetail.textContent = "參與者掃描 QR Code 後可以新增文字貼文或上傳圖片。";
   els.postBoardQr.src = buildQrCodeUrl(joinUrl, "260");
@@ -3264,6 +3404,51 @@ els.pageName.addEventListener("change", () => renameActivePage(els.pageName.valu
 els.addPage.addEventListener("click", addDarkPage);
 els.addPostBoardPage.addEventListener("click", addPostBoardPage);
 els.deletePage.addEventListener("click", deleteActivePage);
+els.pageTitleColor.addEventListener("change", () => {
+  const page = activePage();
+  pages = pages.map((p) => (p.id === page.id ? { ...p, titleColor: els.pageTitleColor.value } : p));
+  els.postBoardTitle.style.color = els.pageTitleColor.value;
+  writeState();
+});
+els.clearPageTitleColor.addEventListener("click", () => {
+  const page = activePage();
+  pages = pages.map((p) => (p.id === page.id ? { ...p, titleColor: "" } : p));
+  els.pageTitleColor.value = "#1a2330";
+  els.postBoardTitle.style.color = "";
+  writeState();
+});
+els.pageBgColor.addEventListener("change", () => {
+  const page = activePage();
+  pages = pages.map((p) => (p.id === page.id ? { ...p, bgColor: els.pageBgColor.value, bgImage: "" } : p));
+  applyPageBackground(activePage());
+  els.pageBgStatus.textContent = `背景顏色：${els.pageBgColor.value}`;
+  writeState();
+});
+els.pageBgImageFile.addEventListener("change", async () => {
+  const file = els.pageBgImageFile.files[0];
+  if (!file) return;
+  els.pageBgStatus.textContent = "上傳中…";
+  try {
+    const dataUrl = await fileToDataUrl(file);
+    const page = activePage();
+    pages = pages.map((p) => (p.id === page.id ? { ...p, bgImage: dataUrl, bgColor: "" } : p));
+    applyPageBackground(activePage());
+    els.pageBgColor.value = "#080a0e";
+    els.pageBgStatus.textContent = "已設定背景圖片。";
+    writeState();
+  } catch {
+    els.pageBgStatus.textContent = "圖片讀取失敗，請再試一次。";
+  }
+});
+els.clearPageBg.addEventListener("click", () => {
+  const page = activePage();
+  pages = pages.map((p) => (p.id === page.id ? { ...p, bgColor: "", bgImage: "" } : p));
+  els.pageBgImageFile.value = "";
+  els.pageBgColor.value = "#080a0e";
+  els.pageBgStatus.textContent = "";
+  applyPageBackground(activePage());
+  writeState();
+});
 els.copyPostBoardLink.addEventListener("click", async () => {
   const url = els.postBoardJoinUrl.value;
   if (!url) return;
@@ -3276,6 +3461,7 @@ els.copyPostBoardLink.addEventListener("click", async () => {
     els.pageMessage.classList.add("error");
   }
 });
+els.exportObsidian.addEventListener("click", exportPostBoardToObsidian);
 els.retrySlides.addEventListener("click", () => {
   if (currentPlayerUrl) loadPlayerUrl(currentPlayerUrl);
 });
@@ -3419,6 +3605,9 @@ els.postBoardNote.addEventListener("blur", () => {
 });
 els.postBoardQrModal.addEventListener("click", (event) => {
   if (event.target === els.postBoardQrModal) els.postBoardQrModal.classList.add("hidden");
+});
+document.addEventListener("click", () => {
+  document.querySelectorAll(".post-menu:not(.hidden)").forEach((m) => m.classList.add("hidden"));
 });
 window.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
