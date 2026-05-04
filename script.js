@@ -226,6 +226,7 @@ let postBoardUnsubscribe = null;
 let postBoardMetadataUnsubscribe = null;
 let postBoardPosts = [];
 let postBoardSections = [];
+let dragPostId = null;
 let participantUnsubscribe = null;
 let participantBoardSections = [];
 let participantBoardPosts = [];
@@ -1739,6 +1740,26 @@ async function deletePost(post) {
   }
 }
 
+async function movePostToSection(postId, sectionId) {
+  const page = activePage();
+  if (page.type !== "posts" || !page.boardId) return;
+  const post = postBoardPosts.find((p) => p.id === postId);
+  if (!post || post.sectionId === sectionId) return;
+  try {
+    const api = await loadFirebaseApi();
+    await ensureFirebaseAuth(api);
+    await api.updateDoc(api.doc(api.db, POST_BOARDS_COLLECTION, page.boardId, "posts", postId), {
+      author: post.author || "匿名",
+      content: post.content || "",
+      sectionId,
+      updatedAt: api.serverTimestamp(),
+    });
+  } catch (error) {
+    els.postBoardMessage.textContent = `移動貼文失敗：${error.message || "請確認權限。"}`;
+    els.postBoardMessage.classList.add("error");
+  }
+}
+
 function exportPostBoardToObsidian() {
   const page = activePage();
   if (page.type !== "posts") return;
@@ -1793,6 +1814,20 @@ function renderPostCards(container, posts, options = {}) {
 
   posts.forEach((post) => {
     const card = createEl("article", "post-card");
+    if (options.canManage && options.draggable) {
+      card.draggable = true;
+      card.addEventListener("dragstart", (e) => {
+        e.stopPropagation();
+        dragPostId = post.id;
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", post.id);
+        setTimeout(() => card.classList.add("dragging"), 0);
+      });
+      card.addEventListener("dragend", () => {
+        dragPostId = null;
+        card.classList.remove("dragging");
+      });
+    }
     const meta = createEl("div", "post-meta");
     const author = createEl("strong", "", post.author || "匿名");
     const time = createEl("span", "", formatPostTime(post.createdAt));
@@ -1910,7 +1945,26 @@ function renderPostBoardColumns(page, sections) {
     sectionActions.append(addLink, deleteBtn);
     head.append(titleButton, sectionActions);
     const body = createEl("div", "post-section-body");
-    renderPostCards(body, postsForSection(postBoardPosts, section.id), { canManage: true });
+    renderPostCards(body, postsForSection(postBoardPosts, section.id), { canManage: true, draggable: true });
+    body.addEventListener("dragover", (e) => {
+      if (!dragPostId) return;
+      e.preventDefault();
+      e.stopPropagation();
+      e.dataTransfer.dropEffect = "move";
+      body.classList.add("drop-target");
+    });
+    body.addEventListener("dragleave", (e) => {
+      if (!e.currentTarget.contains(e.relatedTarget)) body.classList.remove("drop-target");
+    });
+    body.addEventListener("drop", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      body.classList.remove("drop-target");
+      if (!dragPostId) return;
+      const postId = dragPostId;
+      dragPostId = null;
+      movePostToSection(postId, section.id);
+    });
     column.append(head, body);
     boardColumns.appendChild(column);
   });
@@ -1923,7 +1977,7 @@ function renderPostBoardColumns(page, sections) {
       const titleEl = createEl("span", "post-section-title", "未分類");
       head.appendChild(titleEl);
       const body = createEl("div", "post-section-body");
-      renderPostCards(body, orphanPosts, { canManage: true });
+      renderPostCards(body, orphanPosts, { canManage: true, draggable: true });
       column.append(head, body);
       boardColumns.insertBefore(column, boardColumns.firstChild);
     }

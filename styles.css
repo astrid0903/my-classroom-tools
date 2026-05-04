@@ -720,6 +720,21 @@ h3 {
   box-shadow: 0 14px 30px rgba(28, 42, 56, 0.12);
 }
 
+.post-card[draggable="true"] {
+  cursor: grab;
+}
+
+.post-card.dragging {
+  opacity: 0.4;
+}
+
+.post-section-body.drop-target {
+  outline: 2px dashed #4a90d9;
+  outline-offset: 4px;
+  background: rgba(74, 144, 217, 0.06);
+  border-radius: 6px;
+}
+
 .post-card.empty-post {
   color: #687481;
   font-weight: 800;
