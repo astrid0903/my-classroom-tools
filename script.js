@@ -2164,7 +2164,7 @@ function renderParticipantBoard(sections, posts) {
     els.participantBoardBody.appendChild(body);
     return;
   }
-  const columns = createEl("div", "post-board-columns participant-board-columns");
+  const columns = createEl("div", "participant-board-columns");
   sections.forEach((section) => {
     const column = createEl("section", "post-section");
     const head = createEl("div", "post-section-head");

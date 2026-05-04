@@ -1653,13 +1653,11 @@ h3 {
   flex-direction: row;
   align-items: flex-start;
   gap: 14px;
-  overflow-x: auto;
   padding-bottom: 8px;
-  width: 100%;
 }
 
 .participant-board-columns .post-section {
-  min-width: min(280px, 78vw);
+  width: clamp(240px, 78vw, 320px);
   flex-shrink: 0;
   cursor: default;
 }
