@@ -1774,7 +1774,7 @@ async function movePostToSection(postId, sectionId) {
   }
 }
 
-async function exportPostBoardToObsidian() {
+function exportPostBoardToObsidian() {
   const page = activePage();
   if (page.type !== "posts") return;
 
