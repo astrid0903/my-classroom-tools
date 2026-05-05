@@ -1815,6 +1815,17 @@ function exportPostBoardToObsidian() {
 
   const md = lines.join("\n");
   const filename = boardName.replace(/[\\/:*?"<>|]/g, "-");
+
+  // 下載 .md 檔案（跨平台可靠）
+  const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${filename}.md`;
+  a.click();
+  URL.revokeObjectURL(url);
+
+  // 同時嘗試 obsidian:// URI（Mac + Obsidian 已安裝時直接存入 vault）
   const obsidianUri = `obsidian://new?vault=OB&file=${encodeURIComponent(filename)}&content=${encodeURIComponent(md)}`;
   window.open(obsidianUri, "_blank");
 }
