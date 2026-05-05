@@ -193,6 +193,16 @@ h3 {
     linear-gradient(145deg, #2572b8, #69b8df 44%, #d7edf8);
 }
 
+.stage-bg-layer {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0.35;
+  pointer-events: none;
+}
+
 .slide-stage.blank-page {
   background: #080a0e;
 }

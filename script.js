@@ -432,12 +432,20 @@ function updateDynamicWidgetVisibility() {
 }
 
 function applyPageBackground(page) {
+  let bgLayer = els.stage.querySelector(".stage-bg-layer");
+  if (!bgLayer) {
+    bgLayer = document.createElement("div");
+    bgLayer.className = "stage-bg-layer";
+    els.stage.insertBefore(bgLayer, els.stage.firstChild);
+  }
   if (page.bgImage) {
-    els.stage.style.background = `url("${page.bgImage}") center/cover no-repeat`;
-  } else if (page.bgColor) {
-    els.stage.style.background = page.bgColor;
-  } else {
+    bgLayer.style.backgroundImage = `url("${page.bgImage}")`;
+    bgLayer.style.display = "";
     els.stage.style.background = "";
+  } else {
+    bgLayer.style.backgroundImage = "";
+    bgLayer.style.display = "none";
+    els.stage.style.background = page.bgColor || "";
   }
 }
 
