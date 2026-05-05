@@ -38,6 +38,9 @@ const els = {
   clearPageTitleColor: document.querySelector("#clear-page-title-color"),
   pageBgColor: document.querySelector("#page-bg-color"),
   pageBgImageFile: document.querySelector("#page-bg-image-file"),
+  pageBgOpacityRow: document.querySelector("#page-bg-opacity-row"),
+  pageBgOpacity: document.querySelector("#page-bg-opacity"),
+  pageBgOpacityValue: document.querySelector("#page-bg-opacity-value"),
   clearPageBg: document.querySelector("#clear-page-bg"),
   pageBgStatus: document.querySelector("#page-bg-status"),
   postBoardControls: document.querySelector("#post-board-controls"),
@@ -350,6 +353,7 @@ function normalizePages(value) {
       }
       normalizedPage.bgColor = typeof page?.bgColor === "string" ? page.bgColor : "";
       normalizedPage.bgImage = typeof page?.bgImage === "string" ? page.bgImage : "";
+      normalizedPage.bgOpacity = typeof page?.bgOpacity === "number" ? page.bgOpacity : 60;
       normalizedPage.titleColor = typeof page?.titleColor === "string" ? page.titleColor : "";
       return normalizedPage;
     })
@@ -420,6 +424,11 @@ function renderPages() {
   els.pageTitleColor.value = curPage.titleColor || "#1a2330";
   els.pageBgColor.value = curPage.bgColor || "#080a0e";
   els.pageBgImageFile.value = "";
+  const hasImg = Boolean(curPage.bgImage);
+  els.pageBgOpacityRow.classList.toggle("hidden", !hasImg);
+  const opacityVal = curPage.bgOpacity ?? 60;
+  els.pageBgOpacity.value = opacityVal;
+  els.pageBgOpacityValue.textContent = opacityVal;
   els.pageBgStatus.textContent = curPage.bgImage ? "已設定背景圖片。" : curPage.bgColor ? `背景顏色：${curPage.bgColor}` : "";
   updatePostBoardControls();
 }
@@ -440,6 +449,7 @@ function applyPageBackground(page) {
   }
   if (page.bgImage) {
     bgLayer.style.backgroundImage = `url("${page.bgImage}")`;
+    bgLayer.style.opacity = ((page.bgOpacity ?? 60) / 100).toFixed(2);
     bgLayer.style.display = "";
     els.stage.style.background = "";
   } else {
@@ -3679,20 +3689,31 @@ els.pageBgImageFile.addEventListener("change", async () => {
   try {
     const dataUrl = await fileToDataUrl(file);
     const page = activePage();
-    pages = pages.map((p) => (p.id === page.id ? { ...p, bgImage: dataUrl, bgColor: "" } : p));
+    const opacity = Number(els.pageBgOpacity.value) || 60;
+    pages = pages.map((p) => (p.id === page.id ? { ...p, bgImage: dataUrl, bgColor: "", bgOpacity: opacity } : p));
     applyPageBackground(activePage());
     els.pageBgColor.value = "#080a0e";
+    els.pageBgOpacityRow.classList.remove("hidden");
     els.pageBgStatus.textContent = "已設定背景圖片。";
     writeState();
   } catch {
     els.pageBgStatus.textContent = "圖片讀取失敗，請再試一次。";
   }
 });
+els.pageBgOpacity.addEventListener("input", () => {
+  const val = Number(els.pageBgOpacity.value);
+  els.pageBgOpacityValue.textContent = val;
+  const page = activePage();
+  pages = pages.map((p) => (p.id === page.id ? { ...p, bgOpacity: val } : p));
+  applyPageBackground(activePage());
+  writeState();
+});
 els.clearPageBg.addEventListener("click", () => {
   const page = activePage();
   pages = pages.map((p) => (p.id === page.id ? { ...p, bgColor: "", bgImage: "" } : p));
   els.pageBgImageFile.value = "";
   els.pageBgColor.value = "#080a0e";
+  els.pageBgOpacityRow.classList.add("hidden");
   els.pageBgStatus.textContent = "";
   applyPageBackground(activePage());
   writeState();
