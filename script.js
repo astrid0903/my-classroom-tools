@@ -1782,51 +1782,53 @@ function exportPostBoardToObsidian() {
   const sections = normalizePostSections(postBoardSections.length > 0 ? postBoardSections : page.sections);
   const date = new Date().toISOString().slice(0, 10);
 
-  const lines = [`---`, `date: ${date}`, `board: ${boardName}`, `---`, ``];
-
-  function appendPosts(posts) {
-    if (posts.length === 0) {
-      lines.push("_（尚無貼文）_", ``);
-      return;
+  function buildLines(stripImages) {
+    const lines = [`---`, `date: ${date}`, `board: ${boardName}`, `---`, ``];
+    function appendPosts(posts) {
+      if (posts.length === 0) {
+        lines.push("_（尚無貼文）_", ``);
+        return;
+      }
+      posts.forEach((post) => {
+        const author = post.author || "匿名";
+        lines.push(`**${author}**`);
+        if (post.content) lines.push(post.content);
+        if (post.imageDataUrl) lines.push(stripImages ? `_（含圖片）_` : `![](${post.imageDataUrl})`);
+        lines.push(``);
+      });
     }
-    posts.forEach((post) => {
-      const author = post.author || "匿名";
-      lines.push(`**${author}**`);
-      if (post.content) lines.push(post.content);
-      if (post.imageDataUrl) lines.push(`![](${post.imageDataUrl})`);
-      lines.push(``);
-    });
+    if (sections.length === 0) {
+      appendPosts(postBoardPosts);
+    } else {
+      sections.forEach((section) => {
+        lines.push(`# ${section.name}`, ``);
+        appendPosts(postsForSection(postBoardPosts, section.id));
+      });
+      const sectionIds = new Set(sections.map((s) => s.id));
+      const orphanPosts = postBoardPosts.filter((post) => !sectionIds.has(post.sectionId || "section-a"));
+      if (orphanPosts.length > 0) {
+        lines.push(`# 未分類`, ``);
+        appendPosts(orphanPosts);
+      }
+    }
+    return lines.join("\n");
   }
 
-  if (sections.length === 0) {
-    appendPosts(postBoardPosts);
-  } else {
-    sections.forEach((section) => {
-      lines.push(`# ${section.name}`, ``);
-      appendPosts(postsForSection(postBoardPosts, section.id));
-    });
-    const sectionIds = new Set(sections.map((s) => s.id));
-    const orphanPosts = postBoardPosts.filter((post) => !sectionIds.has(post.sectionId || "section-a"));
-    if (orphanPosts.length > 0) {
-      lines.push(`# 未分類`, ``);
-      appendPosts(orphanPosts);
-    }
-  }
-
-  const md = lines.join("\n");
   const filename = boardName.replace(/[\\/:*?"<>|]/g, "-");
 
-  // 下載 .md 檔案（跨平台可靠）
+  // 下載完整 .md（含圖片 data URL）
+  const md = buildLines(false);
   const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
+  const blobUrl = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  a.href = url;
+  a.href = blobUrl;
   a.download = `${filename}.md`;
   a.click();
-  URL.revokeObjectURL(url);
+  URL.revokeObjectURL(blobUrl);
 
-  // 同時嘗試 obsidian:// URI（Mac + Obsidian 已安裝時直接存入 vault）
-  const obsidianUri = `obsidian://new?vault=OB&file=${encodeURIComponent(filename)}&content=${encodeURIComponent(md)}`;
+  // obsidian:// URI 用去除圖片的精簡版（避免 Windows 32767 字元上限造成靜默失敗）
+  const mdShort = buildLines(true);
+  const obsidianUri = `obsidian://new?vault=OB&file=${encodeURIComponent(filename)}&content=${encodeURIComponent(mdShort)}`;
   window.open(obsidianUri, "_blank");
 }
 
