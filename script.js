@@ -908,7 +908,7 @@ function createDynamicWidget(type, state = {}, position = null) {
   const copyButton = createEl("button", "", "⧉");
   copyButton.type = "button";
   copyButton.title = "複製小工具";
-  const settingsButton = createEl("button", "", "⋯");
+  const settingsButton = createEl("button", "dynamic-settings-btn", "⋯");
   settingsButton.type = "button";
   settingsButton.title = "顯示設定";
   const removeButton = createEl("button", "", "×");
@@ -3851,6 +3851,19 @@ els.postBoardQrModal.addEventListener("click", (event) => {
 });
 document.addEventListener("click", () => {
   document.querySelectorAll(".post-menu:not(.hidden)").forEach((m) => m.classList.add("hidden"));
+});
+
+document.addEventListener("mousedown", (e) => {
+  if (e.target.closest(".dynamic-settings") || e.target.closest(".dynamic-settings-btn")) return;
+  let changed = false;
+  dynamicWidgets.forEach((inst) => {
+    if (inst.state.settingsOpen) {
+      inst.state.settingsOpen = false;
+      renderDynamicWidget(inst);
+      changed = true;
+    }
+  });
+  if (changed) writeState();
 });
 window.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
