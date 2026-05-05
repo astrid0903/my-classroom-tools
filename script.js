@@ -1808,24 +1808,6 @@ async function exportPostBoardToObsidian() {
   const md = lines.join("\n");
   const filename = boardName.replace(/[\\/:*?"<>|]/g, "-");
 
-  // 優先使用 File System Access API：原生存檔對話框，可直接存入 Obsidian vault 資料夾
-  if (window.showSaveFilePicker) {
-    try {
-      const handle = await window.showSaveFilePicker({
-        suggestedName: `${filename}.md`,
-        types: [{ description: "Markdown", accept: { "text/markdown": [".md"] } }],
-      });
-      const writable = await handle.createWritable();
-      await writable.write(md);
-      await writable.close();
-      return;
-    } catch (e) {
-      if (e.name === "AbortError") return; // 使用者取消
-      // 其他錯誤 fallback 到下載
-    }
-  }
-
-  // Fallback：直接下載 .md 檔案
   const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
   const blobUrl = URL.createObjectURL(blob);
   const a = document.createElement("a");
