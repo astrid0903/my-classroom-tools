@@ -193,6 +193,14 @@ h3 {
     linear-gradient(145deg, #2572b8, #69b8df 44%, #d7edf8);
 }
 
+.settings-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: transparent;
+  cursor: default;
+}
+
 .stage-bg-layer {
   position: absolute;
   inset: 0;

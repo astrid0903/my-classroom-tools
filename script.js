@@ -159,6 +159,7 @@ const els = {
   expandDock: document.querySelector("#expand-dock"),
   dockItems: document.querySelectorAll(".dock-item[data-tool]"),
   toolPanels: document.querySelectorAll(".tool-section[data-panel]"),
+  settingsBackdrop: document.querySelector("#settings-backdrop"),
   studio: document.querySelector(".studio"),
   participantView: document.querySelector("#participant-view"),
   participantBoardScreen: document.querySelector("#participant-board-screen"),
@@ -986,6 +987,7 @@ function createDynamicWidget(type, state = {}, position = null) {
   settingsButton.addEventListener("click", () => {
     bringWidgetToFront(widget);
     instance.state.settingsOpen = !instance.state.settingsOpen;
+    els.settingsBackdrop.classList.toggle("hidden", !instance.state.settingsOpen);
     renderDynamicWidget(instance);
     writeState();
   });
@@ -3882,8 +3884,7 @@ document.addEventListener("click", () => {
   document.querySelectorAll(".post-menu:not(.hidden)").forEach((m) => m.classList.add("hidden"));
 });
 
-document.addEventListener("mousedown", (e) => {
-  if (e.target.closest(".dynamic-settings") || e.target.closest(".dynamic-settings-btn")) return;
+function closeAllWidgetSettings() {
   let changed = false;
   dynamicWidgets.forEach((inst) => {
     if (inst.state.settingsOpen) {
@@ -3892,7 +3893,15 @@ document.addEventListener("mousedown", (e) => {
       changed = true;
     }
   });
+  els.settingsBackdrop.classList.add("hidden");
   if (changed) writeState();
+}
+
+els.settingsBackdrop.addEventListener("mousedown", closeAllWidgetSettings);
+
+document.addEventListener("mousedown", (e) => {
+  if (e.target.closest(".dynamic-settings") || e.target.closest(".dynamic-settings-btn")) return;
+  closeAllWidgetSettings();
 });
 window.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
