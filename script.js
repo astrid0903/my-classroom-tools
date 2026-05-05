@@ -431,6 +431,7 @@ function renderPages() {
   els.pageBgOpacity.value = opacityVal;
   els.pageBgOpacityValue.textContent = opacityVal;
   els.pageBgStatus.textContent = curPage.bgImage ? "已設定背景圖片。" : curPage.bgColor ? `背景顏色：${curPage.bgColor}` : "";
+  updateSwatchActive(curPage.bgColor || "");
   updatePostBoardControls();
 }
 
@@ -3677,12 +3678,27 @@ els.clearPageTitleColor.addEventListener("click", () => {
   els.postBoardTitle.style.color = "";
   writeState();
 });
-els.pageBgColor.addEventListener("change", () => {
+function applyBgColor(color) {
   const page = activePage();
-  pages = pages.map((p) => (p.id === page.id ? { ...p, bgColor: els.pageBgColor.value, bgImage: "" } : p));
+  pages = pages.map((p) => (p.id === page.id ? { ...p, bgColor: color, bgImage: "" } : p));
+  els.pageBgColor.value = color;
+  els.pageBgOpacityRow.classList.add("hidden");
   applyPageBackground(activePage());
-  els.pageBgStatus.textContent = `背景顏色：${els.pageBgColor.value}`;
+  els.pageBgStatus.textContent = `背景顏色：${color}`;
+  updateSwatchActive(color);
   writeState();
+}
+
+function updateSwatchActive(color) {
+  document.querySelectorAll(".swatch").forEach((s) => {
+    s.classList.toggle("active", s.dataset.color === color);
+  });
+}
+
+els.pageBgColor.addEventListener("change", () => applyBgColor(els.pageBgColor.value));
+
+document.querySelectorAll(".swatch").forEach((btn) => {
+  btn.addEventListener("click", () => applyBgColor(btn.dataset.color));
 });
 els.pageBgImageFile.addEventListener("change", async () => {
   const file = els.pageBgImageFile.files[0];
@@ -3717,6 +3733,7 @@ els.clearPageBg.addEventListener("click", () => {
   els.pageBgColor.value = "#080a0e";
   els.pageBgOpacityRow.classList.add("hidden");
   els.pageBgStatus.textContent = "";
+  updateSwatchActive("");
   applyPageBackground(activePage());
   writeState();
 });

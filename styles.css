@@ -1048,6 +1048,33 @@ h3 {
   grid-template-columns: repeat(3, 1fr);
 }
 
+.bg-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: transform 0.1s, border-color 0.1s;
+}
+
+.swatch:hover {
+  transform: scale(1.2);
+  border-color: rgba(0, 0, 0, 0.4);
+}
+
+.swatch.active {
+  border-color: #2364aa;
+  box-shadow: 0 0 0 2px #2364aa;
+}
+
 .compact-button {
   min-height: 34px;
   padding: 0 10px;
