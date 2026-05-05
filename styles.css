@@ -1658,8 +1658,19 @@ h3 {
 
 .participant-board-columns .post-section {
   width: clamp(240px, 78vw, 320px);
+  min-width: 0;
   flex-shrink: 0;
+  overflow: hidden;
   cursor: default;
+}
+
+.post-thumb {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  border-radius: 6px;
+  margin-top: 8px;
+  object-fit: cover;
 }
 
 .participant-section-title {

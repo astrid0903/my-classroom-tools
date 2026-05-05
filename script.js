@@ -2223,6 +2223,11 @@ function renderParticipantPostCards(container, posts) {
   });
 }
 
+function postsNotInSections(posts, sections) {
+  const ids = new Set(sections.map((s) => s.id));
+  return posts.filter((p) => !p.sectionId || !ids.has(p.sectionId));
+}
+
 function renderParticipantBoard(sections, posts) {
   els.participantBoardBody.innerHTML = "";
   els.participantOpenForm.classList.remove("hidden");
@@ -2247,6 +2252,17 @@ function renderParticipantBoard(sections, posts) {
     column.append(head, body);
     columns.appendChild(column);
   });
+  const uncategorized = postsNotInSections(posts, sections);
+  if (uncategorized.length > 0) {
+    const column = createEl("section", "post-section");
+    const head = createEl("div", "post-section-head");
+    const titleEl = createEl("div", "post-section-title participant-section-title", "未分類");
+    head.append(titleEl);
+    const body = createEl("div", "post-section-body");
+    renderParticipantPostCards(body, uncategorized);
+    column.append(head, body);
+    columns.appendChild(column);
+  }
   els.participantBoardBody.appendChild(columns);
 }
 
