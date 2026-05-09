@@ -4,15 +4,15 @@
 進度與最近更動都在 Obsidian：`OB/10-專案工作筆記/18.my-classroom-tools/18.my-classroom-tools 工作筆記.md`
 
 ## 工作模式
-- **加新工具**：對 Codex 說「我想做一個 XXX 工具」→ Codex 會建 `tools/<工具名>/` 子資料夾、引導跟著影片做
-- **結束工作**：對 Codex 說「**收工**」→ 自動觸發 `~/codex-tools/shutdown.sh` SOP（commit + push + 更新 Obsidian 工作筆記）
-- **接續工作**：對 Codex 說「讀工作筆記、告訴我上次做到哪」
+- **加新工具**：對 AI（Antigravity / Codex）說「我想做一個 XXX 工具」→ 會建 `tools/<工具名>/` 子資料夾、引導做
+- **結束工作**：說「**收工**」→ 自動觸發 `~/codex-tools/shutdown.sh` SOP（commit + push + 更新 Obsidian 工作筆記）
+- **接續工作**：說「讀工作筆記、告訴我上次做到哪」
 
 ## 工作桌 + 三個家
 - 📋 GDrive 工作桌：`/Users/hsiaoyutsai/我的雲端硬碟 (gisele0903@gmail.com)/my-classroom-tools/`
 - 🐙 GitHub repo：`astrid0903/my-classroom-tools`（公開）
 - 📘 Obsidian 駕駛艙：`OB/10-專案工作筆記/18.my-classroom-tools/18.my-classroom-tools 工作筆記.md`
-- 🔥 Firebase 專案：`my-teaching-tools-gisele0903`
+- 🔥 Firebase 專案：`my-teaching-tools-gisele0903`（Firebase App ID）
 
 ## 「收工」觸發規則（給 Codex 讀的）
 
