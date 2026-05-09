@@ -167,6 +167,11 @@ const els = {
   toolDock: document.querySelector(".tool-dock"),
   hideWidgets: document.querySelector("#hide-widgets"),
   moreTools: document.querySelector("#more-tools"),
+  hiddenWidgetsButton: document.querySelector("#hidden-widgets-button"),
+  hiddenWidgetPopover: document.querySelector("#hidden-widget-popover"),
+  hiddenWidgetList: document.querySelector("#hidden-widget-list"),
+  showAllCreatedWidgets: document.querySelector("#show-all-created-widgets"),
+  hideAllCreatedWidgets: document.querySelector("#hide-all-created-widgets"),
   moreToolItems: document.querySelectorAll(".more-tool"),
   collapseDock: document.querySelector("#collapse-dock"),
   expandDock: document.querySelector("#expand-dock"),
@@ -240,6 +245,7 @@ let dynamicWidgetCounter = 0;
 let pages = [];
 let activePageId = "main";
 let moreToolsOpen = false;
+let hiddenWidgetsOpen = false;
 let selectedWidgets = new Set();
 let topWidgetZ = 60;
 let postBoardUnsubscribe = null;
@@ -307,6 +313,7 @@ function buildState(extra = {}) {
     activeTool,
     dockCollapsed,
     moreToolsOpen,
+    hiddenWidgetsOpen,
     pages,
     activePageId,
     groups,
@@ -486,6 +493,7 @@ function currentLayoutSnapshotFromStorage() {
     activeTool: "",
     dockCollapsed: false,
     moreToolsOpen: false,
+    hiddenWidgetsOpen: false,
   };
   delete snapshot.savedLayouts;
   return Object.keys(snapshot).length > 0 ? snapshot : { pages: [DEFAULT_PAGE], activePageId: DEFAULT_PAGE.id, activeTool: "", dockCollapsed: false };
@@ -548,6 +556,7 @@ function blankStudioState() {
     activeTool: "",
     dockCollapsed: false,
     moreToolsOpen: false,
+    hiddenWidgetsOpen: false,
   };
 }
 
@@ -563,7 +572,7 @@ function showHome() {
 }
 
 function showStudio() {
-  patchStoredState({ activeTool: "", moreToolsOpen: false });
+  patchStoredState({ activeTool: "", moreToolsOpen: false, hiddenWidgetsOpen: false });
   els.homeView.classList.add("hidden");
   els.studio.classList.remove("hidden");
   document.body.classList.remove("home-mode");
@@ -685,9 +694,84 @@ function renderPages() {
 
 function updateDynamicWidgetVisibility() {
   dynamicWidgets.forEach((widget) => {
-    widget.element.classList.toggle("page-hidden", widget.pageId !== activePage().id);
+    widget.element.classList.toggle("page-hidden", widget.pageId !== activePage().id || Boolean(widget.state.hidden));
   });
   pruneWidgetSelection();
+  renderHiddenWidgetsList();
+}
+
+function widgetTypeLabel(type) {
+  return {
+    timer: "計時器",
+    clock: "現在時間",
+    groups: "學員分組",
+    text: "文字框",
+    image: "圖片",
+    youtube: "YouTube",
+    slides: "簡報",
+    qr: "QR Code",
+  }[type] || "小工具";
+}
+
+function widgetListLabel(widget) {
+  const page = pages.find((item) => item.id === widget.pageId);
+  const title = String(widget.state.title || widgetTypeLabel(widget.type)).trim();
+  return `${title || widgetTypeLabel(widget.type)}${page ? ` · ${page.name}` : ""}`;
+}
+
+function setHiddenWidgetsOpen(isOpen) {
+  hiddenWidgetsOpen = isOpen;
+  if (hiddenWidgetsOpen && moreToolsOpen) setMoreToolsOpen(false);
+  els.hiddenWidgetPopover.classList.toggle("hidden", !hiddenWidgetsOpen);
+  els.hiddenWidgetsButton.classList.toggle("active", hiddenWidgetsOpen);
+  els.hiddenWidgetsButton.setAttribute("aria-expanded", String(hiddenWidgetsOpen));
+  renderHiddenWidgetsList();
+  writeState();
+}
+
+function setDynamicWidgetHidden(widget, hidden) {
+  widget.state.hidden = hidden;
+  if (hidden) {
+    widget.state.settingsOpen = false;
+    if (!dynamicWidgets.some((item) => item.id !== widget.id && item.state.settingsOpen)) {
+      els.settingsBackdrop.classList.add("hidden");
+    }
+  }
+  renderDynamicWidget(widget);
+  updateDynamicWidgetVisibility();
+  writeState();
+}
+
+function setAllDynamicWidgetsHidden(hidden) {
+  dynamicWidgets.forEach((widget) => {
+    widget.state.hidden = hidden;
+    if (hidden) widget.state.settingsOpen = false;
+    renderDynamicWidget(widget);
+  });
+  if (hidden) els.settingsBackdrop.classList.add("hidden");
+  updateDynamicWidgetVisibility();
+  writeState();
+}
+
+function renderHiddenWidgetsList() {
+  if (!els.hiddenWidgetList) return;
+  els.hiddenWidgetList.innerHTML = "";
+  els.showAllCreatedWidgets.disabled = dynamicWidgets.length === 0 || dynamicWidgets.every((widget) => !widget.state.hidden);
+  els.hideAllCreatedWidgets.disabled = dynamicWidgets.length === 0 || dynamicWidgets.every((widget) => widget.state.hidden);
+  if (dynamicWidgets.length === 0) {
+    els.hiddenWidgetList.appendChild(createEl("div", "hidden-widget-empty", "尚未建立小工具"));
+    return;
+  }
+  dynamicWidgets.forEach((widget) => {
+    const row = createEl("div", "hidden-widget-row");
+    const meta = createEl("div", "hidden-widget-meta");
+    meta.append(createEl("strong", "", widgetListLabel(widget)), createEl("span", "", widget.state.hidden ? "已隱藏" : "顯示中"));
+    const toggle = createEl("button", widget.state.hidden ? "" : "secondary", widget.state.hidden ? "顯示" : "隱藏");
+    toggle.type = "button";
+    toggle.addEventListener("click", () => setDynamicWidgetHidden(widget, !widget.state.hidden));
+    row.append(meta, toggle);
+    els.hiddenWidgetList.appendChild(row);
+  });
 }
 
 function applyPageBackground(page) {
@@ -741,6 +825,7 @@ function updateStageForPage() {
 
 function setMoreToolsOpen(isOpen) {
   if (isOpen && activeTool) setActiveTool("");
+  if (isOpen && hiddenWidgetsOpen) setHiddenWidgetsOpen(false);
   moreToolsOpen = isOpen;
   els.toolDock.classList.toggle("more-open", moreToolsOpen);
   els.moreTools.setAttribute("aria-expanded", String(moreToolsOpen));
@@ -1072,7 +1157,7 @@ function sanitizeDynamicState(state) {
 function defaultDynamicState(type) {
   if (type === "timer") return { title: "Timer", titleSize: "13", minutes: "5", seconds: "0", remaining: 300, settingsOpen: true };
   if (type === "clock") return { title: "Clock", titleSize: "13", settingsOpen: true };
-  if (type === "groups") return { title: "Groups", titleSize: "13", studentList: "", groupCount: "4", shuffle: true, groups: [], settingsOpen: true };
+  if (type === "groups") return { title: "Groups", titleSize: "13", studentList: "", groupCount: "4", shuffle: true, groups: [], checkable: false, checkedStudents: {}, settingsOpen: true };
   if (type === "text") return { title: "Text", titleSize: "13", content: "文字框", size: "44", color: "#ffffff", align: "center", settingsOpen: true };
   if (type === "image") return { title: "Image", titleSize: "13", imageUrl: "", imageSource: "", imageScale: "100", settingsOpen: true };
   if (type === "youtube") return { title: "YouTube", titleSize: "13", youtubeUrl: "", embedUrl: "", watchUrl: "", settingsOpen: true, minimized: false };
@@ -1148,6 +1233,31 @@ function alignmentSelect(value = "center") {
   return select;
 }
 
+function checkedStudentKey(groupIndex, studentIndex) {
+  return `${groupIndex}:${studentIndex}`;
+}
+
+function normalizedDynamicGroups(groupsValue, groupCountValue) {
+  const source = Array.isArray(groupsValue) ? groupsValue : [];
+  const groupCount = Math.max(source.length, clampNumber(groupCountValue || "1", 1, 20));
+  return Array.from({ length: groupCount }, (_, index) => (Array.isArray(source[index]) ? source[index] : []));
+}
+
+function readDynamicGroupFields(container) {
+  return [...container.querySelectorAll("textarea[data-group-index]")]
+    .map((field) => splitStudents(field.value))
+    .filter((group) => group.length > 0);
+}
+
+function pruneCheckedStudents(checkedStudents, groupsValue) {
+  const source = checkedStudents && typeof checkedStudents === "object" && !Array.isArray(checkedStudents) ? checkedStudents : {};
+  const allowed = new Set();
+  groupsValue.forEach((group, groupIndex) => {
+    group.forEach((_, studentIndex) => allowed.add(checkedStudentKey(groupIndex, studentIndex)));
+  });
+  return Object.fromEntries(Object.entries(source).filter(([key, value]) => value && allowed.has(key)));
+}
+
 function createDynamicWidget(type, state = {}, position = null) {
   if (!DYNAMIC_WIDGET_TYPES.has(type)) return null;
 
@@ -1176,6 +1286,10 @@ function createDynamicWidget(type, state = {}, position = null) {
   const title = createEl("div", "dynamic-title");
   const actions = createEl("div", "dynamic-actions");
   const minimizeButton = type === "youtube" ? createEl("button", "", "▁") : null;
+  const hideButton = createEl("button", "dynamic-hide-btn", "◌");
+  hideButton.type = "button";
+  hideButton.title = "隱藏小工具";
+  hideButton.setAttribute("aria-label", "隱藏小工具");
   const copyButton = createEl("button", "", "⧉");
   copyButton.type = "button";
   copyButton.title = "複製小工具";
@@ -1190,7 +1304,7 @@ function createDynamicWidget(type, state = {}, position = null) {
     minimizeButton.title = "最小化 YouTube";
     actions.appendChild(minimizeButton);
   }
-  actions.append(copyButton, settingsButton, removeButton);
+  actions.append(hideButton, copyButton, settingsButton, removeButton);
   head.append(drag, title, actions);
 
   const content = createEl("div", "dynamic-content");
@@ -1227,6 +1341,7 @@ function createDynamicWidget(type, state = {}, position = null) {
     });
   }
   resize.addEventListener("pointerdown", startResize);
+  hideButton.addEventListener("click", () => setDynamicWidgetHidden(instance, true));
   copyButton.addEventListener("click", () => copyDynamicWidget(id));
   minimizeButton?.addEventListener("click", () => {
     const nextMinimized = !instance.state.minimized;
@@ -1252,7 +1367,11 @@ function createDynamicWidget(type, state = {}, position = null) {
     renderDynamicWidget(instance);
     writeState();
   });
-  removeButton.addEventListener("click", () => removeDynamicWidget(id));
+  removeButton.addEventListener("click", async () => {
+    if (await showConfirmModal(`確定要刪除「${widgetListLabel(instance)}」嗎？刪除後不能復原。`)) {
+      removeDynamicWidget(id);
+    }
+  });
 
   buildDynamicSettings(instance);
   renderDynamicWidget(instance);
@@ -1339,9 +1458,39 @@ function buildDynamicSettings(instance) {
     const make = createEl("button", "", "產生分組");
     make.type = "button";
     settings.appendChild(make);
+    const checkLabel = createEl("label", "switch dynamic-check-switch");
+    const checkable = document.createElement("input");
+    checkable.type = "checkbox";
+    checkable.checked = Boolean(state.checkable);
+    checkLabel.append(checkable, document.createTextNode("姓名勾選"));
+    settings.appendChild(checkLabel);
+    const clearChecks = createEl("button", "secondary", "清除勾選");
+    clearChecks.type = "button";
+    clearChecks.addEventListener("click", () => updateDynamicState(instance, { checkedStudents: {} }));
+    settings.appendChild(clearChecks);
+    const manualTitle = createEl("div", "dynamic-settings-subtitle", "每組名單");
+    const manualList = createEl("div", "dynamic-group-editor");
+    normalizedDynamicGroups(state.groups, state.groupCount).forEach((group, index) => {
+      const field = createEl("label", "dynamic-group-field");
+      field.textContent = `第 ${index + 1} 組`;
+      const textarea = dynamicTextarea(group.join("\n"), 3);
+      textarea.dataset.groupIndex = String(index);
+      textarea.placeholder = "一行一位，或用逗號分隔";
+      textarea.addEventListener("input", () => {
+        const nextGroups = readDynamicGroupFields(manualList);
+        instance.state.groups = nextGroups;
+        instance.state.checkedStudents = pruneCheckedStudents(instance.state.checkedStudents, nextGroups);
+        renderDynamicWidget(instance);
+        writeState();
+      });
+      field.appendChild(textarea);
+      manualList.appendChild(field);
+    });
+    settings.append(manualTitle, manualList);
     list.addEventListener("input", () => updateDynamicState(instance, { studentList: list.value }));
     count.addEventListener("change", () => updateDynamicState(instance, { groupCount: count.value }));
     shuffle.addEventListener("change", () => updateDynamicState(instance, { shuffle: shuffle.checked }));
+    checkable.addEventListener("change", () => updateDynamicState(instance, { checkable: checkable.checked }));
     make.addEventListener("click", () => makeDynamicGroups(instance));
   }
 
@@ -1432,7 +1581,7 @@ function buildDynamicSettings(instance) {
   }
 
   if (type === "slides") {
-    const url = addLabeledInput(settings, "Google Slides 連結或 ID", dynamicTextarea(state.slidesUrl || "", 3));
+    const url = addLabeledInput(settings, "Google Slides 或 Google Drive PDF 連結", dynamicTextarea(state.slidesUrl || "", 3));
     const mode = addLabeledInput(settings, "嵌入模式", document.createElement("select"));
     [
       ["preview", "preview"],
@@ -1464,6 +1613,7 @@ function buildDynamicSettings(instance) {
         slidesUrl: url.value,
         mode: mode.value,
         embedUrl,
+        sourceKind: slides.kind,
         editUrl: slides.editUrl,
       });
       open.href = slides.editUrl;
@@ -1477,6 +1627,12 @@ function renderDynamicWidget(instance) {
   title.textContent = state.title || type;
   title.style.fontSize = `${Math.min(80, Math.max(8, Number(state.titleSize) || 13))}px`;
   settings.classList.toggle("collapsed", !state.settingsOpen);
+  instance.element.classList.toggle("widget-hidden-by-user", Boolean(state.hidden));
+  const hideButton = instance.element.querySelector(".dynamic-hide-btn");
+  if (hideButton) {
+    hideButton.title = state.hidden ? "小工具已隱藏" : "隱藏小工具";
+    hideButton.setAttribute("aria-label", state.hidden ? "小工具已隱藏" : "隱藏小工具");
+  }
   placeDynamicSettings(instance);
 
   if (type === "timer") {
@@ -1506,7 +1662,32 @@ function renderDynamicWidget(instance) {
       groupsValue.forEach((group, index) => {
         const item = createEl("div", "dynamic-group");
         const groupTitle = createEl("strong", "", `第 ${index + 1} 組`);
-        const names = createEl("span", "", group.join("、"));
+        const names = createEl("div", "dynamic-group-names");
+        group.forEach((student, studentIndex) => {
+          const key = checkedStudentKey(index, studentIndex);
+          const isChecked = Boolean(state.checkedStudents?.[key]);
+          if (state.checkable) {
+            const label = createEl("label", "dynamic-student-check");
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.checked = isChecked;
+            checkbox.addEventListener("change", () => {
+              const checkedStudents = {
+                ...(instance.state.checkedStudents || {}),
+                [key]: checkbox.checked,
+              };
+              if (!checkbox.checked) delete checkedStudents[key];
+              updateDynamicState(instance, { checkedStudents });
+            });
+            const name = createEl("span", "", student);
+            label.classList.toggle("checked", isChecked);
+            label.append(checkbox, name);
+            names.appendChild(label);
+          } else {
+            const name = createEl("span", "dynamic-student-name", student);
+            names.appendChild(name);
+          }
+        });
         item.append(groupTitle, names);
         display.appendChild(item);
       });
@@ -1656,14 +1837,22 @@ function resetDynamicTimer(instance) {
 function makeDynamicGroups(instance) {
   const students = splitStudents(instance.state.studentList || "");
   if (students.length === 0) {
-    updateDynamicState(instance, { groups: [] });
+    instance.state.groups = [];
+    instance.state.checkedStudents = {};
+    buildDynamicSettings(instance);
+    renderDynamicWidget(instance);
+    writeState();
     return;
   }
   const count = Math.min(students.length, clampNumber(instance.state.groupCount, 1, 20));
   const source = instance.state.shuffle === false ? students : shuffled(students);
   const nextGroups = Array.from({ length: count }, () => []);
   source.forEach((student, index) => nextGroups[index % count].push(student));
-  updateDynamicState(instance, { groups: nextGroups });
+  instance.state.groups = nextGroups;
+  instance.state.checkedStudents = {};
+  buildDynamicSettings(instance);
+  renderDynamicWidget(instance);
+  writeState();
 }
 
 function copyDynamicWidget(id) {
@@ -1672,7 +1861,7 @@ function copyDynamicWidget(id) {
   const position = widgetPosition(source.element);
   const left = Number.parseFloat(position.left || "24") + 28;
   const top = Number.parseFloat(position.top || "24") + 28;
-  createDynamicWidget(source.type, cloneValue(source.state), {
+  createDynamicWidget(source.type, { ...cloneValue(source.state), hidden: false }, {
     ...position,
     left: `${left}px`,
     top: `${top}px`,
@@ -1689,6 +1878,7 @@ function removeDynamicWidget(id, persist = true) {
   widget.settings.remove();
   dynamicWidgets = dynamicWidgets.filter((item) => item.id !== id);
   renderWidgetSelection();
+  renderHiddenWidgetsList();
   if (persist) writeState();
 }
 
@@ -1702,6 +1892,7 @@ function clearDynamicWidgets() {
   });
   dynamicWidgets = [];
   renderWidgetSelection();
+  renderHiddenWidgetsList();
 }
 
 function normalizeSyncCode(value) {
@@ -2830,7 +3021,10 @@ function setDockCollapsed(isCollapsed) {
   dockCollapsed = isCollapsed;
   els.toolDock.classList.toggle("collapsed", dockCollapsed);
   els.expandDock.classList.toggle("hidden", !dockCollapsed);
-  if (dockCollapsed) setActiveTool("");
+  if (dockCollapsed) {
+    setActiveTool("");
+    setHiddenWidgetsOpen(false);
+  }
   writeState();
 }
 
@@ -3170,6 +3364,20 @@ function parseSlidesInput(raw) {
   const value = raw.trim();
   if (!value) return null;
 
+  const drivePdfMatch =
+    value.match(/drive\.google\.com\/file\/d\/([^/]+)/) ||
+    value.match(/[?&]id=([-\w]{25,})/) ||
+    value.match(/uc\?[^#]*id=([-\w]{25,})/);
+  if (drivePdfMatch) {
+    const id = drivePdfMatch[1];
+    return {
+      id,
+      kind: "drive-pdf",
+      slide: "",
+      editUrl: `https://drive.google.com/file/d/${id}/view`,
+    };
+  }
+
   const publishedMatch = value.match(/presentation\/d\/e\/([^/]+)/);
   if (publishedMatch) {
     return {
@@ -3195,6 +3403,10 @@ function parseSlidesInput(raw) {
 
 function buildSlidesUrl(slides, mode = slidesMode) {
   if (!slides) return "";
+
+  if (slides.kind === "drive-pdf") {
+    return `https://drive.google.com/file/d/${slides.id}/preview`;
+  }
 
   const params = new URLSearchParams({
     start: "false",
@@ -3266,7 +3478,7 @@ function loadPlayerUrl(playerUrl) {
 function loadSlides() {
   const slides = parseSlidesInput(els.slidesUrl.value);
   if (!slides) {
-    setSlidesMessage("請貼上 Google Slides 分享連結、embed 連結，或簡報 ID。", true);
+    setSlidesMessage("請貼上 Google Slides 分享連結、embed 連結、簡報 ID，或 Google Drive PDF 分享連結。", true);
     return;
   }
 
@@ -3275,7 +3487,9 @@ function loadSlides() {
   loadPlayerUrl(playerUrl);
   updateOpenSlidesLink();
   updateSlidesDebug(playerUrl);
-  if (isLocalFileMode()) {
+  if (slides.kind === "drive-pdf") {
+    setSlidesMessage("已載入 Google Drive PDF。若畫面空白，請確認 PDF 分享權限是知道連結的人可檢視。");
+  } else if (isLocalFileMode()) {
     setSlidesMessage("目前是用本機 file:// 開啟，Google Slides 可能不允許嵌入。請點「開啟線上播放台」再載入簡報。", true);
   } else {
     setSlidesMessage(`已用 ${slidesMode} 模式載入。若仍空白，點「切換播放模式」或確認分享權限。`);
@@ -3297,6 +3511,11 @@ function clearSlides() {
 }
 
 function switchSlidesMode() {
+  if (currentSlides?.kind === "drive-pdf") {
+    setSlidesMessage("Google Drive PDF 使用固定預覽模式，不需要切換播放模式。");
+    return;
+  }
+
   slidesMode = slidesMode === "preview" ? "embed" : "preview";
 
   if (!currentSlides) {
@@ -3898,6 +4117,7 @@ function restore() {
   activeTool = state.activeTool || "";
   dockCollapsed = Boolean(state.dockCollapsed);
   moreToolsOpen = Boolean(state.moreToolsOpen);
+  hiddenWidgetsOpen = Boolean(state.hiddenWidgetsOpen);
   groups = Array.isArray(state.groups) ? state.groups : [];
   manualGroups = Array.isArray(state.manualGroups) ? state.manualGroups : groups;
 
@@ -3934,6 +4154,7 @@ function restore() {
   setActiveTool(activeTool);
   setDockCollapsed(dockCollapsed);
   setMoreToolsOpen(moreToolsOpen);
+  setHiddenWidgetsOpen(hiddenWidgetsOpen);
   updateStageForPage();
 }
 
@@ -4056,6 +4277,9 @@ els.frame.addEventListener("load", () => {
 els.fullscreenButton.addEventListener("click", () => els.stage.requestFullscreen?.());
 els.hideWidgets.addEventListener("click", hideAllWidgets);
 els.moreTools.addEventListener("click", () => setMoreToolsOpen(!moreToolsOpen));
+els.hiddenWidgetsButton.addEventListener("click", () => setHiddenWidgetsOpen(!hiddenWidgetsOpen));
+els.showAllCreatedWidgets.addEventListener("click", () => setAllDynamicWidgetsHidden(false));
+els.hideAllCreatedWidgets.addEventListener("click", () => setAllDynamicWidgetsHidden(true));
 els.collapseDock.addEventListener("click", () => setDockCollapsed(true));
 els.expandDock.addEventListener("click", () => setDockCollapsed(false));
 els.timerStart.addEventListener("click", startTimer);

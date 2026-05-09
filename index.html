@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Google Slides 教學播放台</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
-  <link rel="stylesheet" href="./styles.css?v=20260509-home">
+  <link rel="stylesheet" href="./styles.css?v=20260509-hidden-widgets">
 </head>
 <body>
   <section id="home-view" class="home-view" aria-label="版本首頁">
@@ -180,8 +180,8 @@
     <aside class="control-tray" aria-label="小工具設定">
       <section id="slides-panel" class="tool-section" data-panel="slides">
         <h2>簡報</h2>
-        <label for="slides-url">Google Slides 連結或 ID</label>
-        <textarea id="slides-url" rows="4" placeholder="https://docs.google.com/presentation/d/.../edit"></textarea>
+        <label for="slides-url">Google Slides 或 Google Drive PDF 連結</label>
+        <textarea id="slides-url" rows="4" placeholder="https://docs.google.com/presentation/d/.../edit 或 https://drive.google.com/file/d/.../view"></textarea>
         <div class="button-row">
           <button id="load-slides" type="button">載入簡報</button>
           <button id="clear-slides" class="secondary" type="button">清除</button>
@@ -484,6 +484,10 @@
         <span class="dock-icon">⋯</span>
         <span>more</span>
       </button>
+      <button id="hidden-widgets-button" class="dock-item" type="button" aria-label="隱藏小工具清單" aria-expanded="false">
+        <span class="dock-icon">◌</span>
+        <span>hidden</span>
+      </button>
       <button id="fullscreen-button" class="dock-item" type="button" aria-label="全螢幕播放">
         <span class="dock-icon">⛶</span>
         <span>full</span>
@@ -496,6 +500,16 @@
         <span class="dock-icon">⌄</span>
         <span>hide</span>
       </button>
+      <div id="hidden-widget-popover" class="hidden-widget-popover hidden" aria-label="隱藏小工具清單">
+        <div class="hidden-widget-head">
+          <strong>已建立小工具</strong>
+          <div class="hidden-widget-actions">
+            <button id="show-all-created-widgets" class="secondary" type="button">顯示全部</button>
+            <button id="hide-all-created-widgets" class="secondary" type="button">隱藏全部</button>
+          </div>
+        </div>
+        <div id="hidden-widget-list" class="hidden-widget-list"></div>
+      </div>
     </nav>
     <button id="expand-dock" class="dock-mini hidden" type="button" aria-label="展開工具列">工具</button>
   </main>
@@ -573,7 +587,7 @@
     <div class="post-edit-dialog post-simple-dialog">
       <p id="confirm-modal-message" class="confirm-modal-message"></p>
       <div class="button-row">
-        <button id="confirm-modal-ok" class="danger" type="button">確定</button>
+        <button id="confirm-modal-ok" class="danger" type="button">確定刪除</button>
         <button id="confirm-modal-cancel" class="secondary" type="button">取消</button>
       </div>
     </div>
@@ -595,6 +609,6 @@
   </div>
 
   <div id="settings-backdrop" class="settings-backdrop hidden"></div>
-  <script src="./script.js?v=20260509-home"></script>
+  <script src="./script.js?v=20260509-drive-pdf"></script>
 </body>
 </html>
