@@ -12,6 +12,19 @@ const FIREBASE_COLLECTION = "classroomToolLayouts";
 const POST_BOARDS_COLLECTION = "classroomPostBoards";
 
 const els = {
+  homeView: document.querySelector("#home-view"),
+  homeEnterStudio: document.querySelector("#home-enter-studio"),
+  homeNewStudio: document.querySelector("#home-new-studio"),
+  homeLayoutName: document.querySelector("#home-layout-name"),
+  homeSaveLayout: document.querySelector("#home-save-layout"),
+  homeSyncCode: document.querySelector("#home-sync-code"),
+  homeSyncLayouts: document.querySelector("#home-sync-layouts"),
+  homeLoadCloudLayouts: document.querySelector("#home-load-cloud-layouts"),
+  homeExportLayouts: document.querySelector("#home-export-layouts"),
+  homeImportLayouts: document.querySelector("#home-import-layouts"),
+  homeVersionMessage: document.querySelector("#home-version-message"),
+  homeVersionCount: document.querySelector("#home-version-count"),
+  homeLayoutGrid: document.querySelector("#home-layout-grid"),
   stage: document.querySelector("#slide-stage"),
   frame: document.querySelector("#slides-frame"),
   slidesUrl: document.querySelector("#slides-url"),
@@ -228,7 +241,7 @@ let pages = [];
 let activePageId = "main";
 let moreToolsOpen = false;
 let selectedWidgets = new Set();
-let topWidgetZ = 20;
+let topWidgetZ = 60;
 let postBoardUnsubscribe = null;
 let postBoardMetadataUnsubscribe = null;
 let postBoardPosts = [];
@@ -316,6 +329,10 @@ function writeState(extra = {}) {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(buildState(extra)));
 }
 
+function patchStoredState(extra = {}) {
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...readState(), ...extra }));
+}
+
 function layoutSnapshot() {
   const snapshot = buildState({
     activeTool: "",
@@ -335,6 +352,237 @@ function formatSavedAt(value) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function setVersionMessage(text, isError = false) {
+  [els.homeVersionMessage, els.layoutMessage].forEach((element) => {
+    if (!element) return;
+    element.textContent = text;
+    element.classList.toggle("error", isError);
+  });
+}
+
+function savedLayoutEntries() {
+  return Object.values(readSavedLayouts()).sort((a, b) => String(b.savedAt || "").localeCompare(String(a.savedAt || "")));
+}
+
+function layoutPages(layout) {
+  return normalizePages(layout?.state?.pages || []);
+}
+
+function layoutWidgets(layout) {
+  const state = layout?.state || {};
+  const dynamic = Array.isArray(state.dynamicWidgets) ? state.dynamicWidgets : [];
+  const fixed = [];
+  if (state.showTimer) fixed.push({ type: "timer", position: state.widgets?.timer });
+  if (state.showClock) fixed.push({ type: "clock", position: state.widgets?.clock });
+  if (state.showGroups) fixed.push({ type: "groups", position: state.widgets?.groups });
+  if (state.showTextBox) fixed.push({ type: "text", position: state.widgets?.text });
+  if (state.showImage) fixed.push({ type: "image", position: state.widgets?.image });
+  if (state.showYoutube) fixed.push({ type: "youtube", position: state.widgets?.youtube });
+  return [
+    ...fixed,
+    ...dynamic.map((widget) => ({
+      type: widget.type,
+      pageId: widget.pageId || widget.state?.pageId,
+      position: widget.position,
+    })),
+  ];
+}
+
+function layoutFeatureTags(layout) {
+  const pagesForLayout = layoutPages(layout);
+  const widgetTypes = new Set(layoutWidgets(layout).map((widget) => widget.type));
+  const tags = [];
+  if (layout?.state?.currentSlides || layout?.state?.slidesUrl || widgetTypes.has("slides")) tags.push("Slides");
+  if (pagesForLayout.some((page) => page.type === "posts")) tags.push("貼文板");
+  if (widgetTypes.has("youtube")) tags.push("YouTube");
+  if (widgetTypes.has("qr")) tags.push("QR");
+  if (widgetTypes.has("groups")) tags.push("分組");
+  if (widgetTypes.has("timer")) tags.push("計時");
+  return tags.slice(0, 6);
+}
+
+function widgetShortLabel(type) {
+  return {
+    timer: "T",
+    clock: "C",
+    groups: "G",
+    text: "Aa",
+    image: "Img",
+    youtube: "YT",
+    slides: "S",
+    qr: "QR",
+  }[type] || "W";
+}
+
+function appendLayoutPreview(container, layout) {
+  const pagesForLayout = layoutPages(layout);
+  const widgetsForLayout = layoutWidgets(layout).slice(0, 10);
+  const tabs = createEl("div", "home-preview-tabs");
+  pagesForLayout.slice(0, 8).forEach((page) => {
+    const tab = createEl("span", `home-preview-tab ${page.type === "posts" ? "posts" : page.type === "dark" ? "dark" : ""}`);
+    tab.title = page.name;
+    tabs.appendChild(tab);
+  });
+  const stage = createEl("div", "home-preview-stage");
+  widgetsForLayout.forEach((widget, index) => {
+    const item = createEl("span", "home-preview-widget", widgetShortLabel(widget.type));
+    const position = widget.position || {};
+    const left = Number.isFinite(Number(position.left)) ? Math.max(4, Math.min(82, (Number(position.left) / 1180) * 100)) : 8 + (index % 4) * 21;
+    const top = Number.isFinite(Number(position.top)) ? Math.max(6, Math.min(74, (Number(position.top) / 760) * 100)) : 12 + Math.floor(index / 4) * 24;
+    item.style.left = `${left}%`;
+    item.style.top = `${top}%`;
+    item.title = widget.type;
+    stage.appendChild(item);
+  });
+  container.append(tabs, stage);
+}
+
+function renderHomeVersions() {
+  const entries = savedLayoutEntries();
+  els.homeLayoutGrid.innerHTML = "";
+  els.homeVersionCount.textContent = `${entries.length} 個版本`;
+  els.homeSyncCode.value = readState().syncCode || "";
+  els.syncCode.value = els.homeSyncCode.value;
+
+  if (entries.length === 0) {
+    els.homeLayoutGrid.appendChild(createEl("div", "home-empty", "目前還沒有儲存版本。先進入播放台完成配置，再回首頁儲存成版本。"));
+    return;
+  }
+
+  entries.forEach((layout) => {
+    const card = createEl("article", "home-layout-card");
+    const title = createEl("div", "home-layout-title");
+    title.append(createEl("h3", "", layout.name), createEl("span", "", layout.savedAt ? `儲存於 ${formatSavedAt(layout.savedAt)}` : "尚無儲存時間"));
+
+    const preview = createEl("div", "home-preview");
+    appendLayoutPreview(preview, layout);
+
+    const pagesForLayout = layoutPages(layout);
+    const widgetsForLayout = layoutWidgets(layout);
+    const meta = createEl("div", "home-layout-meta");
+    meta.append(createEl("span", "", `${pagesForLayout.length} 頁`), createEl("span", "", `${widgetsForLayout.length} 個小工具`));
+    layoutFeatureTags(layout).forEach((tag) => meta.appendChild(createEl("span", "", tag)));
+
+    const actions = createEl("div", "home-layout-actions");
+    const load = createEl("button", "", "載入");
+    load.type = "button";
+    load.addEventListener("click", () => loadLayoutByName(layout.name));
+    const remove = createEl("button", "danger", "刪除");
+    remove.type = "button";
+    remove.addEventListener("click", () => deleteLayoutByName(layout.name));
+    actions.append(load, remove);
+
+    card.append(title, preview, meta, actions);
+    els.homeLayoutGrid.appendChild(card);
+  });
+}
+
+function currentLayoutSnapshotFromStorage() {
+  const state = readState();
+  const snapshot = {
+    ...state,
+    activeTool: "",
+    dockCollapsed: false,
+    moreToolsOpen: false,
+  };
+  delete snapshot.savedLayouts;
+  return Object.keys(snapshot).length > 0 ? snapshot : { pages: [DEFAULT_PAGE], activePageId: DEFAULT_PAGE.id, activeTool: "", dockCollapsed: false };
+}
+
+function saveHomeLayout() {
+  const name = els.homeLayoutName.value.trim();
+  if (!name) {
+    setVersionMessage("請先輸入版本名稱。", true);
+    return;
+  }
+  const layouts = readSavedLayouts();
+  layouts[name] = {
+    name,
+    savedAt: new Date().toISOString(),
+    state: currentLayoutSnapshotFromStorage(),
+  };
+  patchStoredState({ savedLayouts: layouts });
+  els.layoutName.value = name;
+  renderSavedLayouts(name);
+  renderHomeVersions();
+  setVersionMessage(`已儲存「${name}」。`);
+}
+
+function loadLayoutByName(name) {
+  const layout = readSavedLayouts()[name];
+  if (!layout?.state) {
+    setVersionMessage("找不到這個版本。", true);
+    return;
+  }
+  const layouts = readSavedLayouts();
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...layout.state, savedLayouts: layouts, activeTool: "" }));
+  showStudio();
+}
+
+function deleteLayoutByName(name) {
+  const layouts = readSavedLayouts();
+  if (!name || !layouts[name]) {
+    setVersionMessage("找不到要刪除的版本。", true);
+    return;
+  }
+  delete layouts[name];
+  if (els.homeView && !els.homeView.classList.contains("hidden")) {
+    patchStoredState({ savedLayouts: layouts });
+  } else {
+    writeState({ savedLayouts: layouts });
+  }
+  renderSavedLayouts();
+  renderHomeVersions();
+  setVersionMessage(`已刪除本機版本「${name}」。若要同步刪除雲端版本，請再按「同步到雲端」。`);
+}
+
+function blankStudioState() {
+  const state = readState();
+  return {
+    savedLayouts: readSavedLayouts(),
+    syncCode: state.syncCode || "",
+    pages: [DEFAULT_PAGE],
+    activePageId: DEFAULT_PAGE.id,
+    activeTool: "",
+    dockCollapsed: false,
+    moreToolsOpen: false,
+  };
+}
+
+function showHome() {
+  closeAllWidgetSettings();
+  setActiveTool("");
+  els.studio.classList.add("hidden");
+  els.homeView.classList.remove("hidden");
+  document.body.classList.add("home-mode");
+  document.body.classList.remove("studio-mode");
+  renderHomeVersions();
+  window.scrollTo({ top: 0, behavior: "instant" });
+}
+
+function showStudio() {
+  patchStoredState({ activeTool: "", moreToolsOpen: false });
+  els.homeView.classList.add("hidden");
+  els.studio.classList.remove("hidden");
+  document.body.classList.remove("home-mode");
+  document.body.classList.add("studio-mode");
+  restore();
+}
+
+function createBlankStudio() {
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(blankStudioState()));
+  showStudio();
+}
+
+function initHomeMode() {
+  els.homeView.classList.remove("hidden");
+  els.studio.classList.add("hidden");
+  document.body.classList.add("home-mode");
+  document.body.classList.remove("studio-mode");
+  renderSavedLayouts();
+  renderHomeVersions();
 }
 
 function normalizePages(value) {
@@ -557,8 +805,21 @@ function handleWidgetClick(event) {
 }
 
 function bringWidgetToFront(widget) {
-  topWidgetZ += 1;
+  topWidgetZ = Math.max(topWidgetZ, 60) + 1;
   widget.style.zIndex = String(topWidgetZ);
+}
+
+function placeDynamicSettings(instance) {
+  if (!instance.state.settingsOpen) return;
+  const rect = instance.element.getBoundingClientRect();
+  const width = Math.min(320, Math.max(220, window.innerWidth - 32));
+  const left = Math.min(Math.max(16, rect.right - width), Math.max(16, window.innerWidth - width - 16));
+  const top = Math.min(Math.max(16, rect.top + 48), Math.max(16, window.innerHeight - 220));
+  instance.settings.style.position = "fixed";
+  instance.settings.style.width = `${width}px`;
+  instance.settings.style.left = `${left}px`;
+  instance.settings.style.right = "auto";
+  instance.settings.style.top = `${top}px`;
 }
 
 function addDarkPage() {
@@ -638,7 +899,7 @@ function addSlidesWidgetFromInput() {
 
 function renderSavedLayouts(selectedName = "") {
   const layouts = readSavedLayouts();
-  const entries = Object.values(layouts).sort((a, b) => String(b.savedAt || "").localeCompare(String(a.savedAt || "")));
+  const entries = savedLayoutEntries();
   els.savedLayouts.innerHTML = "";
 
   if (entries.length === 0) {
@@ -649,6 +910,8 @@ function renderSavedLayouts(selectedName = "") {
     els.loadLayout.disabled = true;
     els.deleteLayout.disabled = true;
     els.exportLayouts.disabled = true;
+    els.homeExportLayouts.disabled = true;
+    els.homeSyncLayouts.disabled = true;
     return;
   }
 
@@ -663,13 +926,14 @@ function renderSavedLayouts(selectedName = "") {
   els.loadLayout.disabled = false;
   els.deleteLayout.disabled = false;
   els.exportLayouts.disabled = false;
+  els.homeExportLayouts.disabled = false;
+  els.homeSyncLayouts.disabled = false;
 }
 
 function saveCurrentLayout() {
   const name = els.layoutName.value.trim();
   if (!name) {
-    els.layoutMessage.textContent = "請先輸入版本名稱。";
-    els.layoutMessage.classList.add("error");
+    setVersionMessage("請先輸入版本名稱。", true);
     return;
   }
 
@@ -682,51 +946,35 @@ function saveCurrentLayout() {
 
   writeState({ savedLayouts: layouts });
   renderSavedLayouts(name);
+  renderHomeVersions();
   const imageNote = imageSource.startsWith("blob:") ? " 本機選取的圖片不會寫進版本檔，跨電腦請改用圖片網址。" : "";
-  els.layoutMessage.textContent = `已儲存「${name}」。${imageNote}`;
-  els.layoutMessage.classList.remove("error");
+  setVersionMessage(`已儲存「${name}」。${imageNote}`);
 }
 
 function loadSelectedLayout() {
   const name = els.savedLayouts.value;
   const layout = readSavedLayouts()[name];
   if (!layout?.state) {
-    els.layoutMessage.textContent = "請先選擇要載入的版本。";
-    els.layoutMessage.classList.add("error");
+    setVersionMessage("請先選擇要載入的版本。", true);
     return;
   }
-
-  const layouts = readSavedLayouts();
-  const nextState = {
-    ...layout.state,
-    savedLayouts: layouts,
-    activeTool: "layouts",
-  };
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState));
-  window.location.reload();
+  loadLayoutByName(name);
 }
 
 function deleteSelectedLayout() {
   const name = els.savedLayouts.value;
   const layouts = readSavedLayouts();
   if (!name || !layouts[name]) {
-    els.layoutMessage.textContent = "請先選擇要刪除的版本。";
-    els.layoutMessage.classList.add("error");
+    setVersionMessage("請先選擇要刪除的版本。", true);
     return;
   }
-
-  delete layouts[name];
-  writeState({ savedLayouts: layouts });
-  renderSavedLayouts();
-  els.layoutMessage.textContent = `已刪除本機版本「${name}」。若要同步刪除雲端版本，請再按「同步到雲端」。`;
-  els.layoutMessage.classList.remove("error");
+  deleteLayoutByName(name);
 }
 
 function exportLayouts() {
   const layouts = readSavedLayouts();
   if (Object.keys(layouts).length === 0) {
-    els.layoutMessage.textContent = "目前沒有可匯出的版本。";
-    els.layoutMessage.classList.add("error");
+    setVersionMessage("目前沒有可匯出的版本。", true);
     return;
   }
 
@@ -745,8 +993,7 @@ function exportLayouts() {
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
-  els.layoutMessage.textContent = "已匯出版本檔，可拿到另一台電腦匯入。";
-  els.layoutMessage.classList.remove("error");
+  setVersionMessage("已匯出版本檔，可拿到另一台電腦匯入。");
 }
 
 function normalizeImportedLayouts(payload) {
@@ -777,15 +1024,19 @@ function importLayoutsFromFile(file) {
         ...readSavedLayouts(),
         ...imported,
       };
-      writeState({ savedLayouts: layouts });
+      if (els.homeView && !els.homeView.classList.contains("hidden")) {
+        patchStoredState({ savedLayouts: layouts });
+      } else {
+        writeState({ savedLayouts: layouts });
+      }
       renderSavedLayouts(importedNames[0]);
-      els.layoutMessage.textContent = `已匯入 ${importedNames.length} 個版本。`;
-      els.layoutMessage.classList.remove("error");
+      renderHomeVersions();
+      setVersionMessage(`已匯入 ${importedNames.length} 個版本。`);
     } catch {
-      els.layoutMessage.textContent = "匯入失敗，請確認選到的是播放台版本 JSON 檔。";
-      els.layoutMessage.classList.add("error");
+      setVersionMessage("匯入失敗，請確認選到的是播放台版本 JSON 檔。", true);
     } finally {
       els.importLayouts.value = "";
+      els.homeImportLayouts.value = "";
     }
   });
   reader.readAsText(file);
@@ -819,8 +1070,8 @@ function sanitizeDynamicState(state) {
 }
 
 function defaultDynamicState(type) {
-  if (type === "timer") return { title: "Timer", titleSize: "13", minutes: "5", seconds: "0", remaining: 300, settingsOpen: false };
-  if (type === "clock") return { title: "Clock", titleSize: "13", settingsOpen: false };
+  if (type === "timer") return { title: "Timer", titleSize: "13", minutes: "5", seconds: "0", remaining: 300, settingsOpen: true };
+  if (type === "clock") return { title: "Clock", titleSize: "13", settingsOpen: true };
   if (type === "groups") return { title: "Groups", titleSize: "13", studentList: "", groupCount: "4", shuffle: true, groups: [], settingsOpen: true };
   if (type === "text") return { title: "Text", titleSize: "13", content: "文字框", size: "44", color: "#ffffff", align: "center", settingsOpen: true };
   if (type === "image") return { title: "Image", titleSize: "13", imageUrl: "", imageSource: "", imageScale: "100", settingsOpen: true };
@@ -949,9 +1200,10 @@ function createDynamicWidget(type, state = {}, position = null) {
   resize.type = "button";
   resize.setAttribute("aria-label", "縮放小工具");
 
-  content.append(display, settings);
+  content.append(display);
   widget.append(head, content, resize);
   els.stage.appendChild(widget);
+  document.body.appendChild(settings);
 
   const instance = {
     id,
@@ -988,6 +1240,14 @@ function createDynamicWidget(type, state = {}, position = null) {
   settingsButton.addEventListener("click", () => {
     bringWidgetToFront(widget);
     instance.state.settingsOpen = !instance.state.settingsOpen;
+    if (instance.state.settingsOpen) {
+      dynamicWidgets.forEach((item) => {
+        if (item.id !== instance.id && item.state.settingsOpen) {
+          item.state.settingsOpen = false;
+          renderDynamicWidget(item);
+        }
+      });
+    }
     els.settingsBackdrop.classList.toggle("hidden", !instance.state.settingsOpen);
     renderDynamicWidget(instance);
     writeState();
@@ -996,6 +1256,16 @@ function createDynamicWidget(type, state = {}, position = null) {
 
   buildDynamicSettings(instance);
   renderDynamicWidget(instance);
+  if (instance.state.settingsOpen) {
+    dynamicWidgets.forEach((item) => {
+      if (item.id !== instance.id && item.state.settingsOpen) {
+        item.state.settingsOpen = false;
+        renderDynamicWidget(item);
+      }
+    });
+    bringWidgetToFront(widget);
+    els.settingsBackdrop.classList.remove("hidden");
+  }
   applyWidgetPosition(widget, position);
   keepWidgetVisible(widget);
   updateDynamicWidgetVisibility();
@@ -1207,6 +1477,7 @@ function renderDynamicWidget(instance) {
   title.textContent = state.title || type;
   title.style.fontSize = `${Math.min(80, Math.max(8, Number(state.titleSize) || 13))}px`;
   settings.classList.toggle("collapsed", !state.settingsOpen);
+  placeDynamicSettings(instance);
 
   if (type === "timer") {
     display.textContent = formatTime(Math.max(0, Number(state.remaining) || dynamicTimerTotal(state.minutes, state.seconds)));
@@ -1415,6 +1686,7 @@ function removeDynamicWidget(id, persist = true) {
   window.clearInterval(widget.clockId);
   selectedWidgets.delete(widgetSelectionId(widget.element));
   widget.element.remove();
+  widget.settings.remove();
   dynamicWidgets = dynamicWidgets.filter((item) => item.id !== id);
   renderWidgetSelection();
   if (persist) writeState();
@@ -1426,6 +1698,7 @@ function clearDynamicWidgets() {
     window.clearInterval(widget.clockId);
     selectedWidgets.delete(widgetSelectionId(widget.element));
     widget.element.remove();
+    widget.settings.remove();
   });
   dynamicWidgets = [];
   renderWidgetSelection();
@@ -2382,8 +2655,10 @@ async function initParticipantMode() {
   const selectedSectionId = params.get("section") || "";
   if (!boardId) return;
 
+  els.homeView.classList.add("hidden");
   els.studio.classList.add("hidden");
   els.participantView.classList.remove("hidden");
+  document.body.classList.remove("home-mode", "studio-mode");
   els.participantTitle.textContent = title;
   document.title = title;
   els.participantForm.addEventListener("submit", submitParticipantPost);
@@ -2428,24 +2703,22 @@ async function initParticipantMode() {
 }
 
 async function syncLayoutsToCloud() {
-  const syncCode = normalizeSyncCode(els.syncCode.value);
+  const syncCode = normalizeSyncCode(els.homeView && !els.homeView.classList.contains("hidden") ? els.homeSyncCode.value : els.syncCode.value);
   if (!syncCode) {
-    els.layoutMessage.textContent = "請先輸入跨電腦同步碼。";
-    els.layoutMessage.classList.add("error");
+    setVersionMessage("請先輸入跨電腦同步碼。", true);
     return;
   }
 
   const layouts = readSavedLayouts();
   if (Object.keys(layouts).length === 0) {
-    els.layoutMessage.textContent = "請先至少儲存一個版本，再同步到雲端。";
-    els.layoutMessage.classList.add("error");
+    setVersionMessage("請先至少儲存一個版本，再同步到雲端。", true);
     return;
   }
 
   try {
     els.syncLayouts.disabled = true;
-    els.layoutMessage.textContent = "正在同步到 Firebase...";
-    els.layoutMessage.classList.remove("error");
+    els.homeSyncLayouts.disabled = true;
+    setVersionMessage("正在同步到 Firebase...");
     const api = await loadFirebaseApi();
     await ensureFirebaseAuth(api);
     await api.setDoc(cloudDocRef(api, syncCode), {
@@ -2454,42 +2727,44 @@ async function syncLayoutsToCloud() {
       version: 1,
     });
     els.syncCode.value = syncCode;
-    writeState({ syncCode });
-    els.layoutMessage.textContent = `已同步到雲端。其他電腦輸入「${syncCode}」即可載入。`;
+    els.homeSyncCode.value = syncCode;
+    if (els.homeView && !els.homeView.classList.contains("hidden")) {
+      patchStoredState({ syncCode });
+    } else {
+      writeState({ syncCode });
+    }
+    setVersionMessage(`已同步到雲端。其他電腦輸入「${syncCode}」即可載入。`);
   } catch (error) {
-    els.layoutMessage.textContent = `同步失敗：${error.message || "請確認 Firestore 規則是否允許寫入。"}`;
-    els.layoutMessage.classList.add("error");
+    setVersionMessage(`同步失敗：${error.message || "請確認 Firestore 規則是否允許寫入。"}`, true);
   } finally {
     els.syncLayouts.disabled = false;
+    els.homeSyncLayouts.disabled = Object.keys(readSavedLayouts()).length === 0;
   }
 }
 
 async function loadLayoutsFromCloud() {
-  const syncCode = normalizeSyncCode(els.syncCode.value);
+  const syncCode = normalizeSyncCode(els.homeView && !els.homeView.classList.contains("hidden") ? els.homeSyncCode.value : els.syncCode.value);
   if (!syncCode) {
-    els.layoutMessage.textContent = "請先輸入跨電腦同步碼。";
-    els.layoutMessage.classList.add("error");
+    setVersionMessage("請先輸入跨電腦同步碼。", true);
     return;
   }
 
   try {
     els.loadCloudLayouts.disabled = true;
-    els.layoutMessage.textContent = "正在從 Firebase 載入...";
-    els.layoutMessage.classList.remove("error");
+    els.homeLoadCloudLayouts.disabled = true;
+    setVersionMessage("正在從 Firebase 載入...");
     const api = await loadFirebaseApi();
     await ensureFirebaseAuth(api);
     const snapshot = await api.getDoc(cloudDocRef(api, syncCode));
     if (!snapshot.exists()) {
-      els.layoutMessage.textContent = "找不到這組同步碼的雲端版本。";
-      els.layoutMessage.classList.add("error");
+      setVersionMessage("找不到這組同步碼的雲端版本。", true);
       return;
     }
 
     const imported = normalizeImportedLayouts(snapshot.data()?.layouts || {});
     const importedNames = Object.keys(imported);
     if (importedNames.length === 0) {
-      els.layoutMessage.textContent = "雲端資料裡沒有可用版本。";
-      els.layoutMessage.classList.add("error");
+      setVersionMessage("雲端資料裡沒有可用版本。", true);
       return;
     }
 
@@ -2498,14 +2773,20 @@ async function loadLayoutsFromCloud() {
       ...imported,
     };
     els.syncCode.value = syncCode;
-    writeState({ savedLayouts: layouts, syncCode });
+    els.homeSyncCode.value = syncCode;
+    if (els.homeView && !els.homeView.classList.contains("hidden")) {
+      patchStoredState({ savedLayouts: layouts, syncCode });
+    } else {
+      writeState({ savedLayouts: layouts, syncCode });
+    }
     renderSavedLayouts(importedNames[0]);
-    els.layoutMessage.textContent = `已從雲端載入 ${importedNames.length} 個版本。`;
+    renderHomeVersions();
+    setVersionMessage(`已從雲端載入 ${importedNames.length} 個版本。`);
   } catch (error) {
-    els.layoutMessage.textContent = `載入失敗：${error.message || "請確認 Firestore 規則是否允許讀取。"}`;
-    els.layoutMessage.classList.add("error");
+    setVersionMessage(`載入失敗：${error.message || "請確認 Firestore 規則是否允許讀取。"}`, true);
   } finally {
     els.loadCloudLayouts.disabled = false;
+    els.homeLoadCloudLayouts.disabled = false;
   }
 }
 
@@ -3657,6 +3938,20 @@ function restore() {
 }
 
 els.loadSlides.addEventListener("click", loadSlides);
+els.homeEnterStudio.addEventListener("click", showStudio);
+els.homeNewStudio.addEventListener("click", createBlankStudio);
+els.homeSaveLayout.addEventListener("click", saveHomeLayout);
+els.homeLayoutName.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") saveHomeLayout();
+});
+els.homeSyncCode.addEventListener("input", () => {
+  els.syncCode.value = els.homeSyncCode.value;
+  patchStoredState({ syncCode: els.homeSyncCode.value });
+});
+els.homeSyncLayouts.addEventListener("click", syncLayoutsToCloud);
+els.homeLoadCloudLayouts.addEventListener("click", loadLayoutsFromCloud);
+els.homeExportLayouts.addEventListener("click", exportLayouts);
+els.homeImportLayouts.addEventListener("change", () => importLayoutsFromFile(els.homeImportLayouts.files?.[0]));
 els.clearSlides.addEventListener("click", clearSlides);
 els.addSlidesWidget.addEventListener("click", addSlidesWidgetFromInput);
 els.switchSlidesMode.addEventListener("click", switchSlidesMode);
@@ -3844,7 +4139,10 @@ els.loadLayout.addEventListener("click", loadSelectedLayout);
 els.deleteLayout.addEventListener("click", deleteSelectedLayout);
 els.exportLayouts.addEventListener("click", exportLayouts);
 els.importLayouts.addEventListener("change", () => importLayoutsFromFile(els.importLayouts.files?.[0]));
-els.syncCode.addEventListener("input", writeState);
+els.syncCode.addEventListener("input", () => {
+  els.homeSyncCode.value = els.syncCode.value;
+  writeState();
+});
 els.syncLayouts.addEventListener("click", syncLayoutsToCloud);
 els.loadCloudLayouts.addEventListener("click", loadLayoutsFromCloud);
 els.alignLeftWidgets.addEventListener("click", () => arrangeWidgets("left"));
@@ -3942,6 +4240,10 @@ els.shuffleGroups.addEventListener("change", writeState);
 els.stage.addEventListener("click", handleWidgetClick);
 els.dockItems.forEach((item) => {
   item.addEventListener("click", () => {
+    if (item.dataset.tool === "layouts") {
+      showHome();
+      return;
+    }
     if (item.dataset.tool === "slides") {
       toggleActiveTool("slides");
       return;
@@ -3984,5 +4286,5 @@ window.addEventListener("pointercancel", () => {
 if (isParticipantMode()) {
   initParticipantMode();
 } else {
-  restore();
+  initHomeMode();
 }

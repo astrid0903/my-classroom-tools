@@ -4,10 +4,59 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Google Slides 教學播放台</title>
-  <link rel="stylesheet" href="./styles.css?v=20260505-1200">
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+  <link rel="stylesheet" href="./styles.css?v=20260509-home">
 </head>
 <body>
-  <main class="studio">
+  <section id="home-view" class="home-view" aria-label="版本首頁">
+    <div class="home-shell">
+      <header class="home-hero">
+        <div>
+          <span class="home-kicker">Classroom Studio</span>
+          <h1>Google Slides 教學播放台</h1>
+          <p>用版本卡片整理每一套教學播放配置，快速回到簡報、貼文板、分組與小工具佈局。</p>
+        </div>
+        <div class="home-actions" aria-label="首頁主要操作">
+          <button id="home-enter-studio" type="button">進入目前播放台</button>
+          <button id="home-new-studio" class="secondary" type="button">建立空白播放台</button>
+        </div>
+      </header>
+
+      <section class="home-save-panel" aria-label="儲存目前播放台">
+        <div>
+          <h2>儲存目前播放台為版本</h2>
+          <p>保留目前頁面、小工具、貼文板與同步設定，下次可從卡片快速載入。</p>
+        </div>
+        <div class="home-save-controls">
+          <input id="home-layout-name" type="text" placeholder="例如：分組討論版、影片導入版">
+          <button id="home-save-layout" type="button">儲存版本</button>
+        </div>
+      </section>
+
+      <section class="home-sync-panel" aria-label="版本同步與檔案">
+        <label for="home-sync-code">跨電腦同步碼</label>
+        <div class="home-sync-grid">
+          <input id="home-sync-code" type="text" placeholder="例如：gisele-classroom">
+          <button id="home-sync-layouts" type="button">同步到雲端</button>
+          <button id="home-load-cloud-layouts" class="secondary" type="button">從雲端載入</button>
+          <button id="home-export-layouts" class="secondary" type="button">匯出版本檔</button>
+          <label class="home-import-button secondary" for="home-import-layouts">匯入版本檔</label>
+          <input id="home-import-layouts" class="home-file-input" type="file" accept="application/json,.json">
+        </div>
+        <p id="home-version-message" class="home-message" aria-live="polite"></p>
+      </section>
+
+      <section class="home-version-section" aria-label="已儲存版本">
+        <div class="home-section-head">
+          <h2>已儲存版本</h2>
+          <span id="home-version-count">0 個版本</span>
+        </div>
+        <div id="home-layout-grid" class="home-layout-grid"></div>
+      </section>
+    </div>
+  </section>
+
+  <main class="studio hidden">
     <section class="stage-column" aria-label="簡報播放區">
       <div id="slide-stage" class="slide-stage">
         <nav id="page-tabs" class="page-tabs" aria-label="頁面切換"></nav>
@@ -546,6 +595,6 @@
   </div>
 
   <div id="settings-backdrop" class="settings-backdrop hidden"></div>
-  <script src="./script.js?v=20260505-1400"></script>
+  <script src="./script.js?v=20260509-home"></script>
 </body>
 </html>
