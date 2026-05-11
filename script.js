@@ -637,6 +637,12 @@ function makeBoardId() {
   return `board-${Date.now().toString(36)}-${random}`;
 }
 
+function isPermissionError(error) {
+  const code = String(error?.code || "").toLowerCase();
+  const message = String(error?.message || "").toLowerCase();
+  return code.includes("permission-denied") || message.includes("missing or insufficient permissions");
+}
+
 function makeSectionId() {
   return `section-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 }
@@ -1996,9 +2002,44 @@ async function ensurePostBoardDoc(page) {
       { merge: true },
     );
   } catch (error) {
+    if (isPermissionError(error)) {
+      els.postBoardMessage.textContent = "貼文板雲端權限已失效，請按「新增貼文板」建立新的投稿連結。";
+      els.postBoardMessage.classList.add("error");
+      return;
+    }
     els.postBoardMessage.textContent = `貼文板雲端連線失敗：${error.message || "請確認 Firestore 規則。"}`;
     els.postBoardMessage.classList.add("error");
   }
+}
+
+async function recreatePostBoardDoc(api, page, nextSections, noteHtml = "") {
+  const nextBoardId = makeBoardId();
+  pages = pages.map((item) => (
+    item.id === page.id
+      ? { ...item, boardId: nextBoardId, sections: nextSections, noteHtml }
+      : item
+  ));
+  const nextPage = pages.find((item) => item.id === page.id);
+  await api.setDoc(
+    postBoardDocRef(api, nextBoardId),
+    {
+      title: nextPage.name || "貼文板",
+      adminUid: api.auth.currentUser?.uid || "",
+      sections: nextSections,
+      note: noteHtml,
+      updatedAt: api.serverTimestamp(),
+      kind: "postBoard",
+      version: 1,
+    },
+    { merge: true },
+  );
+  postBoardSections = nextSections;
+  writeState();
+  updatePostBoardControls();
+  renderPostBoard();
+  unsubscribePostBoard();
+  subscribeActivePostBoard();
+  return nextPage;
 }
 
 function updatePostBoardControls() {
@@ -2104,6 +2145,18 @@ async function savePostSections(sections) {
       { merge: true },
     );
   } catch (error) {
+    if (isPermissionError(error)) {
+      try {
+        await recreatePostBoardDoc(await loadFirebaseApi(), page, nextSections, page.noteHtml || "");
+        els.postBoardMessage.textContent = "原貼文板權限已失效，已建立新的投稿連結並完成區段儲存。請使用新的 QR Code。";
+        els.postBoardMessage.classList.remove("error");
+        return;
+      } catch (retryError) {
+        els.postBoardMessage.textContent = `區段儲存失敗：${retryError.message || "請確認權限。"}`;
+        els.postBoardMessage.classList.add("error");
+        return;
+      }
+    }
     els.postBoardMessage.textContent = `區段儲存失敗：${error.message || "請確認權限。"}`;
     els.postBoardMessage.classList.add("error");
   }
