@@ -6,45 +6,8 @@
   <title>Google Slides 教學播放台</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
   <link rel="stylesheet" href="./styles.css?v=20260509-hidden-widgets">
-  <link rel="stylesheet" href="./styles-dark.css?v=20260510-dark">
-  <script>
-    (function () {
-      try {
-        var saved = localStorage.getItem('classroom-theme');
-        if (saved === 'dark' || saved === 'light') {
-          document.documentElement.setAttribute('data-pre-theme', saved);
-        }
-      } catch (e) {}
-    })();
-  </script>
 </head>
 <body>
-  <button id="theme-toggle" class="theme-toggle" type="button" aria-label="切換暗色主題" title="切換暗色主題">
-    <span class="sun" aria-hidden="true">☼</span>
-    <span class="moon" aria-hidden="true">☾</span>
-  </button>
-  <div id="session-bar" class="session-bar hidden" aria-label="Session 狀態">
-    <span class="session-dot" aria-hidden="true"></span>
-    <span class="session-label">SESSION</span>
-    <span class="session-sep">·</span>
-    <span id="session-clock" class="session-clock">--:--</span>
-    <span class="session-sep">·</span>
-    <kbd class="session-kbd">⌘K</kbd>
-  </div>
-  <script>
-    (function () {
-      var key = 'classroom-theme';
-      var pre = document.documentElement.getAttribute('data-pre-theme');
-      var theme = pre || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-      document.body.setAttribute('data-theme', theme);
-      document.documentElement.removeAttribute('data-pre-theme');
-      document.getElementById('theme-toggle').addEventListener('click', function () {
-        var cur = document.body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-        document.body.setAttribute('data-theme', cur);
-        try { localStorage.setItem(key, cur); } catch (e) {}
-      });
-    })();
-  </script>
   <section id="home-view" class="home-view" aria-label="版本首頁">
     <div class="home-shell">
       <header class="home-hero">
@@ -93,21 +56,6 @@
     </div>
   </section>
 
-  <nav id="side-rail" class="side-rail hidden" aria-label="工具導覽">
-    <div class="rail-brand" aria-hidden="true">播</div>
-    <button class="rail-btn" type="button" data-rail="slides" aria-label="簡報"><span>▣</span></button>
-    <button class="rail-btn" type="button" data-rail="pages" aria-label="頁面"><span>▥</span></button>
-    <button class="rail-btn" type="button" data-rail="timer" aria-label="計時器"><span>◷</span></button>
-    <button class="rail-btn" type="button" data-rail="clock" aria-label="現在時間"><span>◴</span></button>
-    <button class="rail-btn" type="button" data-rail="text" aria-label="文字框"><span>Aa</span></button>
-    <button class="rail-btn" type="button" data-rail="groups" aria-label="分組"><span>▦</span></button>
-    <button class="rail-btn" type="button" data-rail="image" aria-label="圖片"><span>▧</span></button>
-    <button class="rail-btn" type="button" data-rail="youtube" aria-label="YouTube"><span>▶</span></button>
-    <button class="rail-btn" type="button" data-rail="layouts" aria-label="儲存版本"><span>▤</span></button>
-    <button class="rail-btn" type="button" data-rail="arrange" aria-label="排列小工具"><span>⇆</span></button>
-    <div class="rail-spacer"></div>
-    <button class="rail-btn" type="button" id="rail-fullscreen" aria-label="全螢幕"><span>⛶</span></button>
-  </nav>
   <main class="studio hidden">
     <section class="stage-column" aria-label="簡報播放區">
       <div id="slide-stage" class="slide-stage">
@@ -248,59 +196,46 @@
         <p id="slides-message" class="hint" aria-live="polite">若一般連結看不到，請先在 Google Slides 設為「知道連結的人可檢視」。</p>
       </section>
 
-      <section id="pages-panel" class="tool-section pages-panel" data-panel="pages">
-        <div class="section-head">
-          <h2>頁面</h2>
-          <span class="panel-kicker">PAGES</span>
+      <section id="pages-panel" class="tool-section" data-panel="pages">
+        <h2>頁面</h2>
+        <label for="page-select">目前頁面</label>
+        <select id="page-select"></select>
+        <label for="page-name">頁面名稱</label>
+        <input id="page-name" type="text" placeholder="例如：討論白板、影片頁">
+        <div class="button-row">
+          <button id="add-page" type="button">新增暗色頁面</button>
+          <button id="add-post-board-page" class="secondary" type="button">新增貼文板</button>
+          <button id="delete-page" class="danger" type="button">刪除目前頁面</button>
         </div>
-
-        <div class="panel-group">
-          <div class="panel-group-head">頁面</div>
-          <label for="page-select">目前頁面</label>
-          <select id="page-select"></select>
-          <label for="page-name">頁面名稱</label>
-          <input id="page-name" type="text" placeholder="例如：討論白板、影片頁">
-          <div class="button-row three">
-            <button id="add-page" type="button">＋ 暗色頁</button>
-            <button id="add-post-board-page" class="secondary" type="button">＋ 貼文板</button>
-            <button id="delete-page" class="danger" type="button">刪除</button>
-          </div>
+        <label for="page-title-color">標題文字顏色</label>
+        <div class="button-row">
+          <input id="page-title-color" type="color" value="#1a2330">
+          <button id="clear-page-title-color" class="secondary" type="button">清除顏色</button>
         </div>
-
-        <div class="panel-group">
-          <div class="panel-group-head">標題與背景</div>
-          <label for="page-title-color">標題文字顏色</label>
-          <div class="button-row">
-            <input id="page-title-color" type="color" value="#1a2330">
-            <button id="clear-page-title-color" class="secondary" type="button">清除顏色</button>
-          </div>
-          <label for="page-bg-color">背景顏色</label>
-          <div class="button-row">
-            <input id="page-bg-color" type="color" value="#080a0e">
-            <button id="clear-page-bg" class="secondary" type="button">清除背景</button>
-          </div>
-          <div class="bg-swatches" id="bg-swatches">
-            <button class="swatch" data-color="#ffffff" style="background:#ffffff" title="白色"></button>
-            <button class="swatch" data-color="#f5f5f5" style="background:#f5f5f5" title="淺灰"></button>
-            <button class="swatch" data-color="#e8edf2" style="background:#e8edf2" title="霧藍灰"></button>
-            <button class="swatch" data-color="#fdf6ec" style="background:#fdf6ec" title="米白"></button>
-            <button class="swatch" data-color="#eaf4e8" style="background:#eaf4e8" title="淺綠"></button>
-            <button class="swatch" data-color="#e8f0fb" style="background:#e8f0fb" title="淺藍"></button>
-            <button class="swatch" data-color="#fce8f0" style="background:#fce8f0" title="淺粉"></button>
-            <button class="swatch" data-color="#1a1a2e" style="background:#1a1a2e" title="深藍黑"></button>
-            <button class="swatch" data-color="#080a0e" style="background:#080a0e" title="近黑"></button>
-          </div>
-          <label for="page-bg-image-file">背景圖片（本機）</label>
-          <input id="page-bg-image-file" type="file" accept="image/*">
-          <div id="page-bg-opacity-row" class="hidden">
-            <label for="page-bg-opacity">圖片透明度 <span id="page-bg-opacity-value">60</span>%</label>
-            <input id="page-bg-opacity" type="range" min="10" max="100" value="60" step="5">
-          </div>
-          <p id="page-bg-status" class="hint" aria-live="polite"></p>
+        <label for="page-bg-color">背景顏色</label>
+        <div class="button-row">
+          <input id="page-bg-color" type="color" value="#080a0e">
+          <button id="clear-page-bg" class="secondary" type="button">清除背景</button>
         </div>
-
-        <div id="post-board-controls" class="post-board-controls panel-group hidden">
-          <div class="panel-group-head">貼文板</div>
+        <div class="bg-swatches" id="bg-swatches">
+          <button class="swatch" data-color="#ffffff" style="background:#ffffff" title="白色"></button>
+          <button class="swatch" data-color="#f5f5f5" style="background:#f5f5f5" title="淺灰"></button>
+          <button class="swatch" data-color="#e8edf2" style="background:#e8edf2" title="霧藍灰"></button>
+          <button class="swatch" data-color="#fdf6ec" style="background:#fdf6ec" title="米白"></button>
+          <button class="swatch" data-color="#eaf4e8" style="background:#eaf4e8" title="淺綠"></button>
+          <button class="swatch" data-color="#e8f0fb" style="background:#e8f0fb" title="淺藍"></button>
+          <button class="swatch" data-color="#fce8f0" style="background:#fce8f0" title="淺粉"></button>
+          <button class="swatch" data-color="#1a1a2e" style="background:#1a1a2e" title="深藍黑"></button>
+          <button class="swatch" data-color="#080a0e" style="background:#080a0e" title="近黑"></button>
+        </div>
+        <label for="page-bg-image-file">背景圖片（本機）</label>
+        <input id="page-bg-image-file" type="file" accept="image/*">
+        <div id="page-bg-opacity-row" class="hidden">
+          <label for="page-bg-opacity">圖片透明度 <span id="page-bg-opacity-value">60</span>%</label>
+          <input id="page-bg-opacity" type="range" min="10" max="100" value="60" step="5">
+        </div>
+        <p id="page-bg-status" class="hint" aria-live="polite"></p>
+        <div id="post-board-controls" class="post-board-controls hidden">
           <label for="post-board-join-url">參與者投稿連結</label>
           <input id="post-board-join-url" type="text" readonly>
           <div class="button-row">
@@ -309,7 +244,6 @@
           </div>
           <button id="export-obsidian" class="secondary" type="button">匯出 Obsidian 筆記</button>
         </div>
-
         <p id="page-message" class="hint" aria-live="polite">可新增暗色白板或貼文板；小工具只會顯示在目前頁面。</p>
       </section>
 
@@ -676,65 +610,5 @@
 
   <div id="settings-backdrop" class="settings-backdrop hidden"></div>
   <script src="./script.js?v=20260509-drive-pdf"></script>
-  <script>
-    // IA Step 1: side-rail wiring — forwards to existing dock buttons.
-    (function () {
-      var rail = document.getElementById('side-rail');
-      var studio = document.querySelector('main.studio');
-      if (!rail || !studio) return;
-      // Map rail data-rail values to existing dock data-tool selectors.
-      rail.addEventListener('click', function (e) {
-        var btn = e.target.closest('[data-rail]');
-        if (!btn) return;
-        var key = btn.getAttribute('data-rail');
-        var target = document.querySelector('.tool-dock [data-tool="' + key + '"]');
-        if (target) {
-          target.click();
-          rail.querySelectorAll('.rail-btn.active').forEach(function (b) { b.classList.remove('active'); });
-          btn.classList.add('active');
-        }
-      });
-
-      var fs = document.getElementById('rail-fullscreen');
-      if (fs) fs.addEventListener('click', function () {
-        var existing = document.getElementById('fullscreen-button');
-        if (existing) existing.click();
-      });
-
-      // Show rail whenever studio is visible.
-      function syncRail() {
-        if (studio.classList.contains('hidden')) {
-          rail.classList.add('hidden');
-          document.body.classList.remove('studio-mode');
-        } else {
-          rail.classList.remove('hidden');
-          document.body.classList.add('studio-mode');
-        }
-      }
-      syncRail();
-      new MutationObserver(syncRail).observe(studio, { attributes: true, attributeFilter: ['class'] });
-    })();
-
-    // IA Step 3a: session bar — show alongside studio, live clock.
-    (function () {
-      var bar = document.getElementById('session-bar');
-      var studio = document.querySelector('main.studio');
-      var clock = document.getElementById('session-clock');
-      if (!bar || !studio || !clock) return;
-      function tick() {
-        var d = new Date();
-        var hh = String(d.getHours()).padStart(2, '0');
-        var mm = String(d.getMinutes()).padStart(2, '0');
-        clock.textContent = hh + ':' + mm;
-      }
-      tick();
-      setInterval(tick, 15000);
-      function syncBar() {
-        bar.classList.toggle('hidden', studio.classList.contains('hidden'));
-      }
-      syncBar();
-      new MutationObserver(syncBar).observe(studio, { attributes: true, attributeFilter: ['class'] });
-    })();
-  </script>
 </body>
 </html>

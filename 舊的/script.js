@@ -660,7 +660,7 @@ function normalizePostSections(value) {
 function renderPages() {
   els.pageSelect.innerHTML = "";
   els.pageTabs.innerHTML = "";
-  pages.forEach((page, i) => {
+  pages.forEach((page) => {
     const option = document.createElement("option");
     option.value = page.id;
     option.textContent = page.name;
@@ -669,10 +669,7 @@ function renderPages() {
     const tab = document.createElement("button");
     tab.type = "button";
     tab.className = "page-tab";
-    tab.dataset.pageType = page.type || "slides";
-    const idx = String(i + 1).padStart(2, "0");
-    tab.innerHTML = `<span class="page-tab-dot" aria-hidden="true"></span><span class="page-tab-idx">${idx}</span><span class="page-tab-name"></span>`;
-    tab.querySelector(".page-tab-name").textContent = page.name;
+    tab.textContent = page.name;
     tab.classList.toggle("active", page.id === activePage().id);
     tab.setAttribute("aria-current", page.id === activePage().id ? "page" : "false");
     tab.addEventListener("click", () => switchPage(page.id));
@@ -3575,8 +3572,6 @@ function renderTimer() {
   } else {
     els.stageTimerNote.textContent = "暫停";
   }
-  els.timerWidget.classList.toggle("is-running", Boolean(timerId) && timerRemaining > 0);
-  els.timerWidget.classList.toggle("is-done", timerRemaining === 0);
 }
 
 function resetTimer() {
