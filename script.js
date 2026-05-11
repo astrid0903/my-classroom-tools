@@ -1946,13 +1946,29 @@ async function loadFirebaseApi() {
   return firebaseLoadPromise;
 }
 
-async function ensureFirebaseAuth(api) {
-  if (api.auth?.currentUser) return;
+function describeFirebaseAuthError(error) {
+  const code = String(error?.code || "");
+  if (code.includes("operation-not-allowed")) return "Firebase 匿名登入尚未啟用，請到 Firebase Authentication 開啟 Anonymous 登入。";
+  if (code.includes("unauthorized-domain")) return "目前網域未加入 Firebase Authentication 授權網域，請把這個網站網域加入 Authorized domains。";
+  return error?.message || "Firebase 匿名登入失敗，請確認 Authentication 設定。";
+}
+
+async function ensureFirebaseAuth(api, options = {}) {
+  if (api.auth?.currentUser) return api.auth.currentUser;
   try {
-    await api.signInAnonymously(api.auth);
-  } catch {
+    const credential = await api.signInAnonymously(api.auth);
+    return credential?.user || api.auth?.currentUser || null;
+  } catch (error) {
     // Some classroom deployments use public Firestore rules and do not enable anonymous auth.
+    if (options.required) throw new Error(describeFirebaseAuthError(error));
+    return null;
   }
+}
+
+async function requireFirebaseUser(api) {
+  const user = await ensureFirebaseAuth(api, { required: true });
+  if (!user?.uid) throw new Error("Firebase 匿名登入尚未完成，請重新整理頁面後再試。");
+  return user;
 }
 
 function cloudDocRef(api, syncCode) {
@@ -1987,12 +2003,12 @@ async function ensurePostBoardDoc(page) {
   if (!page?.boardId) return;
   try {
     const api = await loadFirebaseApi();
-    await ensureFirebaseAuth(api);
+    const user = await requireFirebaseUser(api);
     await api.setDoc(
       postBoardDocRef(api, page.boardId),
       {
         title: page.name || "貼文板",
-        adminUid: api.auth.currentUser?.uid || "",
+        adminUid: user.uid,
         sections: normalizePostSections(page.sections),
         note: page.noteHtml || "",
         updatedAt: api.serverTimestamp(),
@@ -2003,16 +2019,17 @@ async function ensurePostBoardDoc(page) {
     );
   } catch (error) {
     if (isPermissionError(error)) {
-      els.postBoardMessage.textContent = "貼文板雲端權限已失效，請按「新增貼文板」建立新的投稿連結。";
+      els.postBoardMessage.textContent = "貼文板雲端建立失敗：目前 Firebase 規則拒絕新建貼文板，請確認 Firestore 規則已部署。";
       els.postBoardMessage.classList.add("error");
       return;
     }
-    els.postBoardMessage.textContent = `貼文板雲端連線失敗：${error.message || "請確認 Firestore 規則。"}`;
+    els.postBoardMessage.textContent = `貼文板雲端建立失敗：${error.message || "請確認 Firebase Authentication 與 Firestore 規則。"}`;
     els.postBoardMessage.classList.add("error");
   }
 }
 
 async function recreatePostBoardDoc(api, page, nextSections, noteHtml = "") {
+  const user = await requireFirebaseUser(api);
   const nextBoardId = makeBoardId();
   pages = pages.map((item) => (
     item.id === page.id
@@ -2024,7 +2041,7 @@ async function recreatePostBoardDoc(api, page, nextSections, noteHtml = "") {
     postBoardDocRef(api, nextBoardId),
     {
       title: nextPage.name || "貼文板",
-      adminUid: api.auth.currentUser?.uid || "",
+      adminUid: user.uid,
       sections: nextSections,
       note: noteHtml,
       updatedAt: api.serverTimestamp(),
@@ -2130,12 +2147,12 @@ async function savePostSections(sections) {
 
   try {
     const api = await loadFirebaseApi();
-    await ensureFirebaseAuth(api);
+    const user = await requireFirebaseUser(api);
     await api.setDoc(
       postBoardDocRef(api, page.boardId),
       {
         title: page.name || "貼文板",
-        adminUid: api.auth.currentUser?.uid || "",
+        adminUid: user.uid,
         sections: nextSections,
         note: page.noteHtml || "",
         updatedAt: api.serverTimestamp(),
@@ -2260,7 +2277,7 @@ function editPost(post) {
     els.postEditMessage.textContent = "儲存中…";
     try {
       const api = await loadFirebaseApi();
-      await ensureFirebaseAuth(api);
+      await requireFirebaseUser(api);
       await api.updateDoc(api.doc(api.db, POST_BOARDS_COLLECTION, page.boardId, "posts", post.id), {
         author: nextAuthor || "匿名",
         content: nextContent,
@@ -2287,7 +2304,7 @@ async function deletePost(post) {
 
   try {
     const api = await loadFirebaseApi();
-    await ensureFirebaseAuth(api);
+    await requireFirebaseUser(api);
     await api.deleteDoc(api.doc(api.db, POST_BOARDS_COLLECTION, page.boardId, "posts", post.id));
   } catch (error) {
     els.postBoardMessage.textContent = `貼文刪除失敗：${error.message || "請確認權限。"}`;
@@ -2302,7 +2319,7 @@ async function movePostToSection(postId, sectionId) {
   if (!post || post.sectionId === sectionId) return;
   try {
     const api = await loadFirebaseApi();
-    await ensureFirebaseAuth(api);
+    await requireFirebaseUser(api);
     await api.updateDoc(api.doc(api.db, POST_BOARDS_COLLECTION, page.boardId, "posts", postId), {
       author: post.author || "匿名",
       content: post.content || "",
@@ -2587,12 +2604,12 @@ async function syncNoteToFirestore(noteHtml) {
   if (!page?.boardId) return;
   try {
     const api = await loadFirebaseApi();
-    await ensureFirebaseAuth(api);
+    const user = await requireFirebaseUser(api);
     await api.setDoc(
       postBoardDocRef(api, page.boardId),
       {
         title: page.name || "貼文板",
-        adminUid: api.auth.currentUser?.uid || "",
+        adminUid: user.uid,
         sections: normalizePostSections(page.sections),
         note: noteHtml,
         updatedAt: api.serverTimestamp(),
@@ -2625,7 +2642,7 @@ async function subscribeActivePostBoard() {
   await ensurePostBoardDoc(page);
   try {
     const api = await loadFirebaseApi();
-    await ensureFirebaseAuth(api);
+    await requireFirebaseUser(api);
     postBoardMetadataUnsubscribe = api.onSnapshot(postBoardDocRef(api, page.boardId), (snapshot) => {
       const nextSections = normalizePostSections(snapshot.data()?.sections || page.sections);
       postBoardSections = nextSections;
@@ -2705,7 +2722,7 @@ async function deleteParticipantPost(postId) {
   if (!boardId) return;
   try {
     const api = await loadFirebaseApi();
-    await ensureFirebaseAuth(api);
+    await requireFirebaseUser(api);
     const ref = api.doc(postBoardPostsRef(api, boardId), postId);
     await api.deleteDoc(ref);
   } catch (error) {
@@ -2863,8 +2880,8 @@ async function submitParticipantPost(event) {
       throw new Error("圖片太大，請換一張較小的圖片。");
     }
     const api = await loadFirebaseApi();
-    await ensureFirebaseAuth(api);
-    participantUid = api.auth.currentUser?.uid || null;
+    const user = await requireFirebaseUser(api);
+    participantUid = user.uid;
     if (participantEditingPostId) {
       const ref = api.doc(postBoardPostsRef(api, boardId), participantEditingPostId);
       await api.updateDoc(ref, {
@@ -2914,8 +2931,8 @@ async function initParticipantMode() {
 
   try {
     const api = await loadFirebaseApi();
-    await ensureFirebaseAuth(api);
-    participantUid = api.auth.currentUser?.uid || null;
+    const user = await requireFirebaseUser(api);
+    participantUid = user.uid;
     const boardSnapshot = await api.getDoc(postBoardDocRef(api, boardId));
     if (boardSnapshot.exists() && boardSnapshot.data()?.title) {
       els.participantTitle.textContent = boardSnapshot.data().title;
