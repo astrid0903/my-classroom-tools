@@ -2004,6 +2004,39 @@ function postBoardSectionJoinUrl(page, sectionId) {
   return url.toString();
 }
 
+function postBoardMetadataPayload(api, page, user, sections = normalizePostSections(page.sections), noteHtml = page.noteHtml || "") {
+  return {
+    title: page.name || "貼文板",
+    adminUid: user.uid,
+    sections,
+    note: noteHtml,
+    bgColor: page.bgColor || "",
+    bgImage: page.bgImage || "",
+    bgOpacity: Number.isFinite(Number(page.bgOpacity)) ? Number(page.bgOpacity) : 60,
+    titleColor: page.titleColor || "",
+    updatedAt: api.serverTimestamp(),
+    kind: "postBoard",
+    version: 1,
+  };
+}
+
+async function syncActivePostBoardMetadata() {
+  const page = activePage();
+  if (page.type !== "posts" || !page.boardId) return;
+  try {
+    const api = await loadFirebaseApi();
+    const user = await requireFirebaseUser(api);
+    await api.setDoc(
+      postBoardDocRef(api, page.boardId),
+      postBoardMetadataPayload(api, page, user),
+      { merge: true },
+    );
+  } catch (error) {
+    els.pageMessage.textContent = `貼文板外觀同步失敗：${error.message || "請確認 Firestore 設定。"}`;
+    els.pageMessage.classList.add("error");
+  }
+}
+
 async function ensurePostBoardDoc(page) {
   if (!page?.boardId) return;
   try {
@@ -2011,15 +2044,7 @@ async function ensurePostBoardDoc(page) {
     const user = await requireFirebaseUser(api);
     await api.setDoc(
       postBoardDocRef(api, page.boardId),
-      {
-        title: page.name || "貼文板",
-        adminUid: user.uid,
-        sections: normalizePostSections(page.sections),
-        note: page.noteHtml || "",
-        updatedAt: api.serverTimestamp(),
-        kind: "postBoard",
-        version: 1,
-      },
+      postBoardMetadataPayload(api, page, user),
       { merge: true },
     );
   } catch (error) {
@@ -2044,15 +2069,7 @@ async function recreatePostBoardDoc(api, page, nextSections, noteHtml = "") {
   const nextPage = pages.find((item) => item.id === page.id);
   await api.setDoc(
     postBoardDocRef(api, nextBoardId),
-    {
-      title: nextPage.name || "貼文板",
-      adminUid: user.uid,
-      sections: nextSections,
-      note: noteHtml,
-      updatedAt: api.serverTimestamp(),
-      kind: "postBoard",
-      version: 1,
-    },
+    postBoardMetadataPayload(api, nextPage, user, nextSections, noteHtml),
     { merge: true },
   );
   postBoardSections = nextSections;
@@ -2155,15 +2172,7 @@ async function savePostSections(sections) {
     const user = await requireFirebaseUser(api);
     await api.setDoc(
       postBoardDocRef(api, page.boardId),
-      {
-        title: page.name || "貼文板",
-        adminUid: user.uid,
-        sections: nextSections,
-        note: page.noteHtml || "",
-        updatedAt: api.serverTimestamp(),
-        kind: "postBoard",
-        version: 1,
-      },
+      postBoardMetadataPayload(api, page, user, nextSections),
       { merge: true },
     );
   } catch (error) {
@@ -2612,15 +2621,7 @@ async function syncNoteToFirestore(noteHtml) {
     const user = await requireFirebaseUser(api);
     await api.setDoc(
       postBoardDocRef(api, page.boardId),
-      {
-        title: page.name || "貼文板",
-        adminUid: user.uid,
-        sections: normalizePostSections(page.sections),
-        note: noteHtml,
-        updatedAt: api.serverTimestamp(),
-        kind: "postBoard",
-        version: 1,
-      },
+      postBoardMetadataPayload(api, page, user, normalizePostSections(page.sections), noteHtml),
       { merge: true },
     );
   } catch { /* silent */ }
@@ -2746,6 +2747,33 @@ function renderParticipantNote(html) {
   const safe = sanitizeNoteHtml(html);
   els.participantNote.innerHTML = safe;
   els.participantNote.classList.toggle("hidden", !safe.trim());
+}
+
+function applyParticipantAppearance(data = {}) {
+  const bgColor = typeof data.bgColor === "string" ? data.bgColor : "";
+  const bgImage = typeof data.bgImage === "string" ? data.bgImage : "";
+  const opacity = Number.isFinite(Number(data.bgOpacity)) ? Math.max(0, Math.min(100, Number(data.bgOpacity))) : 60;
+  els.participantTitle.style.color = typeof data.titleColor === "string" ? data.titleColor : "";
+  if (bgImage) {
+    const veil = Math.max(0, Math.min(0.75, 1 - opacity / 100));
+    els.participantView.style.backgroundColor = bgColor || "#111820";
+    els.participantView.style.backgroundImage = `linear-gradient(rgba(255,255,255,${veil}), rgba(255,255,255,${veil})), url("${bgImage}")`;
+    els.participantView.style.backgroundSize = "cover";
+    els.participantView.style.backgroundPosition = "center";
+    els.participantView.style.backgroundAttachment = "fixed";
+  } else if (bgColor) {
+    els.participantView.style.backgroundColor = bgColor;
+    els.participantView.style.backgroundImage = "none";
+    els.participantView.style.backgroundSize = "";
+    els.participantView.style.backgroundPosition = "";
+    els.participantView.style.backgroundAttachment = "";
+  } else {
+    els.participantView.style.backgroundColor = "";
+    els.participantView.style.backgroundImage = "";
+    els.participantView.style.backgroundSize = "";
+    els.participantView.style.backgroundPosition = "";
+    els.participantView.style.backgroundAttachment = "";
+  }
 }
 
 function postContentElement(post, className = "post-content") {
@@ -2997,12 +3025,14 @@ async function initParticipantMode() {
       els.participantTitle.textContent = boardSnapshot.data().title;
       document.title = boardSnapshot.data().title;
     }
+    applyParticipantAppearance(boardSnapshot.data() || {});
     participantBoardSections = normalizePostSections(boardSnapshot.data()?.sections || []);
     renderParticipantNote(boardSnapshot.data()?.note || "");
     renderParticipantSections(participantBoardSections, selectedSectionId);
     renderParticipantBoard(participantBoardSections, participantBoardPosts);
 
     api.onSnapshot(postBoardDocRef(api, boardId), (snapshot) => {
+      applyParticipantAppearance(snapshot.data() || {});
       participantBoardSections = normalizePostSections(snapshot.data()?.sections || []);
       renderParticipantNote(snapshot.data()?.note || "");
       renderParticipantSections(participantBoardSections, els.participantSection.value || selectedSectionId);
@@ -4320,6 +4350,7 @@ els.pageTitleColor.addEventListener("change", () => {
   pages = pages.map((p) => (p.id === page.id ? { ...p, titleColor: els.pageTitleColor.value } : p));
   els.postBoardTitle.style.color = els.pageTitleColor.value;
   writeState();
+  syncActivePostBoardMetadata();
 });
 els.clearPageTitleColor.addEventListener("click", () => {
   const page = activePage();
@@ -4327,6 +4358,7 @@ els.clearPageTitleColor.addEventListener("click", () => {
   els.pageTitleColor.value = "#1a2330";
   els.postBoardTitle.style.color = "";
   writeState();
+  syncActivePostBoardMetadata();
 });
 function applyBgColor(color) {
   const page = activePage();
@@ -4337,6 +4369,7 @@ function applyBgColor(color) {
   els.pageBgStatus.textContent = `背景顏色：${color}`;
   updateSwatchActive(color);
   writeState();
+  syncActivePostBoardMetadata();
 }
 
 function updateSwatchActive(color) {
@@ -4364,6 +4397,7 @@ els.pageBgImageFile.addEventListener("change", async () => {
     els.pageBgOpacityRow.classList.remove("hidden");
     els.pageBgStatus.textContent = "已設定背景圖片。";
     writeState();
+    syncActivePostBoardMetadata();
   } catch {
     els.pageBgStatus.textContent = "圖片讀取失敗，請再試一次。";
   }
@@ -4376,6 +4410,7 @@ els.pageBgOpacity.addEventListener("input", () => {
   applyPageBackground(activePage());
   writeState();
 });
+els.pageBgOpacity.addEventListener("change", syncActivePostBoardMetadata);
 els.clearPageBg.addEventListener("click", () => {
   const page = activePage();
   pages = pages.map((p) => (p.id === page.id ? { ...p, bgColor: "", bgImage: "" } : p));
@@ -4386,6 +4421,7 @@ els.clearPageBg.addEventListener("click", () => {
   updateSwatchActive("");
   applyPageBackground(activePage());
   writeState();
+  syncActivePostBoardMetadata();
 });
 els.copyPostBoardLink.addEventListener("click", async () => {
   const url = els.postBoardJoinUrl.value;
