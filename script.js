@@ -10,6 +10,7 @@ const FIREBASE_CONFIG = {
 };
 const FIREBASE_COLLECTION = "classroomToolLayouts";
 const POST_BOARDS_COLLECTION = "classroomPostBoards";
+const POST_BOARD_BACKGROUND_IMAGE_LIMIT = 850000;
 
 const els = {
   homeView: document.querySelector("#home-view"),
@@ -1229,6 +1230,36 @@ function fileToDataUrl(file) {
     reader.addEventListener("error", () => reject(reader.error || new Error("file read failed")));
     reader.readAsDataURL(file);
   });
+}
+
+function loadImageElement(src) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.addEventListener("load", () => resolve(image));
+    image.addEventListener("error", () => reject(new Error("圖片讀取失敗。")));
+    image.src = src;
+  });
+}
+
+async function imageFileToJpegDataUrl(file, options = {}) {
+  const source = await fileToDataUrl(file);
+  const image = await loadImageElement(source);
+  const maxSide = options.maxSide || 1600;
+  const scale = Math.min(1, maxSide / Math.max(image.naturalWidth || 1, image.naturalHeight || 1));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round((image.naturalWidth || 1) * scale));
+  canvas.height = Math.max(1, Math.round((image.naturalHeight || 1) * scale));
+  const context = canvas.getContext("2d");
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+  const qualities = options.qualities || [0.82, 0.74, 0.66, 0.58, 0.5, 0.42];
+  let result = canvas.toDataURL("image/jpeg", qualities[0]);
+  const maxBytes = options.maxBytes || Infinity;
+  for (const quality of qualities) {
+    result = canvas.toDataURL("image/jpeg", quality);
+    if (result.length <= maxBytes) break;
+  }
+  return result;
 }
 
 function alignmentSelect(value = "center") {
@@ -2928,21 +2959,21 @@ async function imageFileToPostDataUrl(file) {
   if (!file) return "";
   if (!file.type.startsWith("image/")) throw new Error("請選擇圖片檔。");
 
-  const source = await fileToDataUrl(file);
-  const image = await new Promise((resolve, reject) => {
-    const img = new Image();
-    img.addEventListener("load", () => resolve(img));
-    img.addEventListener("error", () => reject(new Error("圖片讀取失敗。")));
-    img.src = source;
+  return imageFileToJpegDataUrl(file, { maxSide: 1280, qualities: [0.78] });
+}
+
+async function imageFileToBackgroundDataUrl(file) {
+  if (!file) return "";
+  if (!file.type.startsWith("image/")) throw new Error("請選擇圖片檔。");
+  const dataUrl = await imageFileToJpegDataUrl(file, {
+    maxSide: 1600,
+    maxBytes: POST_BOARD_BACKGROUND_IMAGE_LIMIT,
+    qualities: [0.82, 0.74, 0.66, 0.58, 0.5, 0.42, 0.34],
   });
-  const maxSide = 1280;
-  const scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
-  canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
-  const context = canvas.getContext("2d");
-  context.drawImage(image, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL("image/jpeg", 0.78);
+  if (dataUrl.length > POST_BOARD_BACKGROUND_IMAGE_LIMIT) {
+    throw new Error("背景圖片壓縮後仍太大，請換一張較小的圖片。");
+  }
+  return dataUrl;
 }
 
 async function submitParticipantPost(event) {
@@ -4388,7 +4419,7 @@ els.pageBgImageFile.addEventListener("change", async () => {
   if (!file) return;
   els.pageBgStatus.textContent = "上傳中…";
   try {
-    const dataUrl = await fileToDataUrl(file);
+    const dataUrl = await imageFileToBackgroundDataUrl(file);
     const page = activePage();
     const opacity = Number(els.pageBgOpacity.value) || 60;
     pages = pages.map((p) => (p.id === page.id ? { ...p, bgImage: dataUrl, bgColor: "", bgOpacity: opacity } : p));
@@ -4398,8 +4429,8 @@ els.pageBgImageFile.addEventListener("change", async () => {
     els.pageBgStatus.textContent = "已設定背景圖片。";
     writeState();
     syncActivePostBoardMetadata();
-  } catch {
-    els.pageBgStatus.textContent = "圖片讀取失敗，請再試一次。";
+  } catch (error) {
+    els.pageBgStatus.textContent = error.message || "圖片讀取失敗，請再試一次。";
   }
 });
 els.pageBgOpacity.addEventListener("input", () => {
