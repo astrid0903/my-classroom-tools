@@ -609,17 +609,23 @@ body.studio-mode #side-rail:not(.hidden) ~ main .slide-stage {
 body.studio-mode #side-rail:not(.hidden) ~ main .slide-stage {
   inset: 0 0 0 64px;
 }
+body.studio-mode .page-tabs {
+  top: 76px;
+  right: 18px;
+  max-width: min(240px, calc(100vw - 96px));
+}
 .theme-toggle { right: 14px; top: 14px; }
 
 /* IA Step 3a: session bar */
 .session-bar {
   position: fixed;
   top: 14px;
-  right: 70px;
+  right: 76px;
   z-index: 30;
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  max-width: calc(100vw - 104px);
   padding: 7px 12px;
   border-radius: 999px;
   background: rgba(8, 11, 16, 0.7);
@@ -629,6 +635,8 @@ body.studio-mode #side-rail:not(.hidden) ~ main .slide-stage {
   font-size: 11px;
   letter-spacing: 0.08em;
   color: rgba(255, 255, 255, 0.72);
+  white-space: nowrap;
+  overflow: hidden;
 }
 .session-bar.hidden { display: none !important; }
 .session-dot {
@@ -645,6 +653,19 @@ body.studio-mode #side-rail:not(.hidden) ~ main .slide-stage {
 .session-label { color: rgba(255, 255, 255, 0.45); }
 .session-sep { color: rgba(255, 255, 255, 0.22); }
 .session-clock { color: rgba(255, 255, 255, 0.92); font-weight: 500; }
+
+@media (max-width: 620px) {
+  .session-bar {
+    right: 68px;
+    gap: 6px;
+    max-width: calc(100vw - 96px);
+    padding: 7px 10px;
+  }
+  .session-label,
+  .session-kbd {
+    display: none;
+  }
+}
 /* IA Step 4a: Home in B's visual language ──────────────────── */
 body[data-theme="dark"] .home-view {
   background:

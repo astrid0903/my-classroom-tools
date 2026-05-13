@@ -570,13 +570,13 @@ h3 {
 
 .page-tabs {
   position: absolute;
-  top: 14px;
-  right: 14px;
+  top: 72px;
+  right: 18px;
   z-index: 18;
   width: max-content;
   min-width: 0;
-  max-width: min(220px, calc(100vw - 32px));
-  max-height: min(46vh, 360px);
+  max-width: min(240px, calc(100vw - 96px));
+  max-height: min(42vh, 360px);
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -592,6 +592,7 @@ h3 {
 .page-tab {
   width: auto;
   flex: 0 0 auto;
+  justify-content: flex-start;
   min-height: 34px;
   border: 1px solid transparent;
   border-radius: 6px;
@@ -603,6 +604,14 @@ h3 {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+@media (max-width: 620px) {
+  .page-tabs {
+    top: 64px;
+    right: 12px;
+    max-width: min(210px, calc(100vw - 84px));
+  }
 }
 
 .page-tab:hover,
