@@ -670,6 +670,15 @@
     </div>
   </div>
 
+  <div id="participant-post-modal" class="post-edit-modal participant-post-modal hidden" role="dialog" aria-modal="true" aria-label="貼文內容">
+    <div class="participant-post-dialog">
+      <button id="participant-post-modal-close" class="participant-post-modal-close" type="button" aria-label="關閉貼文內容">×</button>
+      <div id="participant-post-modal-meta" class="post-meta participant-post-modal-meta"></div>
+      <div id="participant-post-modal-content" class="participant-post-modal-content"></div>
+      <div id="participant-post-modal-image" class="participant-post-modal-image"></div>
+    </div>
+  </div>
+
   <div id="prompt-modal" class="post-edit-modal hidden" role="dialog" aria-modal="true" aria-label="輸入">
     <div class="post-edit-dialog post-simple-dialog">
       <h3 id="prompt-modal-title">輸入</h3>
@@ -707,7 +716,7 @@
   </div>
 
   <div id="settings-backdrop" class="settings-backdrop hidden"></div>
-  <script src="./script.js?v=20260509-drive-pdf"></script>
+  <script src="./script.js?v=20260513-participant-post-detail"></script>
   <script>
     // IA Step 1: side-rail wiring — forwards to existing dock buttons.
     (function () {

@@ -195,6 +195,11 @@ const els = {
   participantImage: document.querySelector("#participant-image"),
   participantSubmit: document.querySelector("#participant-submit"),
   participantMessage: document.querySelector("#participant-message"),
+  participantPostModal: document.querySelector("#participant-post-modal"),
+  participantPostModalClose: document.querySelector("#participant-post-modal-close"),
+  participantPostModalMeta: document.querySelector("#participant-post-modal-meta"),
+  participantPostModalContent: document.querySelector("#participant-post-modal-content"),
+  participantPostModalImage: document.querySelector("#participant-post-modal-image"),
   postEditModal: document.querySelector("#post-edit-modal"),
   postEditSection: document.querySelector("#post-edit-section"),
   postEditSectionLabel: document.querySelector("#post-edit-section-label"),
@@ -2743,6 +2748,47 @@ function renderParticipantNote(html) {
   els.participantNote.classList.toggle("hidden", !safe.trim());
 }
 
+function postContentElement(post, className = "post-content") {
+  const content = createEl("p", className);
+  content.innerHTML = linkifyText(post.content || "");
+  return content;
+}
+
+function closeParticipantPostModal() {
+  els.participantPostModal.classList.add("hidden");
+  els.participantPostModalMeta.innerHTML = "";
+  els.participantPostModalContent.innerHTML = "";
+  els.participantPostModalImage.innerHTML = "";
+}
+
+function openParticipantPostModal(post) {
+  const filename = postImageFilename(post);
+  els.participantPostModalMeta.innerHTML = "";
+  els.participantPostModalMeta.append(
+    createEl("strong", "", post.author || "匿名"),
+    createEl("span", "", formatPostTime(post.createdAt)),
+  );
+  els.participantPostModalContent.innerHTML = "";
+  if (post.content) {
+    els.participantPostModalContent.appendChild(postContentElement(post, "post-content participant-detail-content"));
+  } else {
+    els.participantPostModalContent.appendChild(createEl("p", "post-content participant-detail-content muted", "這則貼文沒有文字內容。"));
+  }
+  els.participantPostModalImage.innerHTML = "";
+  if (post.imageDataUrl) {
+    const imageButton = createEl("button", "participant-detail-image-button");
+    imageButton.type = "button";
+    imageButton.title = "展開圖片";
+    const img = document.createElement("img");
+    img.src = post.imageDataUrl;
+    img.alt = post.content ? `貼文圖片：${post.content.slice(0, 24)}` : "貼文圖片";
+    imageButton.appendChild(img);
+    imageButton.addEventListener("click", () => openImageViewer(post.imageDataUrl, filename));
+    els.participantPostModalImage.appendChild(imageButton);
+  }
+  els.participantPostModal.classList.remove("hidden");
+}
+
 function renderParticipantPostCards(container, posts) {
   container.innerHTML = "";
   if (posts.length === 0) {
@@ -2750,20 +2796,33 @@ function renderParticipantPostCards(container, posts) {
     return;
   }
   posts.forEach((post) => {
-    const card = createEl("article", "post-card");
+    const card = createEl("article", "post-card participant-post-card");
+    const openDetail = (event) => {
+      if (event.target.closest("a, button")) return;
+      openParticipantPostModal(post);
+    };
+    card.addEventListener("click", openDetail);
     const meta = createEl("div", "post-meta");
     meta.append(createEl("strong", "", post.author || "匿名"), createEl("span", "", formatPostTime(post.createdAt)));
     card.appendChild(meta);
-    if (post.content) card.appendChild(createEl("p", "post-content", post.content));
+    if (post.content) card.appendChild(postContentElement(post));
     if (post.imageDataUrl) {
       const img = document.createElement("img");
       img.src = post.imageDataUrl;
       img.className = "post-thumb";
-      img.alt = "";
+      img.alt = post.content ? `貼文圖片：${post.content.slice(0, 24)}` : "貼文圖片";
+      img.addEventListener("click", (event) => {
+        event.stopPropagation();
+        openImageViewer(post.imageDataUrl, postImageFilename(post));
+      });
       card.appendChild(img);
     }
+    const actions = createEl("div", "participant-post-actions");
+    const openBtn = createEl("button", "participant-post-open", "查看內容");
+    openBtn.type = "button";
+    openBtn.addEventListener("click", () => openParticipantPostModal(post));
+    actions.appendChild(openBtn);
     if (participantUid && post.authorUid === participantUid) {
-      const actions = createEl("div", "participant-post-actions");
       const editBtn = createEl("button", "participant-post-edit", "編輯");
       editBtn.type = "button";
       editBtn.addEventListener("click", () => showParticipantEditForm(post));
@@ -2773,8 +2832,8 @@ function renderParticipantPostCards(container, posts) {
         if (await showConfirmModal("確定要刪除這則貼文嗎？")) deleteParticipantPost(post.id);
       });
       actions.append(editBtn, delBtn);
-      card.appendChild(actions);
     }
+    card.appendChild(actions);
     container.appendChild(card);
   });
 }
@@ -4457,6 +4516,10 @@ els.imageViewer.addEventListener("click", (event) => {
 els.imageViewerZoom.addEventListener("input", () => {
   setImageViewerZoom(Number(els.imageViewerZoom.value));
 });
+els.participantPostModalClose.addEventListener("click", closeParticipantPostModal);
+els.participantPostModal.addEventListener("click", (event) => {
+  if (event.target === els.participantPostModal) closeParticipantPostModal();
+});
 els.postBoardQrToggle.addEventListener("click", () => {
   els.postBoardJoinCard.classList.toggle("expanded");
 });
@@ -4523,6 +4586,8 @@ window.addEventListener("keydown", (event) => {
       els.postBoardQrModal.classList.add("hidden");
     } else if (!els.imageViewer.classList.contains("hidden")) {
       closeImageViewer();
+    } else if (!els.participantPostModal.classList.contains("hidden")) {
+      closeParticipantPostModal();
     }
   }
 });
