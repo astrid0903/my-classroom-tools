@@ -589,6 +589,10 @@ h3 {
   backdrop-filter: blur(14px);
 }
 
+body.studio-mode .page-tabs {
+  display: none;
+}
+
 .page-tab {
   width: auto;
   flex: 0 0 auto;

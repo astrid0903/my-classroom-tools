@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Google Slides 教學播放台</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
-  <link rel="stylesheet" href="./styles.css?v=20260513-top-controls-spacing">
-  <link rel="stylesheet" href="./styles-dark.css?v=20260513-top-controls-spacing">
+  <link rel="stylesheet" href="./styles.css?v=20260513-top-control-center">
+  <link rel="stylesheet" href="./styles-dark.css?v=20260513-top-control-center">
   <script>
     (function () {
       try {
@@ -30,6 +30,29 @@
     <span id="session-clock" class="session-clock">--:--</span>
     <span class="session-sep">·</span>
     <kbd class="session-kbd">⌘K</kbd>
+  </div>
+  <div id="top-control" class="top-control hidden collapsed" aria-label="播放控制中心">
+    <button id="top-control-toggle" class="top-control-toggle" type="button" aria-label="展開播放控制中心" aria-expanded="false">
+      <span aria-hidden="true">▣</span>
+    </button>
+    <div class="top-control-panel" aria-label="播放控制面板">
+      <div class="top-control-head">
+        <div class="top-session-mini" aria-label="Session 狀態">
+          <span class="session-dot" aria-hidden="true"></span>
+          <span id="top-session-clock">--:--</span>
+          <kbd>⌘K</kbd>
+        </div>
+        <button id="top-control-collapse" class="top-control-collapse" type="button" aria-label="收合播放控制中心">收合</button>
+      </div>
+      <nav id="top-page-list" class="top-page-list" aria-label="頁面切換"></nav>
+      <div class="top-action-grid" aria-label="主要操作">
+        <button type="button" data-action="fullscreen"><span aria-hidden="true">▶</span>全螢幕</button>
+        <button type="button" data-action="arrange" aria-label="排列小工具"><span aria-hidden="true">⇆</span></button>
+        <button type="button" data-action="hidden-list" aria-label="隱藏小工具"><span aria-hidden="true">◌</span></button>
+        <button type="button" data-action="hide-all" aria-label="關閉所有小工具"><span aria-hidden="true">⊘</span></button>
+        <button type="button" data-action="save-version"><span aria-hidden="true">⬇</span>儲存</button>
+      </div>
+    </div>
   </div>
   <script>
     (function () {
@@ -759,22 +782,78 @@
     // IA Step 3a: session bar — show alongside studio, live clock.
     (function () {
       var bar = document.getElementById('session-bar');
+      var topControl = document.getElementById('top-control');
       var studio = document.querySelector('main.studio');
       var clock = document.getElementById('session-clock');
+      var topClock = document.getElementById('top-session-clock');
       if (!bar || !studio || !clock) return;
       function tick() {
         var d = new Date();
         var hh = String(d.getHours()).padStart(2, '0');
         var mm = String(d.getMinutes()).padStart(2, '0');
         clock.textContent = hh + ':' + mm;
+        if (topClock) topClock.textContent = hh + ':' + mm;
       }
       tick();
       setInterval(tick, 15000);
       function syncBar() {
         bar.classList.toggle('hidden', studio.classList.contains('hidden'));
+        if (topControl) topControl.classList.toggle('hidden', studio.classList.contains('hidden'));
       }
       syncBar();
       new MutationObserver(syncBar).observe(studio, { attributes: true, attributeFilter: ['class'] });
+    })();
+    // Top-right control center: compact by default, proxies existing controls.
+    (function () {
+      var root = document.getElementById('top-control');
+      var toggle = document.getElementById('top-control-toggle');
+      var collapse = document.getElementById('top-control-collapse');
+      var list = document.getElementById('top-page-list');
+      var sourceTabs = document.getElementById('page-tabs');
+      var studio = document.querySelector('main.studio');
+      if (!root || !toggle || !list || !sourceTabs || !studio) return;
+
+      function setCollapsed(next) {
+        root.classList.toggle('collapsed', next);
+        toggle.setAttribute('aria-expanded', next ? 'false' : 'true');
+        toggle.setAttribute('aria-label', next ? '展開播放控制中心' : '收合播放控制中心');
+      }
+      toggle.addEventListener('click', function () { setCollapsed(!root.classList.contains('collapsed')); });
+      if (collapse) collapse.addEventListener('click', function () { setCollapsed(true); });
+
+      function syncPages() {
+        list.innerHTML = '';
+        sourceTabs.querySelectorAll('.page-tab').forEach(function (tab) {
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'top-page-item' + (tab.classList.contains('active') ? ' active' : '');
+          btn.innerHTML = tab.innerHTML;
+          btn.addEventListener('click', function () {
+            tab.click();
+            setCollapsed(true);
+          });
+          list.appendChild(btn);
+        });
+      }
+      syncPages();
+      new MutationObserver(syncPages).observe(sourceTabs, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+
+      var clickById = function (id) { var el = document.getElementById(id); if (el) el.click(); };
+      var clickTool = function (key) { var el = document.querySelector('.tool-dock [data-tool="' + key + '"]'); if (el) el.click(); };
+      root.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-action]');
+        if (!btn) return;
+        var action = btn.getAttribute('data-action');
+        if (action === 'fullscreen') clickById('fullscreen-button');
+        else if (action === 'arrange') clickTool('arrange');
+        else if (action === 'hidden-list') clickById('hidden-widgets-button');
+        else if (action === 'hide-all') clickById('hide-widgets');
+        else if (action === 'save-version') clickTool('layouts');
+        setCollapsed(true);
+      });
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') setCollapsed(true);
+      });
     })();
     // Direction B: wire the floating action bar to existing controls + show/hide with studio.
     (function () {
