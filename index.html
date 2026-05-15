@@ -50,7 +50,7 @@
         <button type="button" data-action="arrange" aria-label="排列小工具"><span aria-hidden="true">⇆</span></button>
         <button type="button" data-action="hidden-list" aria-label="隱藏小工具"><span aria-hidden="true">◌</span></button>
         <button type="button" data-action="hide-all" aria-label="關閉所有小工具"><span aria-hidden="true">⊘</span></button>
-        <button type="button" data-action="save-version"><span aria-hidden="true">⬇</span>儲存</button>
+        <button type="button" data-action="save-version"><span aria-hidden="true">⬇</span>存檔</button>
       </div>
     </div>
   </div>
@@ -69,13 +69,13 @@
       });
     })();
   </script>
-  <section id="home-view" class="home-view" aria-label="版本首頁">
+  <section id="home-view" class="home-view" aria-label="檔案首頁">
     <div class="home-shell">
       <header class="home-hero">
         <div>
           <span class="home-kicker">Classroom Studio</span>
           <h1>Google Slides 教學播放台</h1>
-          <p>用版本卡片整理每一套教學播放配置，快速回到簡報、貼文板、分組與小工具佈局。</p>
+          <p>用檔案保存每一套教學播放配置，開啟後編輯內容會自動寫回目前檔案。</p>
         </div>
         <div class="home-actions" aria-label="首頁主要操作">
           <button id="home-enter-studio" type="button">進入目前播放台</button>
@@ -83,34 +83,34 @@
         </div>
       </header>
 
-      <section class="home-save-panel" aria-label="儲存目前播放台">
+      <section class="home-save-panel" aria-label="目前播放台檔案">
         <div>
-          <h2>儲存目前播放台為版本</h2>
-          <p>保留目前頁面、小工具、貼文板與同步設定，下次可從卡片快速載入。</p>
+          <h2>目前播放台檔案</h2>
+          <p>開啟既有 JSON 檔，或將目前播放台另存成新檔。支援的瀏覽器會在編輯時自動存檔。</p>
         </div>
         <div class="home-save-controls">
-          <input id="home-layout-name" type="text" placeholder="例如：分組討論版、影片導入版">
-          <button id="home-save-layout" type="button">儲存版本</button>
+          <input id="home-layout-name" type="text" placeholder="例如：分組討論版.json">
+          <button id="home-save-layout" type="button">另存檔案</button>
         </div>
       </section>
 
-      <section class="home-sync-panel" aria-label="版本同步與檔案">
-        <label for="home-sync-code">跨電腦同步碼</label>
+      <section class="home-sync-panel" aria-label="檔案操作">
+        <label for="home-sync-code">檔案操作</label>
         <div class="home-sync-grid">
-          <input id="home-sync-code" type="text" placeholder="例如：gisele-classroom">
-          <button id="home-sync-layouts" type="button">同步到雲端</button>
-          <button id="home-load-cloud-layouts" class="secondary" type="button">從雲端載入</button>
-          <button id="home-export-layouts" class="secondary" type="button">匯出版本檔</button>
-          <label class="home-import-button secondary" for="home-import-layouts">匯入版本檔</label>
+          <input id="home-sync-code" type="text" placeholder="目前檔案狀態" readonly>
+          <button id="home-sync-layouts" type="button">儲存到目前檔案</button>
+          <button id="home-load-cloud-layouts" class="secondary" type="button">開啟檔案</button>
+          <button id="home-export-layouts" class="secondary" type="button">下載備份檔</button>
+          <label class="home-import-button secondary" for="home-import-layouts">從檔案匯入</label>
           <input id="home-import-layouts" class="home-file-input" type="file" accept="application/json,.json">
         </div>
         <p id="home-version-message" class="home-message" aria-live="polite"></p>
       </section>
 
-      <section class="home-version-section" aria-label="已儲存版本">
+      <section class="home-version-section" aria-label="目前檔案預覽">
         <div class="home-section-head">
-          <h2>已儲存版本</h2>
-          <span id="home-version-count">0 個版本</span>
+          <h2>目前檔案預覽</h2>
+          <span id="home-version-count">尚未連結檔案</span>
         </div>
         <div id="home-layout-grid" class="home-layout-grid"></div>
       </section>
@@ -127,7 +127,7 @@
     <button class="rail-btn" type="button" data-rail="groups" aria-label="分組"><span>▦</span></button>
     <button class="rail-btn" type="button" data-rail="image" aria-label="圖片"><span>▧</span></button>
     <button class="rail-btn" type="button" data-rail="youtube" aria-label="YouTube"><span>▶</span></button>
-    <button class="rail-btn" type="button" data-rail="layouts" aria-label="儲存版本"><span>▤</span></button>
+    <button class="rail-btn" type="button" data-rail="layouts" aria-label="檔案存檔"><span>▤</span></button>
     <button class="rail-btn" type="button" data-rail="arrange" aria-label="排列小工具"><span>⇆</span></button>
     <div class="rail-spacer"></div>
     <button class="rail-btn" type="button" id="rail-fullscreen" aria-label="全螢幕"><span>⛶</span></button>
@@ -483,25 +483,25 @@
       </section>
 
       <section id="layouts-panel" class="tool-section" data-panel="layouts">
-        <h2>儲存版本</h2>
-        <label for="layout-name">版本名稱</label>
-        <input id="layout-name" type="text" placeholder="例如：分組討論版、影片導入版">
-        <button id="save-layout" type="button">儲存目前設定</button>
-        <label for="saved-layouts">已儲存版本</label>
+        <h2>檔案存檔</h2>
+        <label for="layout-name">檔案名稱</label>
+        <input id="layout-name" type="text" placeholder="例如：分組討論版.json">
+        <button id="save-layout" type="button">另存檔案</button>
+        <label for="saved-layouts">目前檔案</label>
         <select id="saved-layouts"></select>
         <div class="button-row">
-          <button id="load-layout" class="secondary" type="button">載入選取版本</button>
-          <button id="delete-layout" class="danger" type="button">刪除選取版本</button>
+          <button id="load-layout" class="secondary" type="button">開啟檔案</button>
+          <button id="delete-layout" class="danger" type="button">中斷自動存檔</button>
         </div>
         <div class="button-row">
-          <button id="export-layouts" class="secondary" type="button">匯出版本檔</button>
-          <button id="sync-layouts" type="button">同步到雲端</button>
+          <button id="export-layouts" class="secondary" type="button">下載備份檔</button>
+          <button id="sync-layouts" type="button">儲存到目前檔案</button>
         </div>
-        <label for="import-layouts">匯入版本檔</label>
+        <label for="import-layouts">從檔案匯入</label>
         <input id="import-layouts" type="file" accept="application/json,.json">
-        <label for="sync-code">跨電腦同步碼</label>
-        <input id="sync-code" type="text" placeholder="例如：gisele-classroom">
-        <button id="load-cloud-layouts" class="secondary" type="button">從雲端載入</button>
+        <label for="sync-code">自動存檔狀態</label>
+        <input id="sync-code" type="text" placeholder="尚未連結檔案" readonly>
+        <button id="load-cloud-layouts" class="secondary" type="button">開啟檔案</button>
         <p id="layout-message" class="hint" aria-live="polite"></p>
       </section>
 
@@ -558,9 +558,9 @@
         <span class="dock-icon">▶</span>
         <span>video</span>
       </button>
-      <button class="dock-item more-tool hidden" type="button" data-tool="layouts" aria-label="儲存版本">
+      <button class="dock-item more-tool hidden" type="button" data-tool="layouts" aria-label="檔案存檔">
         <span class="dock-icon">▤</span>
-        <span>versions</span>
+        <span>file</span>
       </button>
       <button class="dock-item more-tool hidden" type="button" data-tool="arrange" aria-label="排列小工具">
         <span class="dock-icon">⇆</span>
@@ -630,7 +630,7 @@
       <button class="action-btn" type="button" data-action="hide-all" title="關閉所有小工具" aria-label="關閉所有小工具"><span aria-hidden="true">⊘</span></button>
       <span class="action-sep" aria-hidden="true"></span>
       <button class="action-pill warm" type="button" data-action="save-version">
-        <span class="action-glyph" aria-hidden="true">⬇</span><span>儲存為版本</span>
+        <span class="action-glyph" aria-hidden="true">⬇</span><span>檔案存檔</span>
       </button>
     </div>
   </main>
@@ -912,7 +912,7 @@
         { id:'tool-image',  label:'圖片',               group:'工具', hint:'Image',       run: clickTool('image'),   when: inStudio },
         { id:'tool-youtube',label:'YouTube',           group:'工具', hint:'Video',       run: clickTool('youtube'), when: inStudio },
         { id:'tool-arrange',label:'排列小工具',         group:'工具', hint:'Arrange',     run: clickTool('arrange'), when: inStudio },
-        { id:'tool-layouts',label:'儲存版本',           group:'工具', hint:'Versions',    run: clickTool('layouts'), when: inStudio },
+        { id:'tool-layouts',label:'檔案存檔',           group:'工具', hint:'File',        run: clickTool('layouts'), when: inStudio },
 
         // Stage actions
         { id:'fullscreen',  label:'全螢幕播放',         group:'動作', hint:'Fullscreen',  run: clickById('fullscreen-button'), when: inStudio },

@@ -1,4 +1,7 @@
 const STORAGE_KEY = "classroomSlidesStudio.v1";
+const FILE_META_KEY = "classroomSlidesStudio.fileMeta.v1";
+const STUDIO_FILE_TYPE = "classroomSlidesStudio.file";
+const LEGACY_LAYOUTS_FILE_TYPE = "classroomSlidesStudio.layouts";
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyD-SgodKqo2X7rsKHNPx7hbAGtrBdQolUU",
   authDomain: "my-teaching-tools-gisele0903.firebaseapp.com",
@@ -264,6 +267,14 @@ let participantBoardSections = [];
 let participantBoardPosts = [];
 let participantUid = null;
 let participantEditingPostId = null;
+let currentFileHandle = null;
+let currentFileName = "";
+let currentFileSavedAt = "";
+let currentFileAutoSave = false;
+let fileSaveTimerId = null;
+let fileSaveInProgress = false;
+let fileSaveQueued = false;
+let suppressFileAutoSave = false;
 const DEFAULT_PAGE = { id: "main", name: "主簡報", type: "slides" };
 const PAGE_TYPES = new Set(["slides", "dark", "posts"]);
 const DYNAMIC_WIDGET_TYPES = new Set(["timer", "clock", "groups", "text", "image", "youtube", "slides", "qr"]);
@@ -282,6 +293,33 @@ function readSavedLayouts() {
   const layouts = readState().savedLayouts;
   if (!layouts || typeof layouts !== "object" || Array.isArray(layouts)) return {};
   return layouts;
+}
+
+function readFileMeta() {
+  try {
+    return JSON.parse(window.localStorage.getItem(FILE_META_KEY)) || {};
+  } catch {
+    return {};
+  }
+}
+
+function writeFileMeta(extra = {}) {
+  const next = {
+    ...readFileMeta(),
+    ...extra,
+  };
+  window.localStorage.setItem(FILE_META_KEY, JSON.stringify(next));
+  currentFileName = next.name || "";
+  currentFileSavedAt = next.savedAt || "";
+  currentFileAutoSave = Boolean(next.autoSave);
+}
+
+function clearFileMeta() {
+  window.localStorage.removeItem(FILE_META_KEY);
+  currentFileName = "";
+  currentFileSavedAt = "";
+  currentFileAutoSave = false;
+  currentFileHandle = null;
 }
 
 function buildState(extra = {}) {
@@ -309,7 +347,7 @@ function buildState(extra = {}) {
     youtubeUrl: els.youtubeUrl.value,
     youtubeEmbedUrl,
     youtubeWatchUrl,
-    syncCode: els.syncCode.value,
+    syncCode: "",
     studentList: els.studentList.value,
     groupCount: els.groupCount.value,
     shuffleGroups: els.shuffleGroups.checked,
@@ -340,10 +378,12 @@ function buildState(extra = {}) {
 
 function writeState(extra = {}) {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(buildState(extra)));
+  scheduleFileAutoSave();
 }
 
 function patchStoredState(extra = {}) {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...readState(), ...extra }));
+  scheduleFileAutoSave();
 }
 
 function layoutSnapshot() {
@@ -353,6 +393,62 @@ function layoutSnapshot() {
   });
   delete snapshot.savedLayouts;
   return snapshot;
+}
+
+function currentFileSnapshotFromStorage() {
+  const state = readState();
+  const snapshot = {
+    ...state,
+    activeTool: "",
+    dockCollapsed: false,
+    moreToolsOpen: false,
+    hiddenWidgetsOpen: false,
+  };
+  delete snapshot.savedLayouts;
+  return Object.keys(snapshot).length > 0 ? snapshot : { pages: [DEFAULT_PAGE], activePageId: DEFAULT_PAGE.id, activeTool: "", dockCollapsed: false };
+}
+
+function buildStudioFilePayload(state = layoutSnapshot()) {
+  return {
+    type: STUDIO_FILE_TYPE,
+    version: 1,
+    savedAt: new Date().toISOString(),
+    state,
+  };
+}
+
+function fileSystemAccessSupported() {
+  return Boolean(window.isSecureContext && window.showOpenFilePicker && window.showSaveFilePicker);
+}
+
+function sanitizeFileName(value) {
+  const cleaned = String(value || "")
+    .replace(/\.json$/i, "")
+    .replace(/[\\/:*?"<>|]+/g, "-")
+    .trim();
+  return `${cleaned || "classroom-studio"}.json`;
+}
+
+function preferredFileName() {
+  return sanitizeFileName(els.layoutName.value || els.homeLayoutName.value || currentFileName || `classroom-studio-${new Date().toISOString().slice(0, 10)}`);
+}
+
+function setFileInputs(name = currentFileName) {
+  const displayName = name || preferredFileName();
+  els.layoutName.value = displayName;
+  els.homeLayoutName.value = displayName;
+}
+
+function currentFileStatusText() {
+  if (currentFileHandle && currentFileName) return `自動存檔：${currentFileName}`;
+  if (currentFileName) return `已載入：${currentFileName}（需手動另存）`;
+  return "尚未連結檔案";
+}
+
+function setFileStatusInputs() {
+  const text = currentFileStatusText();
+  els.syncCode.value = text;
+  els.homeSyncCode.value = text;
 }
 
 function formatSavedAt(value) {
@@ -453,110 +549,80 @@ function appendLayoutPreview(container, layout) {
 }
 
 function renderHomeVersions() {
-  const entries = savedLayoutEntries();
+  const snapshot = currentFileSnapshotFromStorage();
+  const layout = {
+    name: currentFileName || "尚未命名的播放台檔案",
+    savedAt: currentFileSavedAt || readFileMeta().savedAt || "",
+    state: snapshot,
+  };
   els.homeLayoutGrid.innerHTML = "";
-  els.homeVersionCount.textContent = `${entries.length} 個版本`;
-  els.homeSyncCode.value = readState().syncCode || "";
-  els.syncCode.value = els.homeSyncCode.value;
+  els.homeVersionCount.textContent = currentFileHandle ? "已連結檔案" : "尚未連結檔案";
+  setFileStatusInputs();
+  setFileInputs(currentFileName || els.homeLayoutName.value || els.layoutName.value);
 
-  if (entries.length === 0) {
-    els.homeLayoutGrid.appendChild(createEl("div", "home-empty", "目前還沒有儲存版本。先進入播放台完成配置，再回首頁儲存成版本。"));
-    return;
-  }
+  const card = createEl("article", "home-layout-card");
+  const title = createEl("div", "home-layout-title");
+  const savedText = layout.savedAt ? `最近存檔 ${formatSavedAt(layout.savedAt)}` : "尚未存成檔案";
+  title.append(createEl("h3", "", layout.name), createEl("span", "", savedText));
 
-  entries.forEach((layout) => {
-    const card = createEl("article", "home-layout-card");
-    const title = createEl("div", "home-layout-title");
-    title.append(createEl("h3", "", layout.name), createEl("span", "", layout.savedAt ? `儲存於 ${formatSavedAt(layout.savedAt)}` : "尚無儲存時間"));
+  const preview = createEl("div", "home-preview");
+  appendLayoutPreview(preview, layout);
 
-    const preview = createEl("div", "home-preview");
-    appendLayoutPreview(preview, layout);
+  const pagesForLayout = layoutPages(layout);
+  const widgetsForLayout = layoutWidgets(layout);
+  const meta = createEl("div", "home-layout-meta");
+  meta.append(createEl("span", "", `${pagesForLayout.length} 頁`), createEl("span", "", `${widgetsForLayout.length} 個小工具`));
+  layoutFeatureTags(layout).forEach((tag) => meta.appendChild(createEl("span", "", tag)));
 
-    const pagesForLayout = layoutPages(layout);
-    const widgetsForLayout = layoutWidgets(layout);
-    const meta = createEl("div", "home-layout-meta");
-    meta.append(createEl("span", "", `${pagesForLayout.length} 頁`), createEl("span", "", `${widgetsForLayout.length} 個小工具`));
-    layoutFeatureTags(layout).forEach((tag) => meta.appendChild(createEl("span", "", tag)));
+  const actions = createEl("div", "home-layout-actions");
+  const enter = createEl("button", "", "進入編輯");
+  enter.type = "button";
+  enter.addEventListener("click", showStudio);
+  const save = createEl("button", "secondary", currentFileHandle ? "立即存檔" : "另存檔案");
+  save.type = "button";
+  save.addEventListener("click", saveCurrentFile);
+  const open = createEl("button", "secondary", "開啟檔案");
+  open.type = "button";
+  open.addEventListener("click", openStudioFile);
+  actions.append(enter, save, open);
 
-    const actions = createEl("div", "home-layout-actions");
-    const load = createEl("button", "", "載入");
-    load.type = "button";
-    load.addEventListener("click", () => loadLayoutByName(layout.name));
-    const remove = createEl("button", "danger", "刪除");
-    remove.type = "button";
-    remove.addEventListener("click", () => deleteLayoutByName(layout.name));
-    actions.append(load, remove);
-
-    card.append(title, preview, meta, actions);
-    els.homeLayoutGrid.appendChild(card);
-  });
+  card.append(title, preview, meta, actions);
+  els.homeLayoutGrid.appendChild(card);
 }
 
 function currentLayoutSnapshotFromStorage() {
-  const state = readState();
-  const snapshot = {
-    ...state,
-    activeTool: "",
-    dockCollapsed: false,
-    moreToolsOpen: false,
-    hiddenWidgetsOpen: false,
-  };
-  delete snapshot.savedLayouts;
-  return Object.keys(snapshot).length > 0 ? snapshot : { pages: [DEFAULT_PAGE], activePageId: DEFAULT_PAGE.id, activeTool: "", dockCollapsed: false };
+  return currentFileSnapshotFromStorage();
 }
 
 function saveHomeLayout() {
-  const name = els.homeLayoutName.value.trim();
-  if (!name) {
-    setVersionMessage("請先輸入版本名稱。", true);
-    return;
-  }
-  const layouts = readSavedLayouts();
-  layouts[name] = {
-    name,
-    savedAt: new Date().toISOString(),
-    state: currentLayoutSnapshotFromStorage(),
-  };
-  patchStoredState({ savedLayouts: layouts });
-  els.layoutName.value = name;
-  renderSavedLayouts(name);
-  renderHomeVersions();
-  setVersionMessage(`已儲存「${name}」。`);
+  saveCurrentFileAs();
 }
 
 function loadLayoutByName(name) {
   const layout = readSavedLayouts()[name];
   if (!layout?.state) {
-    setVersionMessage("找不到這個版本。", true);
+    setVersionMessage("找不到這個舊版設定。請改用「開啟檔案」載入 JSON。", true);
     return;
   }
-  const layouts = readSavedLayouts();
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...layout.state, savedLayouts: layouts, activeTool: "" }));
-  showStudio();
+  applyStudioFileState(layout.state, layout.name ? `${layout.name}.json` : "");
 }
 
 function deleteLayoutByName(name) {
   const layouts = readSavedLayouts();
-  if (!name || !layouts[name]) {
-    setVersionMessage("找不到要刪除的版本。", true);
-    return;
-  }
-  delete layouts[name];
-  if (els.homeView && !els.homeView.classList.contains("hidden")) {
+  if (name && layouts[name]) {
+    delete layouts[name];
     patchStoredState({ savedLayouts: layouts });
-  } else {
-    writeState({ savedLayouts: layouts });
   }
   renderSavedLayouts();
   renderHomeVersions();
-  setVersionMessage(`已刪除本機版本「${name}」。若要同步刪除雲端版本，請再按「同步到雲端」。`);
+  setVersionMessage("已移除舊版設定紀錄。");
 }
 
 function blankStudioState() {
   const state = readState();
   return {
     savedLayouts: readSavedLayouts(),
-    syncCode: state.syncCode || "",
+    syncCode: "",
     pages: [DEFAULT_PAGE],
     activePageId: DEFAULT_PAGE.id,
     activeTool: "",
@@ -587,11 +653,16 @@ function showStudio() {
 }
 
 function createBlankStudio() {
+  clearFileMeta();
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(blankStudioState()));
   showStudio();
 }
 
 function initHomeMode() {
+  const meta = readFileMeta();
+  currentFileName = meta.name || "";
+  currentFileSavedAt = meta.savedAt || "";
+  currentFileAutoSave = false;
   els.homeView.classList.remove("hidden");
   els.studio.classList.add("hidden");
   document.body.classList.add("home-mode");
@@ -997,103 +1068,236 @@ function addSlidesWidgetFromInput() {
   });
 }
 
-function renderSavedLayouts(selectedName = "") {
-  const layouts = readSavedLayouts();
-  const entries = savedLayoutEntries();
-  els.savedLayouts.innerHTML = "";
-
-  if (entries.length === 0) {
-    const option = document.createElement("option");
-    option.value = "";
-    option.textContent = "尚未儲存版本";
-    els.savedLayouts.appendChild(option);
-    els.loadLayout.disabled = true;
-    els.deleteLayout.disabled = true;
-    els.exportLayouts.disabled = true;
-    els.homeExportLayouts.disabled = true;
-    els.homeSyncLayouts.disabled = true;
-    return;
+function normalizeStudioFilePayload(payload) {
+  if (!payload || typeof payload !== "object") return null;
+  if (payload.type === STUDIO_FILE_TYPE && payload.state && typeof payload.state === "object") return payload.state;
+  if (payload.type === LEGACY_LAYOUTS_FILE_TYPE || payload.layouts) {
+    const imported = normalizeImportedLayouts(payload);
+    const latest = Object.values(imported).sort((a, b) => String(b.savedAt || "").localeCompare(String(a.savedAt || "")))[0];
+    return latest?.state || null;
   }
-
-  entries.forEach((layout) => {
-    const option = document.createElement("option");
-    option.value = layout.name;
-    option.textContent = `${layout.name}${layout.savedAt ? `（${formatSavedAt(layout.savedAt)}）` : ""}`;
-    els.savedLayouts.appendChild(option);
-  });
-
-  els.savedLayouts.value = selectedName && layouts[selectedName] ? selectedName : entries[0].name;
-  els.loadLayout.disabled = false;
-  els.deleteLayout.disabled = false;
-  els.exportLayouts.disabled = false;
-  els.homeExportLayouts.disabled = false;
-  els.homeSyncLayouts.disabled = false;
+  if (payload.state && typeof payload.state === "object") return payload.state;
+  if (payload.pages || payload.dynamicWidgets || payload.currentSlides || payload.slidesUrl) return payload;
+  return null;
 }
 
-function saveCurrentLayout() {
-  const name = els.layoutName.value.trim();
-  if (!name) {
-    setVersionMessage("請先輸入版本名稱。", true);
+function applyStudioFileState(state, name = "", handle = null, savedAt = "") {
+  if (!state || typeof state !== "object") {
+    setVersionMessage("檔案內容不是可用的播放台設定。", true);
     return;
   }
-
-  const layouts = readSavedLayouts();
-  layouts[name] = {
-    name,
-    savedAt: new Date().toISOString(),
-    state: layoutSnapshot(),
-  };
-
-  writeState({ savedLayouts: layouts });
-  renderSavedLayouts(name);
-  renderHomeVersions();
-  const imageNote = imageSource.startsWith("blob:") ? " 本機選取的圖片不會寫進版本檔，跨電腦請改用圖片網址。" : "";
-  setVersionMessage(`已儲存「${name}」。${imageNote}`);
+  suppressFileAutoSave = true;
+  try {
+    currentFileHandle = handle;
+    const nextName = sanitizeFileName(name || currentFileName || preferredFileName());
+    const nextSavedAt = savedAt || new Date().toISOString();
+    writeFileMeta({
+      name: nextName,
+      savedAt: nextSavedAt,
+      autoSave: Boolean(handle),
+    });
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...state, activeTool: "", moreToolsOpen: false, hiddenWidgetsOpen: false }));
+    setFileInputs(nextName);
+    setFileStatusInputs();
+    showStudio();
+    setVersionMessage(handle ? `已開啟「${nextName}」，之後編輯會自動存檔。` : `已匯入「${nextName}」。若要自動存檔，請按「另存檔案」。`);
+  } finally {
+    suppressFileAutoSave = false;
+  }
 }
 
-function loadSelectedLayout() {
-  const name = els.savedLayouts.value;
-  const layout = readSavedLayouts()[name];
-  if (!layout?.state) {
-    setVersionMessage("請先選擇要載入的版本。", true);
-    return;
+async function readStudioFile(file, handle = null) {
+  if (!file) return;
+  try {
+    const payload = JSON.parse(await file.text());
+    const state = normalizeStudioFilePayload(payload);
+    if (!state) throw new Error("invalid");
+    applyStudioFileState(state, file.name || currentFileName, handle, payload.savedAt || "");
+  } catch {
+    setVersionMessage("開啟失敗，請確認選到的是播放台 JSON 檔。", true);
   }
-  loadLayoutByName(name);
 }
 
-function deleteSelectedLayout() {
-  const name = els.savedLayouts.value;
-  const layouts = readSavedLayouts();
-  if (!name || !layouts[name]) {
-    setVersionMessage("請先選擇要刪除的版本。", true);
+async function openStudioFile() {
+  if (!fileSystemAccessSupported()) {
+    const input = els.homeView && !els.homeView.classList.contains("hidden") ? els.homeImportLayouts : els.importLayouts;
+    input.click();
+    setVersionMessage("這個瀏覽器不支援直接寫回檔案。匯入後請用「另存檔案」或「下載備份檔」。");
     return;
   }
-  deleteLayoutByName(name);
+  try {
+    const [handle] = await window.showOpenFilePicker({
+      types: [
+        {
+          description: "播放台 JSON 檔",
+          accept: { "application/json": [".json"] },
+        },
+      ],
+      multiple: false,
+    });
+    const file = await handle.getFile();
+    await readStudioFile(file, handle);
+  } catch (error) {
+    if (error?.name !== "AbortError") setVersionMessage(`開啟檔案失敗：${error.message || "請再試一次。"}`, true);
+  }
 }
 
-function exportLayouts() {
-  const layouts = readSavedLayouts();
-  if (Object.keys(layouts).length === 0) {
-    setVersionMessage("目前沒有可匯出的版本。", true);
-    return;
-  }
+async function writePayloadToHandle(handle, payload) {
+  const writable = await handle.createWritable();
+  await writable.write(new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }));
+  await writable.close();
+}
 
-  const payload = {
-    type: "classroomSlidesStudio.layouts",
-    version: 1,
-    exportedAt: new Date().toISOString(),
-    layouts,
-  };
+function downloadStudioFile(payload, name = preferredFileName()) {
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `classroom-tool-layouts-${new Date().toISOString().slice(0, 10)}.json`;
+  link.download = sanitizeFileName(name);
   document.body.appendChild(link);
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
-  setVersionMessage("已匯出版本檔，可拿到另一台電腦匯入。");
+}
+
+async function saveCurrentFileAs() {
+  const payload = buildStudioFilePayload(layoutSnapshot());
+  const name = preferredFileName();
+  if (!fileSystemAccessSupported()) {
+    downloadStudioFile(payload, name);
+    currentFileHandle = null;
+    writeFileMeta({ name, savedAt: payload.savedAt, autoSave: false });
+    setFileInputs(name);
+    setFileStatusInputs();
+    renderHomeVersions();
+    renderSavedLayouts();
+    setVersionMessage("已下載檔案。這個瀏覽器無法自動寫回，後續變更請再下載備份檔。");
+    return;
+  }
+
+  try {
+    const handle = await window.showSaveFilePicker({
+      suggestedName: name,
+      types: [
+        {
+          description: "播放台 JSON 檔",
+          accept: { "application/json": [".json"] },
+        },
+      ],
+    });
+    await writePayloadToHandle(handle, payload);
+    currentFileHandle = handle;
+    writeFileMeta({ name: sanitizeFileName(handle.name || name), savedAt: payload.savedAt, autoSave: true });
+    setFileInputs(currentFileName);
+    setFileStatusInputs();
+    renderHomeVersions();
+    renderSavedLayouts();
+    setVersionMessage(`已另存「${currentFileName}」，接下來編輯會自動存檔。`);
+  } catch (error) {
+    if (error?.name !== "AbortError") setVersionMessage(`另存失敗：${error.message || "請再試一次。"}`, true);
+  }
+}
+
+async function saveCurrentFile() {
+  if (!currentFileHandle) {
+    await saveCurrentFileAs();
+    return;
+  }
+  const payload = buildStudioFilePayload(layoutSnapshot());
+  try {
+    await writePayloadToHandle(currentFileHandle, payload);
+    writeFileMeta({ name: sanitizeFileName(currentFileHandle.name || currentFileName), savedAt: payload.savedAt, autoSave: true });
+    setFileInputs(currentFileName);
+    setFileStatusInputs();
+    renderHomeVersions();
+    renderSavedLayouts();
+    setVersionMessage(`已儲存到「${currentFileName}」。`);
+  } catch (error) {
+    currentFileAutoSave = false;
+    writeFileMeta({ autoSave: false });
+    setFileStatusInputs();
+    setVersionMessage(`存檔失敗：${error.message || "請改用另存檔案。"}`, true);
+  }
+}
+
+function downloadCurrentFile() {
+  const payload = buildStudioFilePayload(layoutSnapshot());
+  downloadStudioFile(payload, preferredFileName());
+  setVersionMessage("已下載目前播放台備份檔。");
+}
+
+function disconnectCurrentFile() {
+  clearFileMeta();
+  setFileInputs(preferredFileName());
+  setFileStatusInputs();
+  renderHomeVersions();
+  renderSavedLayouts();
+  setVersionMessage("已中斷目前檔案連結；之後不會自動寫回檔案。");
+}
+
+function scheduleFileAutoSave() {
+  if (suppressFileAutoSave || !currentFileHandle || !currentFileAutoSave) return;
+  clearTimeout(fileSaveTimerId);
+  fileSaveTimerId = setTimeout(autoSaveCurrentFile, 900);
+}
+
+async function autoSaveCurrentFile() {
+  if (!currentFileHandle || !currentFileAutoSave) return;
+  if (fileSaveInProgress) {
+    fileSaveQueued = true;
+    return;
+  }
+  fileSaveInProgress = true;
+  try {
+    const payload = buildStudioFilePayload(currentFileSnapshotFromStorage());
+    await writePayloadToHandle(currentFileHandle, payload);
+    writeFileMeta({ name: sanitizeFileName(currentFileHandle.name || currentFileName), savedAt: payload.savedAt, autoSave: true });
+    setFileStatusInputs();
+    setVersionMessage(`已自動存檔到「${currentFileName}」。`);
+  } catch (error) {
+    currentFileAutoSave = false;
+    writeFileMeta({ autoSave: false });
+    setFileStatusInputs();
+    setVersionMessage(`自動存檔失敗：${error.message || "請改用另存檔案。"}`, true);
+  } finally {
+    fileSaveInProgress = false;
+    if (fileSaveQueued) {
+      fileSaveQueued = false;
+      scheduleFileAutoSave();
+    }
+  }
+}
+
+function renderSavedLayouts(selectedName = "") {
+  els.savedLayouts.innerHTML = "";
+  const option = document.createElement("option");
+  option.value = currentFileName || "";
+  option.textContent = currentFileName || "尚未連結檔案";
+  els.savedLayouts.appendChild(option);
+  els.savedLayouts.value = option.value;
+  els.loadLayout.disabled = false;
+  els.deleteLayout.disabled = !currentFileHandle && !currentFileName;
+  els.exportLayouts.disabled = false;
+  els.homeExportLayouts.disabled = false;
+  els.syncLayouts.disabled = false;
+  els.homeSyncLayouts.disabled = false;
+  setFileStatusInputs();
+}
+
+function saveCurrentLayout() {
+  saveCurrentFileAs();
+}
+
+function loadSelectedLayout() {
+  openStudioFile();
+}
+
+function deleteSelectedLayout() {
+  disconnectCurrentFile();
+}
+
+function exportLayouts() {
+  downloadCurrentFile();
 }
 
 function normalizeImportedLayouts(payload) {
@@ -1113,33 +1317,10 @@ function normalizeImportedLayouts(payload) {
 
 function importLayoutsFromFile(file) {
   if (!file) return;
-  const reader = new FileReader();
-  reader.addEventListener("load", () => {
-    try {
-      const imported = normalizeImportedLayouts(JSON.parse(String(reader.result || "")));
-      const importedNames = Object.keys(imported);
-      if (importedNames.length === 0) throw new Error("empty");
-
-      const layouts = {
-        ...readSavedLayouts(),
-        ...imported,
-      };
-      if (els.homeView && !els.homeView.classList.contains("hidden")) {
-        patchStoredState({ savedLayouts: layouts });
-      } else {
-        writeState({ savedLayouts: layouts });
-      }
-      renderSavedLayouts(importedNames[0]);
-      renderHomeVersions();
-      setVersionMessage(`已匯入 ${importedNames.length} 個版本。`);
-    } catch {
-      setVersionMessage("匯入失敗，請確認選到的是播放台版本 JSON 檔。", true);
-    } finally {
-      els.importLayouts.value = "";
-      els.homeImportLayouts.value = "";
-    }
+  readStudioFile(file).finally(() => {
+    els.importLayouts.value = "";
+    els.homeImportLayouts.value = "";
   });
-  reader.readAsText(file);
 }
 
 function makeWidgetId() {
@@ -3087,91 +3268,11 @@ async function initParticipantMode() {
 }
 
 async function syncLayoutsToCloud() {
-  const syncCode = normalizeSyncCode(els.homeView && !els.homeView.classList.contains("hidden") ? els.homeSyncCode.value : els.syncCode.value);
-  if (!syncCode) {
-    setVersionMessage("請先輸入跨電腦同步碼。", true);
-    return;
-  }
-
-  const layouts = readSavedLayouts();
-  if (Object.keys(layouts).length === 0) {
-    setVersionMessage("請先至少儲存一個版本，再同步到雲端。", true);
-    return;
-  }
-
-  try {
-    els.syncLayouts.disabled = true;
-    els.homeSyncLayouts.disabled = true;
-    setVersionMessage("正在同步到 Firebase...");
-    const api = await loadFirebaseApi();
-    await ensureFirebaseAuth(api);
-    await api.setDoc(cloudDocRef(api, syncCode), {
-      layouts,
-      updatedAt: api.serverTimestamp(),
-      version: 1,
-    });
-    els.syncCode.value = syncCode;
-    els.homeSyncCode.value = syncCode;
-    if (els.homeView && !els.homeView.classList.contains("hidden")) {
-      patchStoredState({ syncCode });
-    } else {
-      writeState({ syncCode });
-    }
-    setVersionMessage(`已同步到雲端。其他電腦輸入「${syncCode}」即可載入。`);
-  } catch (error) {
-    setVersionMessage(`同步失敗：${error.message || "請確認 Firestore 規則是否允許寫入。"}`, true);
-  } finally {
-    els.syncLayouts.disabled = false;
-    els.homeSyncLayouts.disabled = Object.keys(readSavedLayouts()).length === 0;
-  }
+  await saveCurrentFile();
 }
 
 async function loadLayoutsFromCloud() {
-  const syncCode = normalizeSyncCode(els.homeView && !els.homeView.classList.contains("hidden") ? els.homeSyncCode.value : els.syncCode.value);
-  if (!syncCode) {
-    setVersionMessage("請先輸入跨電腦同步碼。", true);
-    return;
-  }
-
-  try {
-    els.loadCloudLayouts.disabled = true;
-    els.homeLoadCloudLayouts.disabled = true;
-    setVersionMessage("正在從 Firebase 載入...");
-    const api = await loadFirebaseApi();
-    await ensureFirebaseAuth(api);
-    const snapshot = await api.getDoc(cloudDocRef(api, syncCode));
-    if (!snapshot.exists()) {
-      setVersionMessage("找不到這組同步碼的雲端版本。", true);
-      return;
-    }
-
-    const imported = normalizeImportedLayouts(snapshot.data()?.layouts || {});
-    const importedNames = Object.keys(imported);
-    if (importedNames.length === 0) {
-      setVersionMessage("雲端資料裡沒有可用版本。", true);
-      return;
-    }
-
-    const layouts = {
-      ...readSavedLayouts(),
-      ...imported,
-    };
-    els.syncCode.value = syncCode;
-    els.homeSyncCode.value = syncCode;
-    if (els.homeView && !els.homeView.classList.contains("hidden")) {
-      patchStoredState({ savedLayouts: layouts, syncCode });
-    } else {
-      writeState({ savedLayouts: layouts, syncCode });
-    }
-    renderSavedLayouts(importedNames[0]);
-    renderHomeVersions();
-    setVersionMessage(`已從雲端載入 ${importedNames.length} 個版本。`);
-  } catch (error) {
-    setVersionMessage(`載入失敗：${error.message || "請確認 Firestore 規則是否允許讀取。"}`, true);
-  } finally {
-    els.loadCloudLayouts.disabled = false;
-    els.homeLoadCloudLayouts.disabled = false;
-  }
+  await openStudioFile();
 }
 
 function setActiveTool(tool) {
@@ -4274,6 +4375,8 @@ function stopResize() {
 }
 
 function restore() {
+  const previousSuppressFileAutoSave = suppressFileAutoSave;
+  suppressFileAutoSave = true;
   const state = readState();
   pages = normalizePages(state.pages);
   activePageId = pages.some((page) => page.id === state.activePageId) ? state.activePageId : DEFAULT_PAGE.id;
@@ -4351,6 +4454,7 @@ function restore() {
   setMoreToolsOpen(moreToolsOpen);
   setHiddenWidgetsOpen(hiddenWidgetsOpen);
   updateStageForPage();
+  suppressFileAutoSave = previousSuppressFileAutoSave;
 }
 
 els.loadSlides.addEventListener("click", loadSlides);
@@ -4360,12 +4464,13 @@ els.homeSaveLayout.addEventListener("click", saveHomeLayout);
 els.homeLayoutName.addEventListener("keydown", (event) => {
   if (event.key === "Enter") saveHomeLayout();
 });
+els.homeLayoutName.addEventListener("input", () => setFileInputs(els.homeLayoutName.value));
 els.homeSyncCode.addEventListener("input", () => {
   els.syncCode.value = els.homeSyncCode.value;
   patchStoredState({ syncCode: els.homeSyncCode.value });
 });
-els.homeSyncLayouts.addEventListener("click", syncLayoutsToCloud);
-els.homeLoadCloudLayouts.addEventListener("click", loadLayoutsFromCloud);
+els.homeSyncLayouts.addEventListener("click", saveCurrentFile);
+els.homeLoadCloudLayouts.addEventListener("click", openStudioFile);
 els.homeExportLayouts.addEventListener("click", exportLayouts);
 els.homeImportLayouts.addEventListener("change", () => importLayoutsFromFile(els.homeImportLayouts.files?.[0]));
 els.clearSlides.addEventListener("click", clearSlides);
@@ -4564,12 +4669,13 @@ els.loadLayout.addEventListener("click", loadSelectedLayout);
 els.deleteLayout.addEventListener("click", deleteSelectedLayout);
 els.exportLayouts.addEventListener("click", exportLayouts);
 els.importLayouts.addEventListener("change", () => importLayoutsFromFile(els.importLayouts.files?.[0]));
+els.layoutName.addEventListener("input", () => setFileInputs(els.layoutName.value));
 els.syncCode.addEventListener("input", () => {
   els.homeSyncCode.value = els.syncCode.value;
   writeState();
 });
-els.syncLayouts.addEventListener("click", syncLayoutsToCloud);
-els.loadCloudLayouts.addEventListener("click", loadLayoutsFromCloud);
+els.syncLayouts.addEventListener("click", saveCurrentFile);
+els.loadCloudLayouts.addEventListener("click", openStudioFile);
 els.alignLeftWidgets.addEventListener("click", () => arrangeWidgets("left"));
 els.alignCenterWidgets.addEventListener("click", () => arrangeWidgets("center"));
 els.alignRightWidgets.addEventListener("click", () => arrangeWidgets("right"));
