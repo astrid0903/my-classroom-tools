@@ -26,9 +26,11 @@ const els = {
   homeLoadCloudLayouts: document.querySelector("#home-load-cloud-layouts"),
   homeExportLayouts: document.querySelector("#home-export-layouts"),
   homeImportLayouts: document.querySelector("#home-import-layouts"),
+  homeFileStatus: document.querySelector("#home-file-status"),
   homeVersionMessage: document.querySelector("#home-version-message"),
   homeVersionCount: document.querySelector("#home-version-count"),
   homeLayoutGrid: document.querySelector("#home-layout-grid"),
+  studioFileStatus: document.querySelector("#studio-file-status"),
   stage: document.querySelector("#slide-stage"),
   frame: document.querySelector("#slides-frame"),
   slidesUrl: document.querySelector("#slides-url"),
@@ -148,6 +150,7 @@ const els = {
   syncCode: document.querySelector("#sync-code"),
   syncLayouts: document.querySelector("#sync-layouts"),
   loadCloudLayouts: document.querySelector("#load-cloud-layouts"),
+  editorFileStatus: document.querySelector("#editor-file-status"),
   layoutMessage: document.querySelector("#layout-message"),
   alignLeftWidgets: document.querySelector("#align-left-widgets"),
   alignCenterWidgets: document.querySelector("#align-center-widgets"),
@@ -439,16 +442,37 @@ function setFileInputs(name = currentFileName) {
   els.homeLayoutName.value = displayName;
 }
 
+function formatFileSavedAt(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString("zh-Hant", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 function currentFileStatusText() {
-  if (currentFileHandle && currentFileName) return `自動存檔：${currentFileName}`;
-  if (currentFileName) return `已載入：${currentFileName}（需手動另存）`;
-  return "尚未連結檔案";
+  const savedText = formatFileSavedAt(currentFileSavedAt);
+  const suffix = savedText ? `｜最新存檔：${savedText}` : "｜最新存檔：尚未存檔";
+  if (currentFileHandle && currentFileName) return `自動存檔中｜檔名：${currentFileName}${suffix}`;
+  if (currentFileName) return `已載入檔案（需手動另存）｜檔名：${currentFileName}${suffix}`;
+  return `尚未連結檔案｜檔名：未命名${suffix}`;
 }
 
 function setFileStatusInputs() {
   const text = currentFileStatusText();
   els.syncCode.value = text;
   els.homeSyncCode.value = text;
+  if (els.editorFileStatus) els.editorFileStatus.textContent = text;
+  if (els.homeFileStatus) els.homeFileStatus.textContent = text;
+  if (els.studioFileStatus) {
+    els.studioFileStatus.textContent = text;
+    els.studioFileStatus.title = text;
+  }
 }
 
 function formatSavedAt(value) {
@@ -636,6 +660,7 @@ function showHome() {
   closeAllWidgetSettings();
   setActiveTool("");
   els.studio.classList.add("hidden");
+  els.studioFileStatus.classList.add("hidden");
   els.homeView.classList.remove("hidden");
   document.body.classList.add("home-mode");
   document.body.classList.remove("studio-mode");
@@ -647,6 +672,7 @@ function showStudio() {
   patchStoredState({ activeTool: "", moreToolsOpen: false, hiddenWidgetsOpen: false });
   els.homeView.classList.add("hidden");
   els.studio.classList.remove("hidden");
+  els.studioFileStatus.classList.remove("hidden");
   document.body.classList.remove("home-mode");
   document.body.classList.add("studio-mode");
   restore();
@@ -665,6 +691,7 @@ function initHomeMode() {
   currentFileAutoSave = false;
   els.homeView.classList.remove("hidden");
   els.studio.classList.add("hidden");
+  els.studioFileStatus.classList.add("hidden");
   document.body.classList.add("home-mode");
   document.body.classList.remove("studio-mode");
   renderSavedLayouts();
@@ -1323,6 +1350,100 @@ function importLayoutsFromFile(file) {
   });
 }
 
+let activeTooltipTarget = null;
+
+function tooltipControlFromEventTarget(target) {
+  return target?.closest?.("button, a.link-button, .home-import-button, [role='button']");
+}
+
+function tooltipTextForControl(control) {
+  if (!control || control.disabled || control.getAttribute("aria-disabled") === "true") return "";
+  const raw =
+    control.getAttribute("data-tooltip") ||
+    control.getAttribute("aria-label") ||
+    control.getAttribute("title") ||
+    control.textContent ||
+    "";
+  return raw.replace(/\s+/g, " ").trim();
+}
+
+function ensureTooltipElement() {
+  let tooltip = document.querySelector("#ui-tooltip");
+  if (!tooltip) {
+    tooltip = createEl("div", "ui-tooltip");
+    tooltip.id = "ui-tooltip";
+    tooltip.setAttribute("role", "tooltip");
+    document.body.appendChild(tooltip);
+  }
+  return tooltip;
+}
+
+function positionTooltip(control) {
+  const tooltip = ensureTooltipElement();
+  const rect = control.getBoundingClientRect();
+  const margin = 8;
+  const tooltipRect = tooltip.getBoundingClientRect();
+  const width = tooltipRect.width || 120;
+  const height = tooltipRect.height || 32;
+  let left = rect.left + rect.width / 2;
+  let top = rect.top - height - margin;
+
+  if (top < margin) top = rect.bottom + margin;
+  left = Math.min(window.innerWidth - width / 2 - margin, Math.max(width / 2 + margin, left));
+  top = Math.min(window.innerHeight - height - margin, Math.max(margin, top));
+
+  tooltip.style.left = `${left}px`;
+  tooltip.style.top = `${top}px`;
+}
+
+function showControlTooltip(control) {
+  const text = tooltipTextForControl(control);
+  if (!text) return;
+
+  activeTooltipTarget = control;
+  if (control.hasAttribute("title")) {
+    control.dataset.tooltipNativeTitle = control.getAttribute("title");
+    control.removeAttribute("title");
+  }
+
+  const tooltip = ensureTooltipElement();
+  tooltip.textContent = text;
+  tooltip.classList.add("visible");
+  positionTooltip(control);
+}
+
+function hideControlTooltip(control = activeTooltipTarget) {
+  if (!control) return;
+  if (control.dataset.tooltipNativeTitle) {
+    control.setAttribute("title", control.dataset.tooltipNativeTitle);
+    delete control.dataset.tooltipNativeTitle;
+  }
+  if (activeTooltipTarget === control) activeTooltipTarget = null;
+  const tooltip = document.querySelector("#ui-tooltip");
+  if (tooltip) tooltip.classList.remove("visible");
+}
+
+function initControlTooltips() {
+  document.addEventListener("pointerover", (event) => {
+    const control = tooltipControlFromEventTarget(event.target);
+    if (!control || control === activeTooltipTarget) return;
+    showControlTooltip(control);
+  });
+  document.addEventListener("pointerout", (event) => {
+    if (!activeTooltipTarget) return;
+    if (activeTooltipTarget.contains(event.relatedTarget)) return;
+    hideControlTooltip(activeTooltipTarget);
+  });
+  document.addEventListener("focusin", (event) => {
+    const control = tooltipControlFromEventTarget(event.target);
+    if (control) showControlTooltip(control);
+  });
+  document.addEventListener("focusout", () => hideControlTooltip());
+  document.addEventListener("click", () => hideControlTooltip());
+  window.addEventListener("scroll", () => hideControlTooltip(), true);
+  window.addEventListener("resize", () => hideControlTooltip());
+}
+
 function makeWidgetId() {
   dynamicWidgetCounter += 1;
   return `widget-${Date.now().toString(36)}-${dynamicWidgetCounter.toString(36)}`;
@@ -1512,22 +1633,26 @@ function createDynamicWidget(type, state = {}, position = null) {
   const title = createEl("div", "dynamic-title");
   const actions = createEl("div", "dynamic-actions");
   const minimizeButton = type === "youtube" ? createEl("button", "", "▁") : null;
-  const hideButton = createEl("button", "dynamic-hide-btn", "◌");
+  const hideButton = createEl("button", "dynamic-hide-btn");
   hideButton.type = "button";
   hideButton.title = "隱藏小工具";
   hideButton.setAttribute("aria-label", "隱藏小工具");
   const copyButton = createEl("button", "", "⧉");
   copyButton.type = "button";
   copyButton.title = "複製小工具";
+  copyButton.setAttribute("aria-label", "複製小工具");
   const settingsButton = createEl("button", "dynamic-settings-btn", "⋯");
   settingsButton.type = "button";
   settingsButton.title = "顯示設定";
+  settingsButton.setAttribute("aria-label", "顯示設定");
   const removeButton = createEl("button", "", "×");
   removeButton.type = "button";
   removeButton.title = "刪除小工具";
+  removeButton.setAttribute("aria-label", "刪除小工具");
   if (minimizeButton) {
     minimizeButton.type = "button";
     minimizeButton.title = "最小化 YouTube";
+    minimizeButton.setAttribute("aria-label", "最小化 YouTube");
     actions.appendChild(minimizeButton);
   }
   actions.append(hideButton, copyButton, settingsButton, removeButton);
@@ -1962,10 +2087,11 @@ function renderDynamicWidget(instance) {
     } else if (state.expandedSize?.height) {
       instance.element.style.height = state.expandedSize.height;
     }
-    if (instance.minimizeButton) {
-      instance.minimizeButton.textContent = state.minimized ? "▢" : "▁";
-      instance.minimizeButton.title = state.minimized ? "還原 YouTube" : "最小化 YouTube";
-    }
+  if (instance.minimizeButton) {
+    instance.minimizeButton.textContent = state.minimized ? "▢" : "▁";
+    instance.minimizeButton.title = state.minimized ? "還原 YouTube" : "最小化 YouTube";
+    instance.minimizeButton.setAttribute("aria-label", state.minimized ? "還原 YouTube" : "最小化 YouTube");
+  }
     let miniControls = instance.element.querySelector(".youtube-mini-controls");
     if (!miniControls) {
       miniControls = createEl("div", "youtube-mini-controls");
@@ -2634,6 +2760,7 @@ function renderPostCards(container, posts, options = {}) {
       const menuBtn = createEl("button", "post-menu-btn", "⋮");
       menuBtn.type = "button";
       menuBtn.title = "貼文選項";
+      menuBtn.setAttribute("aria-label", "貼文選項");
       const menu = createEl("div", "post-menu hidden");
       const editBtn = createEl("button", "", "編輯貼文");
       editBtn.type = "button";
@@ -2737,6 +2864,7 @@ function renderPostBoardColumns(page, sections) {
     const deleteBtn = createEl("button", "post-section-delete", "✕");
     deleteBtn.type = "button";
     deleteBtn.title = "刪除區段";
+    deleteBtn.setAttribute("aria-label", "刪除區段");
     deleteBtn.addEventListener("click", () => deletePostSection(section.id));
     const sectionActions = createEl("div", "post-section-actions");
     sectionActions.append(addLink, deleteBtn);
@@ -2783,6 +2911,7 @@ function renderPostBoardColumns(page, sections) {
   const addSection = createEl("button", "post-section-new", "+");
   addSection.type = "button";
   addSection.title = "新增區段";
+  addSection.setAttribute("aria-label", "新增區段");
   addSection.addEventListener("click", addPostSection);
   boardColumns.appendChild(addSection);
   els.postBoardGrid.appendChild(boardColumns);
@@ -3019,6 +3148,7 @@ function openParticipantPostModal(post) {
     const imageButton = createEl("button", "participant-detail-image-button");
     imageButton.type = "button";
     imageButton.title = "展開圖片";
+    imageButton.setAttribute("aria-label", "展開圖片");
     const img = document.createElement("img");
     img.src = post.imageDataUrl;
     img.alt = post.content ? `貼文圖片：${post.content.slice(0, 24)}` : "貼文圖片";
@@ -3100,6 +3230,7 @@ function renderParticipantBoard(sections, posts) {
     const addBtn = createEl("button", "post-section-add", "+");
     addBtn.type = "button";
     addBtn.title = `投稿到「${section.name}」`;
+    addBtn.setAttribute("aria-label", `投稿到「${section.name}」`);
     addBtn.addEventListener("click", () => showParticipantForm(section.id));
     head.append(titleEl, addBtn);
     const body = createEl("div", "post-section-body");
@@ -4819,6 +4950,8 @@ window.addEventListener("pointercancel", () => {
   stopDrag();
   stopResize();
 });
+
+initControlTooltips();
 
 if (isParticipantMode()) {
   initParticipantMode();

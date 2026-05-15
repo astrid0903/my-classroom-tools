@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Google Slides 教學播放台</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
-  <link rel="stylesheet" href="./styles.css?v=20260513-top-control-center">
-  <link rel="stylesheet" href="./styles-dark.css?v=20260513-top-control-center">
+  <link rel="stylesheet" href="./styles.css?v=20260515-save-status">
+  <link rel="stylesheet" href="./styles-dark.css?v=20260515-save-status">
   <script>
     (function () {
       try {
@@ -44,13 +44,14 @@
         </div>
         <button id="top-control-collapse" class="top-control-collapse" type="button" aria-label="收合播放控制中心">收合</button>
       </div>
+      <div id="studio-file-status" class="studio-file-status hidden" aria-live="polite">尚未連結檔案｜檔名：未命名｜最新存檔：尚未存檔</div>
       <nav id="top-page-list" class="top-page-list" aria-label="頁面切換"></nav>
       <div class="top-action-grid" aria-label="主要操作">
-        <button type="button" data-action="fullscreen"><span aria-hidden="true">▶</span>全螢幕</button>
+        <button type="button" data-action="fullscreen" aria-label="全螢幕播放"><span aria-hidden="true">▶</span>全螢幕</button>
         <button type="button" data-action="arrange" aria-label="排列小工具"><span aria-hidden="true">⇆</span></button>
         <button type="button" data-action="hidden-list" aria-label="隱藏小工具"><span aria-hidden="true">◌</span></button>
         <button type="button" data-action="hide-all" aria-label="關閉所有小工具"><span aria-hidden="true">⊘</span></button>
-        <button type="button" data-action="save-version"><span aria-hidden="true">⬇</span>存檔</button>
+        <button type="button" data-action="save-version" aria-label="檔案存檔"><span aria-hidden="true">⬇</span>存檔</button>
       </div>
     </div>
   </div>
@@ -104,6 +105,7 @@
           <label class="home-import-button secondary" for="home-import-layouts">從檔案匯入</label>
           <input id="home-import-layouts" class="home-file-input" type="file" accept="application/json,.json">
         </div>
+        <p id="home-file-status" class="file-status-line" aria-live="polite">尚未連結檔案</p>
         <p id="home-version-message" class="home-message" aria-live="polite"></p>
       </section>
 
@@ -501,6 +503,7 @@
         <input id="import-layouts" type="file" accept="application/json,.json">
         <label for="sync-code">自動存檔狀態</label>
         <input id="sync-code" type="text" placeholder="尚未連結檔案" readonly>
+        <p id="editor-file-status" class="file-status-line" aria-live="polite">尚未連結檔案</p>
         <button id="load-cloud-layouts" class="secondary" type="button">開啟檔案</button>
         <p id="layout-message" class="hint" aria-live="polite"></p>
       </section>
@@ -621,7 +624,7 @@
 
     <!-- Direction B: floating glass action bar (bottom-center) -->
     <div id="studio-action-bar" class="studio-action-bar hidden" aria-label="主要操作">
-      <button class="action-pill cool" type="button" data-action="fullscreen">
+      <button class="action-pill cool" type="button" data-action="fullscreen" aria-label="全螢幕播放">
         <span class="action-glyph" aria-hidden="true">▶</span><span>全螢幕播放</span>
       </button>
       <span class="action-sep" aria-hidden="true"></span>
@@ -629,7 +632,7 @@
       <button class="action-btn" type="button" data-action="hidden-list" title="隱藏小工具" aria-label="隱藏小工具"><span aria-hidden="true">◌</span></button>
       <button class="action-btn" type="button" data-action="hide-all" title="關閉所有小工具" aria-label="關閉所有小工具"><span aria-hidden="true">⊘</span></button>
       <span class="action-sep" aria-hidden="true"></span>
-      <button class="action-pill warm" type="button" data-action="save-version">
+      <button class="action-pill warm" type="button" data-action="save-version" aria-label="檔案存檔">
         <span class="action-glyph" aria-hidden="true">⬇</span><span>檔案存檔</span>
       </button>
     </div>
@@ -647,13 +650,13 @@
       </main>
       <div id="participant-note" class="participant-note"></div>
       <div id="participant-board-body" class="participant-board-body"></div>
-      <button id="participant-open-form" class="participant-fab" type="button">✏ 新增貼文</button>
+      <button id="participant-open-form" class="participant-fab" type="button" aria-label="新增貼文">✏ 新增貼文</button>
     </div>
 
     <!-- 投稿表單畫面 -->
     <div id="participant-form-screen" class="participant-screen hidden">
       <header class="participant-form-head">
-        <button id="participant-back" type="button" class="participant-back-btn">← 返回看板</button>
+        <button id="participant-back" type="button" class="participant-back-btn" aria-label="返回看板">← 返回看板</button>
         <span id="participant-form-title">新增貼文</span>
       </header>
       <main class="participant-shell">
@@ -739,7 +742,7 @@
   </div>
 
   <div id="settings-backdrop" class="settings-backdrop hidden"></div>
-  <script src="./script.js?v=20260513-participant-bg-image-compress"></script>
+  <script src="./script.js?v=20260515-save-status"></script>
   <script>
     // IA Step 1: side-rail wiring — forwards to existing dock buttons.
     (function () {

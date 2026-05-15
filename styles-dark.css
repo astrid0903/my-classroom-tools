@@ -91,6 +91,12 @@ body[data-theme="dark"] button.danger:hover {
   border-color: var(--red);
 }
 
+body[data-theme="dark"] .studio-file-status {
+  border-color: rgba(95, 170, 230, 0.3);
+  background: rgba(6, 10, 15, 0.72);
+  color: var(--d-text);
+}
+
 /* ── Home view ───────────────────────────── */
 body[data-theme="dark"] .home-view {
   background:
@@ -119,6 +125,7 @@ body[data-theme="dark"] .home-save-panel p { color: var(--d-text-2); }
 
 body[data-theme="dark"] .home-section-head span,
 body[data-theme="dark"] .home-message { color: var(--d-text-3); }
+body[data-theme="dark"] .file-status-line { color: var(--d-text-2); }
 
 body[data-theme="dark"] .home-import-button {
   background: var(--d-surface);
@@ -1111,9 +1118,9 @@ body[data-theme="dark"] .dynamic-drag:hover {
 
 /* dynamic action buttons (hide, settings, etc.) */
 body[data-theme="dark"] .dynamic-actions button {
-  width: 22px;
-  min-width: 22px;
-  min-height: 22px;
+  width: 24px;
+  min-width: 24px;
+  min-height: 24px;
   height: 22px;
   border-radius: 6px;
   border: 1px solid transparent;
@@ -1323,21 +1330,37 @@ body[data-theme="dark"] .widget.selected-widget .resize-handle {
 body[data-theme="dark"] .widget .resize-handle:hover { opacity: 1; }
 
 body[data-theme="dark"] .dynamic-actions button {
-  width: 26px;
-  min-width: 26px;
-  min-height: 26px;
+  width: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  height: 24px;
   border-radius: 7px;
 }
 body[data-theme="dark"] .dynamic-hide-btn::before {
-  content: "×";
-  font-size: 14px;
-  line-height: 1;
+  content: "";
+  width: 15px;
+  height: 9px;
+  border: 1.7px solid currentColor;
+  border-radius: 999px 999px 760px 760px;
+  transform: rotate(-8deg);
 }
-body[data-theme="dark"] .dynamic-hide-btn { font-size: 0; }
+body[data-theme="dark"] .dynamic-hide-btn::after {
+  content: "";
+  position: absolute;
+  width: 17px;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+  transform: rotate(-42deg);
+}
+body[data-theme="dark"] .dynamic-hide-btn {
+  position: relative;
+  font-size: 0;
+}
 body[data-theme="dark"] .dynamic-widget:hover .dynamic-hide-btn:hover {
-  background: rgba(255, 138, 120, 0.16);
-  border-color: rgba(255, 138, 120, 0.4);
-  color: #ff8a78;
+  background: rgba(95, 170, 230, 0.16);
+  border-color: rgba(95, 170, 230, 0.42);
+  color: #8fc5ff;
 }
 body[data-theme="dark"] .dynamic-drag {
   width: 26px;
