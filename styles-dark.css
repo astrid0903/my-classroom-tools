@@ -616,10 +616,35 @@ body.studio-mode #side-rail:not(.hidden) ~ main .slide-stage {
 body.studio-mode #side-rail:not(.hidden) ~ main .slide-stage {
   inset: 0 0 0 64px;
 }
-body.studio-mode .page-tabs {
-  top: 76px;
-  right: 18px;
-  max-width: min(240px, calc(100vw - 96px));
+/* ── Direction B: page tabs as horizontal strip at top of stage ── */
+body[data-theme="dark"].studio-mode .page-tabs {
+  display: flex !important;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  top: 16px;
+  left: 16px;
+  right: 210px; /* leave room for session pill + theme toggle */
+  width: auto;
+  max-width: none;
+  max-height: none;
+  padding: 5px 6px;
+  gap: 4px;
+  align-items: center;
+  border-radius: 10px;
+  /* prevent column stacking from styles.css */
+  flex-direction: row;
+}
+body[data-theme="dark"].studio-mode .page-tabs::-webkit-scrollbar { display: none; }
+body[data-theme="dark"].studio-mode .page-tab {
+  flex: 0 0 auto;
+  height: 30px;
+  min-height: 30px;
+  padding: 0 11px;
+  font-size: 12.5px;
+  border-radius: 8px;
+  white-space: nowrap;
 }
 .theme-toggle { right: 14px; top: 14px; }
 body.studio-mode .theme-toggle {
@@ -1951,6 +1976,39 @@ body[data-theme="dark"] .tool-section .hint {
   background: rgba(255, 255, 255, 0.06);
   color: #fff;
 }
-/* nudge the bar above the rail's edge when rail is visible */
-body.studio-mode #side-rail:not(.hidden) ~ main .studio-action-bar,
-body.studio-mode .studio-action-bar { left: calc(50% + 32px); }
+/* nudge the bar when rail is visible (light mode fallback) */
+body.studio-mode #side-rail:not(.hidden) ~ main .studio-action-bar { left: calc(50% + 32px); }
+
+/* ══════════════════════════════════════════════════════════
+   Direction B — dark studio mode: inline top-bar + action bar
+   ══════════════════════════════════════════════════════════ */
+
+/* 2. Session bar: show in dark studio mode (top-right) */
+body[data-theme="dark"].studio-mode .session-bar {
+  display: inline-flex !important;
+  top: 16px;
+  right: 68px;
+}
+
+/* 3. Theme toggle: back to standard top-14px in dark studio
+   (no longer needs to be pushed down since top-control is hidden) */
+body[data-theme="dark"].studio-mode .theme-toggle {
+  top: 14px;
+}
+
+/* 4. Top-control: hide in dark studio
+   (page tabs + session bar + ⌘K cover all its functions) */
+body[data-theme="dark"].studio-mode .top-control {
+  display: none !important;
+}
+
+/* 5. Studio action bar: show in dark studio mode */
+body[data-theme="dark"].studio-mode .studio-action-bar {
+  display: inline-flex !important;
+  left: 50%;
+  transform: translateX(-50%);
+}
+/* shift centre to account for 64px rail */
+body[data-theme="dark"].studio-mode #side-rail:not(.hidden) ~ main .studio-action-bar {
+  left: calc(50% + 32px);
+}
