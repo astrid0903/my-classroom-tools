@@ -585,13 +585,30 @@ function driveAuthExpiredError() {
   return Object.assign(new Error("Drive 授權已過期，請重新授權。"), { code: "drive-auth-expired" });
 }
 
+async function driveApiError(response, fallback = "Drive 讀取失敗") {
+  let payload = null;
+  try {
+    payload = await response.clone().json();
+  } catch {
+    payload = null;
+  }
+  const error = payload?.error || {};
+  const reason = error.errors?.[0]?.reason || error.status || "";
+  const message = error.message || `${fallback}（${response.status}）`;
+  if (response.status === 401 || reason === "authError" || reason === "invalidCredentials") {
+    driveAccessToken = "";
+    return driveAuthExpiredError();
+  }
+  return Object.assign(new Error(`Drive API 拒絕讀取：${message}`), {
+    code: "drive-api-error",
+    status: response.status,
+    reason,
+  });
+}
+
 async function fetchDriveJson(url) {
   const response = await fetch(url, { headers: driveApiHeaders() });
-  if (response.status === 401 || response.status === 403) {
-    driveAccessToken = "";
-    throw driveAuthExpiredError();
-  }
-  if (!response.ok) throw new Error(`Drive 讀取失敗（${response.status}）。`);
+  if (!response.ok) throw await driveApiError(response, "Drive 讀取失敗");
   return response.json();
 }
 
@@ -599,11 +616,7 @@ async function fetchDrivePlaybackFile(file) {
   const response = await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(file.id)}?alt=media`, {
     headers: driveApiHeaders(),
   });
-  if (response.status === 401 || response.status === 403) {
-    driveAccessToken = "";
-    throw driveAuthExpiredError();
-  }
-  if (!response.ok) throw new Error(`無法讀取「${file.name}」。`);
+  if (!response.ok) throw await driveApiError(response, `無法讀取「${file.name}」`);
   const payload = await response.json();
   const state = normalizeStudioFilePayload(payload);
   if (!state) return null;
@@ -660,6 +673,10 @@ async function scanPlaybackFolder({ silent = false } = {}) {
       try {
         setFolderStatus("Drive 授權已過期，請重新授權。");
         if (!silent) setVersionMessage("正在重新授權 Drive...");
+        if (window.google?.accounts?.oauth2?.revoke && driveAccessToken) {
+          window.google.accounts.oauth2.revoke(driveAccessToken, () => {});
+        }
+        driveAccessToken = "";
         await requestDriveAccess({ prompt: "consent" });
         await scanDrivePlaybackFolder({ silent });
         return;
