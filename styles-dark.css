@@ -192,8 +192,8 @@ body[data-theme="dark"] .slide-stage.post-page {
 }
 body[data-theme="dark"] #slides-frame { background: var(--d-bg); }
 
-body[data-theme="dark"] .empty-state { color: var(--d-text); }
-body[data-theme="dark"] .empty-state span { color: var(--d-text-2); }
+body[data-theme="dark"] .empty-state { color: var(--page-title-text, var(--d-text)); }
+body[data-theme="dark"] .empty-state span { color: var(--page-muted-text, var(--d-text-2)); }
 
 /* page tabs refinement */
 body[data-theme="dark"] .page-tabs {
@@ -238,10 +238,10 @@ body[data-theme="dark"] .page-tab.active {
 .page-tab-name { font-size: 13px; }
 
 /* ── Post board (stage) ── */
-body[data-theme="dark"] .post-board-stage { color: var(--d-text); }
-body[data-theme="dark"] .post-board-kicker { color: var(--d-text-3); letter-spacing: 0.12em; }
-body[data-theme="dark"] .post-board-hero h1 { color: var(--d-text); }
-body[data-theme="dark"] .post-board-hero p { color: var(--d-text-2); }
+body[data-theme="dark"] .post-board-stage { color: var(--page-text, var(--d-text)); }
+body[data-theme="dark"] .post-board-kicker { color: var(--page-kicker-text, var(--d-text-3)); letter-spacing: 0.12em; }
+body[data-theme="dark"] .post-board-hero h1 { color: var(--page-title-text, var(--d-text)); }
+body[data-theme="dark"] .post-board-hero p { color: var(--page-muted-text, var(--d-text-2)); }
 body[data-theme="dark"] .post-board-message { color: var(--d-text-3); }
 
 body[data-theme="dark"] .post-board-qr-toggle,
@@ -478,8 +478,9 @@ body[data-theme="dark"] .participant-view {
   background: var(--d-bg);
   color: var(--d-text);
 }
-body[data-theme="dark"] .participant-head { color: var(--d-text-2); }
-body[data-theme="dark"] .participant-head h1 { color: var(--d-text); }
+body[data-theme="dark"] .participant-head { color: var(--page-muted-text, var(--d-text-2)); }
+body[data-theme="dark"] .participant-head span { color: var(--page-kicker-text, var(--d-text-3)); }
+body[data-theme="dark"] .participant-head h1 { color: var(--page-title-text, var(--d-text)); }
 body[data-theme="dark"] .participant-note {
   background: var(--d-surface-strong);
   color: var(--d-text);

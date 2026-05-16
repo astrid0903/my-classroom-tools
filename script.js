@@ -283,6 +283,9 @@ const PAGE_TYPES = new Set(["slides", "dark", "posts"]);
 const DYNAMIC_WIDGET_TYPES = new Set(["timer", "clock", "groups", "text", "image", "youtube", "slides", "qr"]);
 const SNAP_GRID = 12;
 const SNAP_DISTANCE = 8;
+const PAGE_TEXT_DARK = "#111820";
+const PAGE_TEXT_LIGHT = "#f8fafc";
+const pageImageLuminanceCache = new Map();
 
 function readState() {
   try {
@@ -887,6 +890,103 @@ function renderHiddenWidgetsList() {
   });
 }
 
+function hexToRgb(value) {
+  const normalized = String(value || "").trim().replace(/^#/, "");
+  if (!/^[\da-f]{3}$|^[\da-f]{6}$/i.test(normalized)) return null;
+  const hex = normalized.length === 3
+    ? normalized.split("").map((ch) => ch + ch).join("")
+    : normalized;
+  return {
+    r: parseInt(hex.slice(0, 2), 16),
+    g: parseInt(hex.slice(2, 4), 16),
+    b: parseInt(hex.slice(4, 6), 16),
+  };
+}
+
+function rgbLuminance({ r, g, b }) {
+  const channel = (value) => {
+    const normalized = value / 255;
+    return normalized <= 0.03928
+      ? normalized / 12.92
+      : ((normalized + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+}
+
+function pageBaseLuminance(page) {
+  const explicit = hexToRgb(page.bgColor);
+  if (explicit) return rgbLuminance(explicit);
+  if (page.type === "posts" || page.type === "dark") return 0.02;
+  return 0.08;
+}
+
+function estimateImageLuminance(dataUrl) {
+  if (!dataUrl || pageImageLuminanceCache.has(dataUrl)) {
+    return Promise.resolve(pageImageLuminanceCache.get(dataUrl));
+  }
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        const size = 24;
+        canvas.width = size;
+        canvas.height = size;
+        const context = canvas.getContext("2d", { willReadFrequently: true });
+        context.drawImage(image, 0, 0, size, size);
+        const { data } = context.getImageData(0, 0, size, size);
+        let total = 0;
+        let count = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          const alpha = data[i + 3] / 255;
+          if (alpha <= 0.05) continue;
+          total += rgbLuminance({ r: data[i], g: data[i + 1], b: data[i + 2] }) * alpha;
+          count += alpha;
+        }
+        const luminance = count ? total / count : undefined;
+        pageImageLuminanceCache.set(dataUrl, luminance);
+        resolve(luminance);
+      } catch {
+        pageImageLuminanceCache.set(dataUrl, undefined);
+        resolve(undefined);
+      }
+    };
+    image.onerror = () => {
+      pageImageLuminanceCache.set(dataUrl, undefined);
+      resolve(undefined);
+    };
+    image.src = dataUrl;
+  });
+}
+
+function pageTextPalette(page, imageLuminance = pageImageLuminanceCache.get(page.bgImage)) {
+  const opacity = Math.max(0, Math.min(1, Number(page.bgOpacity ?? 60) / 100));
+  const base = pageBaseLuminance(page);
+  const luminance = page.bgImage && typeof imageLuminance === "number"
+    ? imageLuminance * opacity + base * (1 - opacity)
+    : base;
+  const useDarkText = luminance > 0.48;
+  return {
+    text: useDarkText ? PAGE_TEXT_DARK : PAGE_TEXT_LIGHT,
+    title: page.titleColor || (useDarkText ? PAGE_TEXT_DARK : PAGE_TEXT_LIGHT),
+    muted: useDarkText ? "rgba(17, 24, 32, 0.74)" : "rgba(248, 250, 252, 0.78)",
+    kicker: useDarkText ? "rgba(17, 24, 32, 0.66)" : "rgba(248, 250, 252, 0.68)",
+    isLight: useDarkText,
+  };
+}
+
+function applyPageTextPalette(page, imageLuminance) {
+  const palette = pageTextPalette(page, imageLuminance);
+  els.stage.style.setProperty("--page-text", palette.text);
+  els.stage.style.setProperty("--page-title-text", palette.title);
+  els.stage.style.setProperty("--page-muted-text", palette.muted);
+  els.stage.style.setProperty("--page-kicker-text", palette.kicker);
+  els.stage.classList.toggle("page-bg-light", palette.isLight);
+  els.stage.classList.toggle("page-bg-dark", !palette.isLight);
+  els.postBoardTitle.style.color = palette.title;
+  return palette;
+}
+
 function applyPageBackground(page) {
   let bgLayer = els.stage.querySelector(".stage-bg-layer");
   if (!bgLayer) {
@@ -903,6 +1003,12 @@ function applyPageBackground(page) {
     bgLayer.style.backgroundImage = "";
     bgLayer.style.display = "none";
     els.stage.style.background = page.bgColor || "";
+  }
+  applyPageTextPalette(page);
+  if (page.bgImage) {
+    estimateImageLuminance(page.bgImage).then((luminance) => {
+      if (activePage().id === page.id) applyPageTextPalette(activePage(), luminance);
+    });
   }
 }
 
@@ -2924,7 +3030,7 @@ function renderPostBoard() {
   const joinUrl = postBoardJoinUrl(page);
   const boardName = page.name || "貼文板";
   els.postBoardTitle.textContent = boardName;
-  els.postBoardTitle.style.color = page.titleColor || "";
+  applyPageTextPalette(page);
   els.postBoardJoinTitle.textContent = boardName;
   els.postBoardDetail.textContent = "參與者掃描 QR Code 後可以新增文字貼文或上傳圖片。";
   els.postBoardQr.src = buildQrCodeUrl(joinUrl, "260");
@@ -3090,11 +3196,21 @@ function renderParticipantNote(html) {
   els.participantNote.classList.toggle("hidden", !safe.trim());
 }
 
+function applyParticipantTextPalette(data = {}, imageLuminance) {
+  const palette = pageTextPalette({ type: "posts", ...data }, imageLuminance);
+  els.participantView.style.setProperty("--page-text", palette.text);
+  els.participantView.style.setProperty("--page-title-text", palette.title);
+  els.participantView.style.setProperty("--page-muted-text", palette.muted);
+  els.participantView.style.setProperty("--page-kicker-text", palette.kicker);
+  els.participantTitle.style.color = palette.title;
+}
+
 function applyParticipantAppearance(data = {}) {
   const bgColor = typeof data.bgColor === "string" ? data.bgColor : "";
   const bgImage = typeof data.bgImage === "string" ? data.bgImage : "";
   const opacity = Number.isFinite(Number(data.bgOpacity)) ? Math.max(0, Math.min(100, Number(data.bgOpacity))) : 60;
-  els.participantTitle.style.color = typeof data.titleColor === "string" ? data.titleColor : "";
+  const appearance = { type: "posts", bgColor, bgImage, bgOpacity: opacity, titleColor: typeof data.titleColor === "string" ? data.titleColor : "" };
+  applyParticipantTextPalette(appearance);
   if (bgImage) {
     const veil = Math.max(0, Math.min(0.75, 1 - opacity / 100));
     els.participantView.style.backgroundColor = bgColor || "#111820";
@@ -3102,6 +3218,7 @@ function applyParticipantAppearance(data = {}) {
     els.participantView.style.backgroundSize = "cover";
     els.participantView.style.backgroundPosition = "center";
     els.participantView.style.backgroundAttachment = "fixed";
+    estimateImageLuminance(bgImage).then((luminance) => applyParticipantTextPalette(appearance, luminance));
   } else if (bgColor) {
     els.participantView.style.backgroundColor = bgColor;
     els.participantView.style.backgroundImage = "none";
@@ -3412,10 +3529,39 @@ function setActiveTool(tool) {
   els.dockItems.forEach((item) => {
     item.classList.toggle("active", item.dataset.tool === tool);
   });
+  document.querySelectorAll(".rail-btn[data-rail]").forEach((item) => {
+    item.classList.toggle("active", item.dataset.rail === tool);
+  });
   els.toolPanels.forEach((panel) => {
     panel.classList.toggle("active", panel.dataset.panel === tool);
   });
   writeState();
+}
+
+function closeActiveToolPanel() {
+  if (!activeTool) return false;
+  setActiveTool("");
+  return true;
+}
+
+function isToolPanelSafeTarget(target) {
+  if (!(target instanceof Element)) return false;
+  return Boolean(target.closest([
+    ".tool-section",
+    ".dock-item",
+    ".dock-mini",
+    ".rail-btn",
+    ".top-control",
+    ".studio-action-bar",
+    ".cmdk-modal",
+    ".cmdk-backdrop",
+    ".prompt-modal",
+    ".confirm-modal",
+    ".post-edit-modal",
+    ".post-board-qr-modal",
+    ".image-viewer",
+    ".settings-backdrop",
+  ].join(",")));
 }
 
 function toggleActiveTool(tool) {
@@ -4615,7 +4761,7 @@ els.deletePage.addEventListener("click", deleteActivePage);
 els.pageTitleColor.addEventListener("change", () => {
   const page = activePage();
   pages = pages.map((p) => (p.id === page.id ? { ...p, titleColor: els.pageTitleColor.value } : p));
-  els.postBoardTitle.style.color = els.pageTitleColor.value;
+  applyPageTextPalette(activePage());
   writeState();
   syncActivePostBoardMetadata();
 });
@@ -4623,7 +4769,7 @@ els.clearPageTitleColor.addEventListener("click", () => {
   const page = activePage();
   pages = pages.map((p) => (p.id === page.id ? { ...p, titleColor: "" } : p));
   els.pageTitleColor.value = "#1a2330";
-  els.postBoardTitle.style.color = "";
+  applyPageTextPalette(activePage());
   writeState();
   syncActivePostBoardMetadata();
 });
@@ -4881,6 +5027,7 @@ function closeAllWidgetSettings() {
 els.settingsBackdrop.addEventListener("mousedown", closeAllWidgetSettings);
 
 document.addEventListener("mousedown", (e) => {
+  if (!isToolPanelSafeTarget(e.target)) closeActiveToolPanel();
   if (e.target.closest(".dynamic-settings") || e.target.closest(".dynamic-settings-btn")) return;
   closeAllWidgetSettings();
 });
@@ -4892,6 +5039,8 @@ window.addEventListener("keydown", (event) => {
       closeImageViewer();
     } else if (!els.participantPostModal.classList.contains("hidden")) {
       closeParticipantPostModal();
+    } else if (closeActiveToolPanel()) {
+      return;
     }
   }
 });
