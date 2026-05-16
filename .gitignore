@@ -9,6 +9,7 @@ Icon?
 .env
 *.key
 credentials.*
+client_secret*.json
 
 # AI agent 本地設定（含 permissions、可能記錄 token，絕不上雲）
 .claude/
