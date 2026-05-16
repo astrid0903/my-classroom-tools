@@ -5,24 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Google Slides 教學播放台</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
-  <link rel="stylesheet" href="./styles.css?v=20260515-save-status">
-  <link rel="stylesheet" href="./styles-dark.css?v=20260515-save-status">
-  <script>
-    (function () {
-      try {
-        var saved = localStorage.getItem('classroom-theme');
-        if (saved === 'dark' || saved === 'light') {
-          document.documentElement.setAttribute('data-pre-theme', saved);
-        }
-      } catch (e) {}
-    })();
-  </script>
+  <link rel="stylesheet" href="./styles.css?v=20260516-dark-only">
+  <link rel="stylesheet" href="./styles-dark.css?v=20260516-dark-only">
 </head>
-<body>
-  <button id="theme-toggle" class="theme-toggle" type="button" aria-label="切換暗色主題" title="切換暗色主題">
-    <span class="sun" aria-hidden="true">☼</span>
-    <span class="moon" aria-hidden="true">☾</span>
-  </button>
+<body data-theme="dark">
   <div id="session-bar" class="session-bar hidden" aria-label="Session 狀態">
     <span class="session-dot" aria-hidden="true"></span>
     <span class="session-label">SESSION</span>
@@ -55,21 +41,6 @@
       </div>
     </div>
   </div>
-  <script>
-    (function () {
-      var key = 'classroom-theme';
-      var pre = document.documentElement.getAttribute('data-pre-theme');
-      // Direction B is dark-first: default to dark unless the user has explicitly chosen light.
-      var theme = pre || 'dark';
-      document.body.setAttribute('data-theme', theme);
-      document.documentElement.removeAttribute('data-pre-theme');
-      document.getElementById('theme-toggle').addEventListener('click', function () {
-        var cur = document.body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-        document.body.setAttribute('data-theme', cur);
-        try { localStorage.setItem(key, cur); } catch (e) {}
-      });
-    })();
-  </script>
   <section id="home-view" class="home-view" aria-label="檔案首頁">
     <div class="home-shell">
       <header class="home-hero">
@@ -925,9 +896,6 @@
         { id:'timer-pause', label:'計時器：暫停',       group:'動作', hint:'Timer ⏸',     run: clickById('timer-pause'),       when: inStudio },
         { id:'timer-reset', label:'計時器：重設',       group:'動作', hint:'Timer ↺',     run: clickById('timer-reset'),       when: inStudio },
         { id:'make-groups', label:'分組：產生分組',     group:'動作', hint:'Shuffle',     run: clickById('make-groups'),       when: inStudio },
-
-        // Theme
-        { id:'theme-toggle',label:'切換暗色／亮色主題', group:'外觀', hint:'Theme',       run: clickById('theme-toggle') },
       ];
 
       var selected = 0;

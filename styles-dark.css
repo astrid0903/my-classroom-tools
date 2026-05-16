@@ -1,7 +1,6 @@
-/* ─── Dark theme overlay ─────────────────────────────────────
-   Activated when <body data-theme="dark">. Layered on top of styles.css.
-   Strategy: re-bind the existing CSS variables + override surfaces
-   that hard-code colors. Keeps original light theme intact.
+/* ─── Dark theme layer ───────────────────────────────────────
+   Activated by the app's fixed <body data-theme="dark"> attribute and
+   layered on top of styles.css.
 */
 
 body[data-theme="dark"] {
@@ -196,7 +195,7 @@ body[data-theme="dark"] #slides-frame { background: var(--d-bg); }
 body[data-theme="dark"] .empty-state { color: var(--d-text); }
 body[data-theme="dark"] .empty-state span { color: var(--d-text-2); }
 
-/* page tabs already dark-ish in light theme — refine */
+/* page tabs refinement */
 body[data-theme="dark"] .page-tabs {
   background: var(--d-surface-strong);
   border-color: var(--d-border);
@@ -238,7 +237,7 @@ body[data-theme="dark"] .page-tab.active {
 .page-tab.active .page-tab-idx { color: rgba(255,255,255,0.7); }
 .page-tab-name { font-size: 13px; }
 
-/* ── Post board (stage) — flip light surfaces dark ── */
+/* ── Post board (stage) ── */
 body[data-theme="dark"] .post-board-stage { color: var(--d-text); }
 body[data-theme="dark"] .post-board-kicker { color: var(--d-text-3); letter-spacing: 0.12em; }
 body[data-theme="dark"] .post-board-hero h1 { color: var(--d-text); }
@@ -516,39 +515,6 @@ body[data-theme="dark"] .participant-post-modal-close {
 body[data-theme="dark"] .participant-detail-content.muted { color: var(--d-text-3); }
 body[data-theme="dark"] .participant-detail-image-button { background: rgba(255, 255, 255, 0.04); }
 
-/* ── Theme toggle button (always visible) ── */
-.theme-toggle {
-  position: fixed;
-  top: 14px;
-  right: 14px;
-  z-index: 999;
-  width: 38px;
-  height: 38px;
-  min-height: 38px;
-  padding: 0;
-  display: grid;
-  place-items: center;
-  border: 1px solid rgba(0, 0, 0, 0.10);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.86);
-  color: #1e252c;
-  font-size: 1rem;
-  line-height: 1;
-  cursor: pointer;
-  backdrop-filter: blur(12px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.14);
-  transition: transform 0.18s ease, background 0.18s ease, color 0.18s ease;
-}
-.theme-toggle:hover { transform: scale(1.06); background: #fff; }
-
-body[data-theme="dark"] .theme-toggle {
-  background: var(--d-surface-strong);
-  border-color: var(--d-border-strong);
-  color: var(--d-text);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
-}
-body[data-theme="dark"] .theme-toggle:hover { background: rgba(255, 255, 255, 0.08); }
-
 /* ── IA Step 1: Side rail + hide bottom dock ───── */
 .side-rail {
   position: fixed;
@@ -616,12 +582,6 @@ body.studio-mode #side-rail:not(.hidden) ~ main .slide-stage {
 body.studio-mode #side-rail:not(.hidden) ~ main .slide-stage {
   inset: 0 0 0 64px;
 }
-.theme-toggle { right: 14px; top: 14px; }
-body.studio-mode .theme-toggle {
-  right: 14px;
-  top: 82px;
-}
-
 /* IA Step 3a: session bar */
 .session-bar {
   position: fixed;
@@ -1435,11 +1395,6 @@ body[data-theme="dark"] .panel-group .button-row.three button {
   min-height: 36px;
 }
 
-.theme-toggle .sun { display: inline; }
-.theme-toggle .moon { display: none; }
-body[data-theme="dark"] .theme-toggle .sun { display: none; }
-body[data-theme="dark"] .theme-toggle .moon { display: inline; }
-
 /* IA Step 3b: timer running state — cool pulse dot top-right */
 body[data-theme="dark"] .timer-widget { position: relative; }
 body[data-theme="dark"] .timer-widget.is-running::after {
@@ -1506,7 +1461,6 @@ body[data-theme="dark"] .stage-clock {
   font-family: "PingFang TC", "Noto Sans TC", -apple-system, system-ui, sans-serif;
 }
 .studio-action-bar.hidden { display: none !important; }
-body:not([data-theme="dark"]) .studio-action-bar,
 body.studio-mode .studio-action-bar { display: none !important; }
 
 /* ── Direction B: ⌘K Command Palette ── */
@@ -1946,5 +1900,5 @@ body[data-theme="dark"] .tool-section .hint {
   background: rgba(255, 255, 255, 0.06);
   color: #fff;
 }
-/* nudge the bar when rail is visible (light mode fallback) */
+/* nudge the bar when rail is visible */
 body.studio-mode #side-rail:not(.hidden) ~ main .studio-action-bar { left: calc(50% + 32px); }
