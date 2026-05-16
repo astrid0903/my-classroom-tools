@@ -5,6 +5,7 @@ const DRIVE_PLAYBACK_FOLDER_NAME = "播放台存檔";
 const GOOGLE_DRIVE_CLIENT_ID = "229213858169-5tp9f6rjp8a45irarko8432h39uagt5a.apps.googleusercontent.com";
 const GOOGLE_DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
 const GOOGLE_DRIVE_ALLOWED_ORIGINS = ["https://astrid0903.github.io"];
+const DEFAULT_SLIDES_URL = "https://docs.google.com/presentation/d/e/2PACX-1vRRH1JQUUujy7boeq3EJuDSAzPJOEWjPt3u-qilhtKb5LEOHmWzWvNjpfqV__3AuzwQ26mjhiT5nRS7/pub?start=false&loop=false&delayms=3000";
 const STUDIO_FILE_TYPE = "classroomSlidesStudio.file";
 const LEGACY_LAYOUTS_FILE_TYPE = "classroomSlidesStudio.layouts";
 const FIREBASE_CONFIG = {
@@ -425,7 +426,7 @@ function currentFileSnapshotFromStorage() {
     hiddenWidgetsOpen: false,
   };
   delete snapshot.savedLayouts;
-  return Object.keys(snapshot).length > 0 ? snapshot : { pages: [DEFAULT_PAGE], activePageId: DEFAULT_PAGE.id, activeTool: "", dockCollapsed: false };
+  return Object.keys(snapshot).length > 0 ? snapshot : { pages: [DEFAULT_PAGE], activePageId: DEFAULT_PAGE.id, slidesUrl: DEFAULT_SLIDES_URL, activeTool: "", dockCollapsed: false };
 }
 
 function buildStudioFilePayload(state = layoutSnapshot()) {
@@ -934,6 +935,8 @@ function blankStudioState() {
     syncCode: "",
     pages: [DEFAULT_PAGE],
     activePageId: DEFAULT_PAGE.id,
+    slidesUrl: DEFAULT_SLIDES_URL,
+    currentSlides: parseSlidesInput(DEFAULT_SLIDES_URL),
     activeTool: "",
     dockCollapsed: false,
     moreToolsOpen: false,
@@ -5074,7 +5077,8 @@ function restore() {
   const state = readState();
   pages = normalizePages(state.pages);
   activePageId = pages.some((page) => page.id === state.activePageId) ? state.activePageId : DEFAULT_PAGE.id;
-  els.slidesUrl.value = state.slidesUrl || "";
+  const restoredSlidesUrl = typeof state.slidesUrl === "string" ? state.slidesUrl : DEFAULT_SLIDES_URL;
+  els.slidesUrl.value = restoredSlidesUrl;
   els.timerMinutes.value = state.timerMinutes || "5";
   els.timerSeconds.value = state.timerSeconds || "0";
   els.timerTitle.value = state.timerTitle === "Timer" ? "計時器" : state.timerTitle || "計時器";
@@ -5105,7 +5109,7 @@ function restore() {
   els.groupCount.value = state.groupCount || "4";
   els.shuffleGroups.checked = state.shuffleGroups !== false;
   slidesMode = state.slidesMode || "preview";
-  currentSlides = state.currentSlides || parseSlidesInput(state.slidesUrl || "");
+  currentSlides = state.currentSlides || parseSlidesInput(restoredSlidesUrl);
   activeTool = state.activeTool || "";
   dockCollapsed = Boolean(state.dockCollapsed);
   moreToolsOpen = Boolean(state.moreToolsOpen);
