@@ -581,11 +581,15 @@ async function ensureDriveAccess() {
   return Boolean(driveAccessToken);
 }
 
+function driveAuthExpiredError() {
+  return Object.assign(new Error("Drive 授權已過期，請重新授權。"), { code: "drive-auth-expired" });
+}
+
 async function fetchDriveJson(url) {
   const response = await fetch(url, { headers: driveApiHeaders() });
   if (response.status === 401 || response.status === 403) {
     driveAccessToken = "";
-    throw new Error("Drive 授權已過期，請重新授權。");
+    throw driveAuthExpiredError();
   }
   if (!response.ok) throw new Error(`Drive 讀取失敗（${response.status}）。`);
   return response.json();
@@ -595,6 +599,10 @@ async function fetchDrivePlaybackFile(file) {
   const response = await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(file.id)}?alt=media`, {
     headers: driveApiHeaders(),
   });
+  if (response.status === 401 || response.status === 403) {
+    driveAccessToken = "";
+    throw driveAuthExpiredError();
+  }
   if (!response.ok) throw new Error(`無法讀取「${file.name}」。`);
   const payload = await response.json();
   const state = normalizeStudioFilePayload(payload);
@@ -648,6 +656,19 @@ async function scanPlaybackFolder({ silent = false } = {}) {
   try {
     await scanDrivePlaybackFolder({ silent });
   } catch (error) {
+    if (error?.code === "drive-auth-expired") {
+      try {
+        setFolderStatus("Drive 授權已過期，請重新授權。");
+        if (!silent) setVersionMessage("正在重新授權 Drive...");
+        await requestDriveAccess({ prompt: "consent" });
+        await scanDrivePlaybackFolder({ silent });
+        return;
+      } catch (reauthError) {
+        setFolderStatus(reauthError.message || "Drive 重新授權失敗。", true);
+        if (!silent) setVersionMessage(reauthError.message || "Drive 重新授權失敗。", true);
+        return;
+      }
+    }
     setFolderStatus(error.message || "Drive 同步失敗，請重新授權。", true);
     if (!silent) setVersionMessage(error.message || "Drive 同步失敗，請重新授權。", true);
   }
