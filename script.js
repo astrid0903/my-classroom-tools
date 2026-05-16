@@ -857,7 +857,13 @@ function appendHomeLayoutCard(layout, { current = false, folderFile = false } = 
       event.stopPropagation();
       showStudio();
     });
-    actions.append(enter);
+    const save = createEl("button", "secondary", currentFileHandle ? "立即存檔" : "另存檔案");
+    save.type = "button";
+    save.addEventListener("click", (event) => {
+      event.stopPropagation();
+      saveCurrentFile();
+    });
+    actions.append(enter, save);
   }
 
   if (current) card.dataset.currentLayout = "true";
@@ -3556,6 +3562,8 @@ function applyParticipantTextPalette(data = {}, imageLuminance) {
   els.participantView.style.setProperty("--page-title-text", palette.title);
   els.participantView.style.setProperty("--page-muted-text", palette.muted);
   els.participantView.style.setProperty("--page-kicker-text", palette.kicker);
+  els.participantView.classList.toggle("page-bg-light", palette.isLight);
+  els.participantView.classList.toggle("page-bg-dark", !palette.isLight);
   els.participantTitle.style.color = palette.title;
 }
 

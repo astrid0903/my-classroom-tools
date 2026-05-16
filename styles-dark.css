@@ -521,21 +521,30 @@ body[data-theme="dark"] .post-edit-dialog h3 { color: var(--d-text); }
 /* ── Participant view ────────────────────── */
 body[data-theme="dark"] .participant-view {
   background: var(--d-bg);
-  color: var(--d-text);
+  color: var(--page-text, var(--d-text));
 }
 body[data-theme="dark"] .participant-head { color: var(--page-muted-text, var(--d-text-2)); }
 body[data-theme="dark"] .participant-head span { color: var(--page-kicker-text, var(--d-text-3)); }
 body[data-theme="dark"] .participant-head h1 { color: var(--page-title-text, var(--d-text)); }
 body[data-theme="dark"] .participant-note {
   background: var(--d-surface-strong);
-  color: var(--d-text);
+  color: var(--page-text, var(--d-text));
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
 }
-body[data-theme="dark"] .participant-form { color: var(--d-text); }
+body[data-theme="dark"] .participant-section-title {
+  color: var(--page-title-text, var(--d-text));
+}
+body[data-theme="dark"] .participant-form {
+  color: var(--page-text, var(--d-text));
+}
+body[data-theme="dark"] .participant-form label,
+body[data-theme="dark"] .participant-form .hint {
+  color: var(--page-muted-text, var(--d-text-2));
+}
 body[data-theme="dark"] .participant-form-head {
   background: var(--d-surface-strong);
   border-bottom: 1px solid var(--d-border);
-  color: var(--d-text);
+  color: var(--page-title-text, var(--d-text));
 }
 body[data-theme="dark"] .participant-back-btn {
   background: var(--d-surface);
