@@ -339,6 +339,25 @@ body[data-theme="dark"] .post-section-menu button.danger {
 body[data-theme="dark"] .post-section-description {
   color: var(--page-muted-text, var(--d-text-2));
 }
+body[data-theme="dark"] .slide-stage.page-bg-light .post-section-title {
+  background: rgba(255, 255, 255, 0.72);
+  border-color: rgba(17, 24, 32, 0.08);
+  color: var(--page-title-text, #111820);
+  box-shadow: 0 14px 28px rgba(17, 24, 32, 0.12);
+}
+body[data-theme="dark"] .slide-stage.page-bg-light .post-section-title:hover {
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--page-title-text, #111820);
+}
+body[data-theme="dark"] .slide-stage.page-bg-light .post-section-menu-btn {
+  background: rgba(255, 255, 255, 0.66);
+  border-color: rgba(17, 24, 32, 0.08);
+  color: var(--page-title-text, #111820);
+  box-shadow: 0 14px 28px rgba(17, 24, 32, 0.12);
+}
+body[data-theme="dark"] .slide-stage.page-bg-light .post-section-menu-btn:hover {
+  background: rgba(255, 255, 255, 0.88);
+}
 body[data-theme="dark"] .post-section-add,
 body[data-theme="dark"] .post-section-new {
   background: var(--d-surface);
