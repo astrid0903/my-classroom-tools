@@ -3,7 +3,7 @@ const FILE_META_KEY = "classroomSlidesStudio.fileMeta.v1";
 const DRIVE_PLAYBACK_FOLDER_ID = "1u1aXfQ1ESmXTW0OAXiTvkzFNGExr4AuK";
 const DRIVE_PLAYBACK_FOLDER_NAME = "播放台存檔";
 const GOOGLE_DRIVE_CLIENT_ID = "229213858169-5tp9f6rjp8a45irarko8432h39uagt5a.apps.googleusercontent.com";
-const GOOGLE_DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.readonly";
+const GOOGLE_DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
 const GOOGLE_DRIVE_ALLOWED_ORIGINS = ["https://astrid0903.github.io"];
 const STUDIO_FILE_TYPE = "classroomSlidesStudio.file";
 const LEGACY_LAYOUTS_FILE_TYPE = "classroomSlidesStudio.layouts";
@@ -279,6 +279,7 @@ let participantBoardPosts = [];
 let participantUid = null;
 let participantEditingPostId = null;
 let currentFileHandle = null;
+let currentDriveFileId = "";
 let currentFileName = "";
 let currentFileSavedAt = "";
 let currentFileAutoSave = false;
@@ -329,6 +330,7 @@ function writeFileMeta(extra = {}) {
   currentFileName = next.name || "";
   currentFileSavedAt = next.savedAt || "";
   currentFileAutoSave = Boolean(next.autoSave);
+  currentDriveFileId = next.driveFileId || "";
 }
 
 function clearFileMeta() {
@@ -337,6 +339,7 @@ function clearFileMeta() {
   currentFileSavedAt = "";
   currentFileAutoSave = false;
   currentFileHandle = null;
+  currentDriveFileId = "";
 }
 
 function buildState(extra = {}) {
@@ -472,6 +475,7 @@ function formatFileSavedAt(value) {
 function currentFileStatusText() {
   const savedText = formatFileSavedAt(currentFileSavedAt);
   const suffix = savedText ? `｜最新存檔：${savedText}` : "｜最新存檔：尚未存檔";
+  if (currentDriveFileId && currentFileName) return `Drive 自動存檔中｜檔名：${currentFileName}${suffix}`;
   if (currentFileHandle && currentFileName) return `自動存檔中｜檔名：${currentFileName}${suffix}`;
   if (currentFileName) return `已載入檔案（需手動另存）｜檔名：${currentFileName}${suffix}`;
   return `尚未連結檔案｜檔名：未命名${suffix}`;
@@ -562,7 +566,7 @@ async function requestDriveAccess({ prompt = "consent" } = {}) {
         }
         driveAccessToken = response.access_token || "";
         if (!driveAccessToken) {
-          reject(new Error("沒有取得 Drive 讀取權限。"));
+          reject(new Error("沒有取得 Drive 讀寫權限。"));
           return;
         }
         resolve(driveAccessToken);
@@ -799,7 +803,8 @@ function openHomeLayout(layout, { folderFile = false } = {}) {
       });
   }
   if (folderFile) {
-    applyStudioFileState(cloneValue(layout.state), layout.fileName || layout.name, null, layout.savedAt || "");
+    const driveFile = layout.driveFile && layout.driveId ? { id: layout.driveId } : null;
+    applyStudioFileState(cloneValue(layout.state), layout.fileName || layout.name, null, layout.savedAt || "", driveFile);
     return Promise.resolve();
   }
   showStudio();
@@ -857,7 +862,7 @@ function appendHomeLayoutCard(layout, { current = false, folderFile = false } = 
       event.stopPropagation();
       showStudio();
     });
-    const save = createEl("button", "secondary", currentFileHandle ? "立即存檔" : "另存檔案");
+    const save = createEl("button", "secondary", currentFileHandle || currentDriveFileId ? "立即存檔" : "另存檔案");
     save.type = "button";
     save.addEventListener("click", (event) => {
       event.stopPropagation();
@@ -992,7 +997,8 @@ function initHomeMode() {
   const meta = readFileMeta();
   currentFileName = meta.name || "";
   currentFileSavedAt = meta.savedAt || "";
-  currentFileAutoSave = false;
+  currentFileAutoSave = Boolean(meta.autoSave);
+  currentDriveFileId = meta.driveFileId || "";
   els.homeView.classList.remove("hidden");
   els.studio.classList.add("hidden");
   els.studioFileStatus.classList.add("hidden");
@@ -1517,7 +1523,7 @@ function normalizeStudioFilePayload(payload) {
   return null;
 }
 
-function applyStudioFileState(state, name = "", handle = null, savedAt = "") {
+function applyStudioFileState(state, name = "", handle = null, savedAt = "", driveFile = null) {
   if (!state || typeof state !== "object") {
     setVersionMessage("檔案內容不是可用的播放台設定。", true);
     return;
@@ -1525,18 +1531,26 @@ function applyStudioFileState(state, name = "", handle = null, savedAt = "") {
   suppressFileAutoSave = true;
   try {
     currentFileHandle = handle;
+    currentDriveFileId = driveFile?.id || "";
     const nextName = sanitizeFileName(name || currentFileName || preferredFileName());
     const nextSavedAt = savedAt || new Date().toISOString();
     writeFileMeta({
       name: nextName,
       savedAt: nextSavedAt,
-      autoSave: Boolean(handle),
+      autoSave: Boolean(handle || currentDriveFileId),
+      driveFileId: currentDriveFileId,
     });
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...state, activeTool: "", moreToolsOpen: false, hiddenWidgetsOpen: false }));
     setFileInputs(nextName);
     setFileStatusInputs();
     showStudio();
-    setVersionMessage(handle ? `已開啟「${nextName}」，之後編輯會自動存檔。` : `已匯入「${nextName}」。若要自動存檔，請按「另存檔案」。`);
+    if (currentDriveFileId) {
+      setVersionMessage(`已開啟「${nextName}」，之後編輯會自動存回 Drive。`);
+    } else if (handle) {
+      setVersionMessage(`已開啟「${nextName}」，之後編輯會自動存檔。`);
+    } else {
+      setVersionMessage(`已匯入「${nextName}」。若要自動存檔，請按「另存檔案」。`);
+    }
   } finally {
     suppressFileAutoSave = false;
   }
@@ -1584,6 +1598,34 @@ async function writePayloadToHandle(handle, payload) {
   await writable.close();
 }
 
+async function writePayloadToDrive(fileId, payload, { allowPrompt = true } = {}) {
+  if (!fileId) throw new Error("尚未連結 Drive 檔案。");
+  if (!driveAccessToken) {
+    if (!allowPrompt) throw driveAuthExpiredError();
+    await ensureDriveAccess();
+  }
+  const request = () => fetch(`https://www.googleapis.com/upload/drive/v3/files/${encodeURIComponent(fileId)}?uploadType=media`, {
+    method: "PATCH",
+    headers: {
+      ...driveApiHeaders(),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload, null, 2),
+  });
+  let response = await request();
+  if (!response.ok) {
+    const error = await driveApiError(response, "Drive 存檔失敗");
+    if (allowPrompt && error.code === "drive-auth-expired") {
+      await requestDriveAccess({ prompt: "consent" });
+      response = await request();
+    } else {
+      throw error;
+    }
+  }
+  if (!response.ok) throw await driveApiError(response, "Drive 存檔失敗");
+  return response.json();
+}
+
 function downloadStudioFile(payload, name = preferredFileName()) {
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -1602,7 +1644,8 @@ async function saveCurrentFileAs() {
   if (!fileSystemAccessSupported()) {
     downloadStudioFile(payload, name);
     currentFileHandle = null;
-    writeFileMeta({ name, savedAt: payload.savedAt, autoSave: false });
+    currentDriveFileId = "";
+    writeFileMeta({ name, savedAt: payload.savedAt, autoSave: false, driveFileId: "" });
     setFileInputs(name);
     setFileStatusInputs();
     renderHomeVersions();
@@ -1623,7 +1666,8 @@ async function saveCurrentFileAs() {
     });
     await writePayloadToHandle(handle, payload);
     currentFileHandle = handle;
-    writeFileMeta({ name: sanitizeFileName(handle.name || name), savedAt: payload.savedAt, autoSave: true });
+    currentDriveFileId = "";
+    writeFileMeta({ name: sanitizeFileName(handle.name || name), savedAt: payload.savedAt, autoSave: true, driveFileId: "" });
     setFileInputs(currentFileName);
     setFileStatusInputs();
     renderHomeVersions();
@@ -1636,14 +1680,19 @@ async function saveCurrentFileAs() {
 }
 
 async function saveCurrentFile() {
-  if (!currentFileHandle) {
+  if (!currentFileHandle && !currentDriveFileId) {
     await saveCurrentFileAs();
     return;
   }
   const payload = buildStudioFilePayload(layoutSnapshot());
   try {
-    await writePayloadToHandle(currentFileHandle, payload);
-    writeFileMeta({ name: sanitizeFileName(currentFileHandle.name || currentFileName), savedAt: payload.savedAt, autoSave: true });
+    if (currentDriveFileId) {
+      await writePayloadToDrive(currentDriveFileId, payload);
+      writeFileMeta({ name: sanitizeFileName(currentFileName || preferredFileName()), savedAt: payload.savedAt, autoSave: true, driveFileId: currentDriveFileId });
+    } else {
+      await writePayloadToHandle(currentFileHandle, payload);
+      writeFileMeta({ name: sanitizeFileName(currentFileHandle.name || currentFileName), savedAt: payload.savedAt, autoSave: true, driveFileId: "" });
+    }
     setFileInputs(currentFileName);
     setFileStatusInputs();
     renderHomeVersions();
@@ -1674,13 +1723,13 @@ function disconnectCurrentFile() {
 }
 
 function scheduleFileAutoSave() {
-  if (suppressFileAutoSave || !currentFileHandle || !currentFileAutoSave) return;
+  if (suppressFileAutoSave || (!currentFileHandle && !currentDriveFileId) || !currentFileAutoSave) return;
   clearTimeout(fileSaveTimerId);
   fileSaveTimerId = setTimeout(autoSaveCurrentFile, 900);
 }
 
 async function autoSaveCurrentFile() {
-  if (!currentFileHandle || !currentFileAutoSave) return;
+  if ((!currentFileHandle && !currentDriveFileId) || !currentFileAutoSave) return;
   if (fileSaveInProgress) {
     fileSaveQueued = true;
     return;
@@ -1688,8 +1737,13 @@ async function autoSaveCurrentFile() {
   fileSaveInProgress = true;
   try {
     const payload = buildStudioFilePayload(currentFileSnapshotFromStorage());
-    await writePayloadToHandle(currentFileHandle, payload);
-    writeFileMeta({ name: sanitizeFileName(currentFileHandle.name || currentFileName), savedAt: payload.savedAt, autoSave: true });
+    if (currentDriveFileId) {
+      await writePayloadToDrive(currentDriveFileId, payload, { allowPrompt: false });
+      writeFileMeta({ name: sanitizeFileName(currentFileName || preferredFileName()), savedAt: payload.savedAt, autoSave: true, driveFileId: currentDriveFileId });
+    } else {
+      await writePayloadToHandle(currentFileHandle, payload);
+      writeFileMeta({ name: sanitizeFileName(currentFileHandle.name || currentFileName), savedAt: payload.savedAt, autoSave: true, driveFileId: "" });
+    }
     setFileStatusInputs();
     setVersionMessage(`已自動存檔到「${currentFileName}」。`);
   } catch (error) {
@@ -1714,7 +1768,7 @@ function renderSavedLayouts(selectedName = "") {
   els.savedLayouts.appendChild(option);
   els.savedLayouts.value = option.value;
   els.loadLayout.disabled = false;
-  els.deleteLayout.disabled = !currentFileHandle && !currentFileName;
+  els.deleteLayout.disabled = !currentFileHandle && !currentDriveFileId && !currentFileName;
   els.exportLayouts.disabled = false;
   els.homeExportLayouts.disabled = false;
   els.syncLayouts.disabled = false;
