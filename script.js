@@ -286,6 +286,32 @@ const SNAP_DISTANCE = 8;
 const PAGE_TEXT_DARK = "#111820";
 const PAGE_TEXT_LIGHT = "#f8fafc";
 const pageImageLuminanceCache = new Map();
+const CLOUD_LAYOUT_PREVIEWS = [
+  {
+    name: "0520 傾聽與溝通",
+    savedAt: "2026-05-16T03:14:30.632Z",
+    sourceUrl: "https://drive.google.com/open?id=1snLe1kvMkU2b4ust9Gj1a5ppi2Qlx5L8&usp=drive_fs",
+    state: {
+      currentSlides: {
+        id: "2PACX-1vRRH1JQUUujy7boeq3EJuDSAzPJOEWjPt3u-qilhtKb5LEOHmWzWvNjpfqV__3AuzwQ26mjhiT5nRS7",
+        kind: "published",
+      },
+      pages: [
+        { id: "main", name: "主簡報", type: "slides" },
+        { id: "page-mp18u7kd", name: "傾聽與溝通技巧", type: "posts", bgColor: "#1a1a2e" },
+      ],
+      activePageId: "page-mp18u7kd",
+      dynamicWidgets: [
+        {
+          type: "clock",
+          pageId: "main",
+          state: { title: "現在時間" },
+          position: { left: "1188px", top: "18px", width: "312px", height: "162px" },
+        },
+      ],
+    },
+  },
+];
 
 function readState() {
   try {
@@ -575,22 +601,11 @@ function appendLayoutPreview(container, layout) {
   container.append(tabs, stage);
 }
 
-function renderHomeVersions() {
-  const snapshot = currentFileSnapshotFromStorage();
-  const layout = {
-    name: currentFileName || "尚未命名的播放台檔案",
-    savedAt: currentFileSavedAt || readFileMeta().savedAt || "",
-    state: snapshot,
-  };
-  els.homeLayoutGrid.innerHTML = "";
-  els.homeVersionCount.textContent = currentFileHandle ? "已連結檔案" : "尚未連結檔案";
-  setFileStatusInputs();
-  setFileInputs(currentFileName || els.homeLayoutName.value || els.layoutName.value);
-
-  const card = createEl("article", "home-layout-card");
+function appendHomeLayoutCard(layout, { current = false, cloud = false } = {}) {
+  const card = createEl("article", `home-layout-card${cloud ? " cloud-layout-card" : ""}`);
   const title = createEl("div", "home-layout-title");
   const savedText = layout.savedAt ? `最近存檔 ${formatSavedAt(layout.savedAt)}` : "尚未存成檔案";
-  title.append(createEl("h3", "", layout.name), createEl("span", "", savedText));
+  title.append(createEl("h3", "", layout.name), createEl("span", "", cloud ? `Google Drive｜${savedText}` : savedText));
 
   const preview = createEl("div", "home-preview");
   appendLayoutPreview(preview, layout);
@@ -602,19 +617,43 @@ function renderHomeVersions() {
   layoutFeatureTags(layout).forEach((tag) => meta.appendChild(createEl("span", "", tag)));
 
   const actions = createEl("div", "home-layout-actions");
-  const enter = createEl("button", "", "進入編輯");
-  enter.type = "button";
-  enter.addEventListener("click", showStudio);
-  const save = createEl("button", "secondary", currentFileHandle ? "立即存檔" : "另存檔案");
-  save.type = "button";
-  save.addEventListener("click", saveCurrentFile);
-  const open = createEl("button", "secondary", "開啟檔案");
-  open.type = "button";
-  open.addEventListener("click", openStudioFile);
-  actions.append(enter, save, open);
+  if (cloud) {
+    const openDrive = createEl("a", "link-button secondary", "開啟 Drive 檔案");
+    openDrive.href = layout.sourceUrl;
+    openDrive.target = "_blank";
+    openDrive.rel = "noreferrer";
+    actions.appendChild(openDrive);
+  } else {
+    const enter = createEl("button", "", "進入編輯");
+    enter.type = "button";
+    enter.addEventListener("click", showStudio);
+    const save = createEl("button", "secondary", currentFileHandle ? "立即存檔" : "另存檔案");
+    save.type = "button";
+    save.addEventListener("click", saveCurrentFile);
+    const open = createEl("button", "secondary", "開啟檔案");
+    open.type = "button";
+    open.addEventListener("click", openStudioFile);
+    actions.append(enter, save, open);
+  }
 
+  if (current) card.dataset.currentLayout = "true";
   card.append(title, preview, meta, actions);
   els.homeLayoutGrid.appendChild(card);
+}
+
+function renderHomeVersions() {
+  const snapshot = currentFileSnapshotFromStorage();
+  const layout = {
+    name: currentFileName || "尚未命名的播放台檔案",
+    savedAt: currentFileSavedAt || readFileMeta().savedAt || "",
+    state: snapshot,
+  };
+  els.homeLayoutGrid.innerHTML = "";
+  els.homeVersionCount.textContent = `${currentFileHandle ? "已連結檔案" : "尚未連結檔案"}｜${CLOUD_LAYOUT_PREVIEWS.length} 個雲端存檔`;
+  setFileStatusInputs();
+  setFileInputs(currentFileName || els.homeLayoutName.value || els.layoutName.value);
+  appendHomeLayoutCard(layout, { current: true });
+  CLOUD_LAYOUT_PREVIEWS.forEach((cloudLayout) => appendHomeLayoutCard(cloudLayout, { cloud: true }));
 }
 
 function currentLayoutSnapshotFromStorage() {

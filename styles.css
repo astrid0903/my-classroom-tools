@@ -560,6 +560,18 @@ h3 {
   gap: 8px;
 }
 
+.home-layout-actions .link-button {
+  min-height: 34px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  text-decoration: none;
+}
+
+.cloud-layout-card {
+  border-color: rgba(95, 168, 255, 0.28);
+}
+
 .home-empty {
   min-height: 180px;
   border: 1px dashed rgba(168, 197, 220, 0.22);
@@ -1066,7 +1078,7 @@ body.studio-mode .page-tabs {
 .post-section-title-row {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 40px;
+  grid-template-columns: minmax(0, 1fr) 32px;
   gap: 8px;
   align-items: start;
 }
@@ -1092,19 +1104,21 @@ body.studio-mode .page-tabs {
 }
 
 .post-section-menu-btn {
-  min-height: 40px;
-  width: 40px;
+  min-height: 32px;
+  width: 32px;
   border: 1px solid rgba(30, 37, 44, 0.08);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.64);
   color: #111820;
-  font-size: 1.25rem;
+  font-size: 1rem;
   cursor: pointer;
   box-shadow: 0 12px 28px rgba(28, 42, 56, 0.08);
+  opacity: 0.68;
 }
 
 .post-section-menu-btn:hover {
   background: rgba(255, 255, 255, 0.86);
+  opacity: 1;
 }
 
 .post-section-menu {

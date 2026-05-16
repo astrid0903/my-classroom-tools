@@ -559,14 +559,16 @@ body[data-theme="dark"] .participant-detail-image-button { background: rgba(255,
 }
 .side-rail.hidden { display: none !important; }
 .rail-brand {
-  width: 32px; height: 32px;
-  min-height: 32px;
+  width: 44px; height: 44px;
+  min-height: 44px;
   padding: 0;
   display: grid; place-items: center;
-  border: 0;
-  border-radius: 9px;
-  background: linear-gradient(135deg, #5fa8ff, #f0b870);
-  color: #06090d;
+  border: 1px solid rgba(95, 168, 255, 0.44);
+  border-radius: 10px;
+  background:
+    radial-gradient(circle at 30% 22%, rgba(240, 184, 112, 0.78), transparent 32%),
+    linear-gradient(135deg, rgba(95, 168, 255, 0.9), rgba(95, 168, 255, 0.34));
+  color: #06111d;
   font-weight: 800;
   font-size: 14px;
   margin-bottom: 6px;
@@ -1021,10 +1023,19 @@ body[data-theme="dark"] .home-layout-actions button {
   font-weight: 500;
   border-radius: 8px;
 }
+body[data-theme="dark"] .home-layout-actions .link-button {
+  min-height: 34px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 8px;
+}
 body[data-theme="dark"] .home-layout-actions button:first-child {
   background: rgba(95, 168, 255, 0.12);
   color: var(--d-cool);
   border: 1px solid rgba(95, 168, 255, 0.22);
+}
+body[data-theme="dark"] .cloud-layout-card {
+  border-color: rgba(95, 168, 255, 0.28);
 }
 body[data-theme="dark"] .home-layout-actions button:first-child:hover {
   background: rgba(95, 168, 255, 0.2);
