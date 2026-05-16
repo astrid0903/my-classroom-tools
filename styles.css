@@ -344,6 +344,43 @@ h3 {
   align-items: end;
 }
 
+.home-panel-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+}
+
+.home-panel-head p,
+.home-current-file-row p {
+  margin-top: 6px;
+  color: #9eafbd;
+  font-weight: 650;
+  line-height: 1.55;
+}
+
+.home-panel-label {
+  color: #f5f9fd;
+  font-size: 1.02rem;
+  font-weight: 800;
+}
+
+.home-folder-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.home-current-file-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  border-top: 1px solid rgba(168, 197, 220, 0.12);
+  padding-top: 14px;
+}
+
 .home-save-panel h2,
 .home-version-section h2 {
   color: #f5f9fd;
@@ -368,7 +405,9 @@ h3 {
 }
 
 .home-sync-grid {
-  grid-template-columns: minmax(220px, 1fr) repeat(4, auto);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   align-items: center;
 }
 
@@ -417,7 +456,21 @@ h3 {
   overflow-wrap: anywhere;
 }
 
+.folder-status-line {
+  min-height: 22px;
+  margin: 0;
+  color: #9fb1bf;
+  font-size: 0.9rem;
+  font-weight: 750;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
 .home-message.error {
+  color: var(--red);
+}
+
+.folder-status-line.error {
   color: var(--red);
 }
 
@@ -430,7 +483,7 @@ h3 {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  align-items: end;
+  align-items: center;
   padding-top: 8px;
 }
 
@@ -438,6 +491,11 @@ h3 {
   color: #9fb1bf;
   font-size: 0.92rem;
   font-weight: 800;
+}
+
+.home-section-head h2 + span {
+  display: inline-block;
+  margin-top: 4px;
 }
 
 .home-layout-grid {
@@ -456,6 +514,52 @@ h3 {
   padding: 14px;
   background: rgba(18, 27, 36, 0.9);
   box-shadow: 0 18px 42px rgba(0, 0, 0, 0.3);
+}
+
+.home-layout-card[role="button"] {
+  cursor: pointer;
+}
+
+.home-layout-card[role="button"]:focus-visible,
+.home-create-card:focus-visible {
+  outline: 2px solid rgba(95, 168, 255, 0.78);
+  outline-offset: 3px;
+}
+
+.home-create-card {
+  min-height: 100%;
+  grid-template-rows: 1fr auto auto 1fr;
+  place-items: center;
+  border-style: dashed;
+  color: #dbeaf5;
+  cursor: pointer;
+  text-align: center;
+}
+
+.home-create-plus {
+  width: 58px;
+  height: 58px;
+  border: 1px solid rgba(95, 168, 255, 0.42);
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: rgba(95, 168, 255, 0.16);
+  color: #8fc8ff;
+  font-size: 2.4rem;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.home-create-text {
+  color: #f3f8fc;
+  font-size: 1.05rem;
+  font-weight: 850;
+}
+
+.home-create-hint {
+  color: #9fb1bf;
+  font-size: 0.84rem;
+  font-weight: 750;
 }
 
 .home-layout-title {
@@ -568,7 +672,7 @@ h3 {
   text-decoration: none;
 }
 
-.cloud-layout-card {
+.folder-layout-card {
   border-color: rgba(95, 168, 255, 0.28);
 }
 
@@ -2373,6 +2477,26 @@ body.studio-mode .page-tabs {
     grid-template-columns: 1fr;
   }
 
+  .home-panel-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .home-section-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .home-current-file-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .home-folder-actions,
+  .home-sync-grid {
+    justify-content: stretch;
+  }
+
   .home-hero {
     min-height: auto;
     padding: 18px 0 8px;
@@ -2389,6 +2513,7 @@ body.studio-mode .page-tabs {
   }
 
   .home-sync-grid button,
+  .home-folder-actions button,
   .home-import-button {
     width: 100%;
   }

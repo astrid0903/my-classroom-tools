@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Google Slides 教學播放台</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
-  <link rel="stylesheet" href="./styles.css?v=20260516-cloud-preview">
-  <link rel="stylesheet" href="./styles-dark.css?v=20260516-section-contrast">
+  <link rel="stylesheet" href="./styles.css?v=20260516-folder-files">
+  <link rel="stylesheet" href="./styles-dark.css?v=20260516-folder-files">
 </head>
 <body data-theme="dark">
   <div id="session-bar" class="session-bar hidden" aria-label="Session 狀態">
@@ -47,45 +47,36 @@
         <div>
           <span class="home-kicker">Classroom Studio</span>
           <h1>Google Slides 教學播放台</h1>
-          <p>用檔案保存每一套教學播放配置，開啟後編輯內容會自動寫回目前檔案。</p>
-        </div>
-        <div class="home-actions" aria-label="首頁主要操作">
-          <button id="home-enter-studio" type="button">進入目前播放台</button>
-          <button id="home-new-studio" class="secondary" type="button">建立空白播放台</button>
+          <p>建立新播放台會先存成檔案再開始編輯；已有播放台就直接開啟 JSON 檔。</p>
         </div>
       </header>
 
-      <section class="home-save-panel" aria-label="目前播放台檔案">
-        <div>
-          <h2>目前播放台檔案</h2>
-          <p>開啟既有 JSON 檔，或將目前播放台另存成新檔。支援的瀏覽器會在編輯時自動存檔。</p>
-        </div>
-        <div class="home-save-controls">
-          <input id="home-layout-name" type="text" placeholder="例如：分組討論版.json">
-          <button id="home-save-layout" type="button">另存檔案</button>
-        </div>
-      </section>
-
-      <section class="home-sync-panel" aria-label="檔案操作">
-        <label for="home-sync-code">檔案操作</label>
-        <div class="home-sync-grid">
-          <input id="home-sync-code" type="text" placeholder="目前檔案狀態" readonly>
-          <button id="home-sync-layouts" type="button">儲存到目前檔案</button>
-          <button id="home-load-cloud-layouts" class="secondary" type="button">開啟檔案</button>
-          <button id="home-export-layouts" class="secondary" type="button">下載備份檔</button>
-          <label class="home-import-button secondary" for="home-import-layouts">從檔案匯入</label>
-          <input id="home-import-layouts" class="home-file-input" type="file" accept="application/json,.json">
-        </div>
-        <p id="home-file-status" class="file-status-line" aria-live="polite">尚未連結檔案</p>
-        <p id="home-version-message" class="home-message" aria-live="polite"></p>
-      </section>
-
-      <section class="home-version-section" aria-label="目前檔案預覽">
+      <section class="home-version-section" aria-label="可開啟的播放台">
         <div class="home-section-head">
-          <h2>目前檔案預覽</h2>
-          <span id="home-version-count">尚未連結檔案</span>
+          <div>
+            <h2>可開啟的播放台</h2>
+            <span id="home-version-count">0 個播放台檔案</span>
+          </div>
+          <div class="home-folder-actions" aria-label="資料夾操作">
+            <button id="home-choose-folder" type="button">選擇資料夾</button>
+            <button id="home-refresh-folder" class="secondary" type="button">重新整理</button>
+          </div>
         </div>
+        <p id="home-folder-status" class="folder-status-line" aria-live="polite">尚未選擇播放台資料夾</p>
+        <p id="home-version-message" class="home-message" aria-live="polite"></p>
         <div id="home-layout-grid" class="home-layout-grid"></div>
+        <div class="home-internal-controls" aria-hidden="true">
+          <button id="home-new-studio" class="home-file-input" type="button">建立新播放台檔案</button>
+          <button id="home-enter-studio" class="home-file-input" type="button">開啟舊播放台檔案</button>
+          <input id="home-layout-name" class="home-file-input" type="text" placeholder="例如：分組討論版.json">
+          <button id="home-save-layout" class="home-file-input" type="button">另存檔案</button>
+          <input id="home-sync-code" class="home-file-input" type="text" placeholder="目前檔案狀態" readonly>
+          <button id="home-sync-layouts" class="home-file-input" type="button">儲存</button>
+          <button id="home-load-cloud-layouts" class="home-file-input" type="button">開啟檔案</button>
+          <button id="home-export-layouts" class="home-file-input" type="button">下載備份</button>
+          <input id="home-import-layouts" class="home-file-input" type="file" accept="application/json,.json">
+          <p id="home-file-status" class="home-file-input" aria-live="polite">尚未連結檔案</p>
+        </div>
       </section>
     </div>
   </section>
@@ -875,8 +866,8 @@
             // toggle to home view if a back button exists; fallback to clicking the brand
             var brand = document.querySelector('.rail-brand'); if (brand && brand.click) brand.click();
           } : function(){} },
-        { id:'enter-studio',label:'進入目前播放台',     group:'導覽', hint:'Studio',      run: clickById('home-enter-studio'), when: inHome },
-        { id:'new-studio',  label:'建立空白播放台',     group:'導覽', hint:'New',         run: clickById('home-new-studio'),   when: inHome },
+        { id:'enter-studio',label:'開啟舊播放台檔案',   group:'導覽', hint:'Open',        run: clickById('home-enter-studio'), when: inHome },
+        { id:'new-studio',  label:'建立新播放台檔案',   group:'導覽', hint:'New',         run: clickById('home-new-studio'),   when: inHome },
 
         // Tools (studio only)
         { id:'tool-slides', label:'簡報設定',           group:'工具', hint:'Slides',      run: clickTool('slides'),  when: inStudio },

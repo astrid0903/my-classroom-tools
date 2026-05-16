@@ -1,5 +1,8 @@
 const STORAGE_KEY = "classroomSlidesStudio.v1";
 const FILE_META_KEY = "classroomSlidesStudio.fileMeta.v1";
+const DIRECTORY_DB_NAME = "classroomSlidesStudio.handles.v1";
+const DIRECTORY_STORE_NAME = "handles";
+const PLAYBACK_FOLDER_HANDLE_KEY = "playback-folder";
 const STUDIO_FILE_TYPE = "classroomSlidesStudio.file";
 const LEGACY_LAYOUTS_FILE_TYPE = "classroomSlidesStudio.layouts";
 const FIREBASE_CONFIG = {
@@ -26,6 +29,9 @@ const els = {
   homeLoadCloudLayouts: document.querySelector("#home-load-cloud-layouts"),
   homeExportLayouts: document.querySelector("#home-export-layouts"),
   homeImportLayouts: document.querySelector("#home-import-layouts"),
+  homeChooseFolder: document.querySelector("#home-choose-folder"),
+  homeRefreshFolder: document.querySelector("#home-refresh-folder"),
+  homeFolderStatus: document.querySelector("#home-folder-status"),
   homeFileStatus: document.querySelector("#home-file-status"),
   homeVersionMessage: document.querySelector("#home-version-message"),
   homeVersionCount: document.querySelector("#home-version-count"),
@@ -278,6 +284,8 @@ let fileSaveTimerId = null;
 let fileSaveInProgress = false;
 let fileSaveQueued = false;
 let suppressFileAutoSave = false;
+let playbackFolderHandle = null;
+let folderLayoutFiles = [];
 const DEFAULT_PAGE = { id: "main", name: "主簡報", type: "slides" };
 const PAGE_TYPES = new Set(["slides", "dark", "posts"]);
 const DYNAMIC_WIDGET_TYPES = new Set(["timer", "clock", "groups", "text", "image", "youtube", "slides", "qr"]);
@@ -286,32 +294,6 @@ const SNAP_DISTANCE = 8;
 const PAGE_TEXT_DARK = "#111820";
 const PAGE_TEXT_LIGHT = "#f8fafc";
 const pageImageLuminanceCache = new Map();
-const CLOUD_LAYOUT_PREVIEWS = [
-  {
-    name: "0520 傾聽與溝通",
-    savedAt: "2026-05-16T03:14:30.632Z",
-    sourceUrl: "https://drive.google.com/open?id=1snLe1kvMkU2b4ust9Gj1a5ppi2Qlx5L8&usp=drive_fs",
-    state: {
-      currentSlides: {
-        id: "2PACX-1vRRH1JQUUujy7boeq3EJuDSAzPJOEWjPt3u-qilhtKb5LEOHmWzWvNjpfqV__3AuzwQ26mjhiT5nRS7",
-        kind: "published",
-      },
-      pages: [
-        { id: "main", name: "主簡報", type: "slides" },
-        { id: "page-mp18u7kd", name: "傾聽與溝通技巧", type: "posts", bgColor: "#1a1a2e" },
-      ],
-      activePageId: "page-mp18u7kd",
-      dynamicWidgets: [
-        {
-          type: "clock",
-          pageId: "main",
-          state: { title: "現在時間" },
-          position: { left: "1188px", top: "18px", width: "312px", height: "162px" },
-        },
-      ],
-    },
-  },
-];
 
 function readState() {
   try {
@@ -453,6 +435,59 @@ function fileSystemAccessSupported() {
   return Boolean(window.isSecureContext && window.showOpenFilePicker && window.showSaveFilePicker);
 }
 
+function directoryAccessSupported() {
+  return Boolean(window.isSecureContext && window.showDirectoryPicker && window.indexedDB);
+}
+
+function openDirectoryHandleDb() {
+  return new Promise((resolve, reject) => {
+    const request = window.indexedDB.open(DIRECTORY_DB_NAME, 1);
+    request.onupgradeneeded = () => request.result.createObjectStore(DIRECTORY_STORE_NAME);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function readStoredPlaybackFolderHandle() {
+  if (!directoryAccessSupported()) return null;
+  const db = await openDirectoryHandleDb();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(DIRECTORY_STORE_NAME, "readonly");
+    const request = transaction.objectStore(DIRECTORY_STORE_NAME).get(PLAYBACK_FOLDER_HANDLE_KEY);
+    request.onsuccess = () => resolve(request.result || null);
+    request.onerror = () => reject(request.error);
+    transaction.oncomplete = () => db.close();
+  });
+}
+
+async function writeStoredPlaybackFolderHandle(handle) {
+  if (!directoryAccessSupported()) return;
+  const db = await openDirectoryHandleDb();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(DIRECTORY_STORE_NAME, "readwrite");
+    transaction.objectStore(DIRECTORY_STORE_NAME).put(handle, PLAYBACK_FOLDER_HANDLE_KEY);
+    transaction.oncomplete = () => {
+      db.close();
+      resolve();
+    };
+    transaction.onerror = () => reject(transaction.error);
+  });
+}
+
+async function ensureDirectoryPermission(handle, mode = "readwrite") {
+  if (!handle) return false;
+  const options = { mode };
+  if (!handle.queryPermission || !handle.requestPermission) return true;
+  if ((await handle.queryPermission(options)) === "granted") return true;
+  return (await handle.requestPermission(options)) === "granted";
+}
+
+async function hasDirectoryPermission(handle, mode = "readwrite") {
+  if (!handle) return false;
+  if (!handle.queryPermission) return true;
+  return (await handle.queryPermission({ mode })) === "granted";
+}
+
 function sanitizeFileName(value) {
   const cleaned = String(value || "")
     .replace(/\.json$/i, "")
@@ -522,6 +557,106 @@ function setVersionMessage(text, isError = false) {
     element.textContent = text;
     element.classList.toggle("error", isError);
   });
+}
+
+function setFolderStatus(text, isError = false) {
+  if (!els.homeFolderStatus) return;
+  els.homeFolderStatus.textContent = text;
+  els.homeFolderStatus.classList.toggle("error", isError);
+}
+
+function folderLayoutName(layout) {
+  return sanitizeFileName(layout.fileName || layout.name || "");
+}
+
+async function parsePlaybackFileHandle(handle) {
+  const file = await handle.getFile();
+  const payload = JSON.parse(await file.text());
+  const state = normalizeStudioFilePayload(payload);
+  if (!state) return null;
+  return {
+    name: file.name,
+    fileName: file.name,
+    savedAt: payload.savedAt || new Date(file.lastModified || Date.now()).toISOString(),
+    state,
+    handle,
+    lastModified: file.lastModified || 0,
+  };
+}
+
+async function scanPlaybackFolder({ silent = false } = {}) {
+  if (!playbackFolderHandle) {
+    folderLayoutFiles = [];
+    setFolderStatus("尚未選擇播放台資料夾");
+    renderHomeVersions();
+    return;
+  }
+
+  try {
+    const permitted = await ensureDirectoryPermission(playbackFolderHandle);
+    if (!permitted) {
+      folderLayoutFiles = [];
+      setFolderStatus("需要允許資料夾權限，才能讀取播放台預覽。", true);
+      renderHomeVersions();
+      return;
+    }
+
+    const layouts = [];
+    for await (const [, handle] of playbackFolderHandle.entries()) {
+      if (handle.kind !== "file" || !/\.json$/i.test(handle.name || "")) continue;
+      try {
+        const layout = await parsePlaybackFileHandle(handle);
+        if (layout) layouts.push(layout);
+      } catch {
+        // Ignore JSON files that are not playback files.
+      }
+    }
+    layouts.sort((a, b) => String(b.savedAt || "").localeCompare(String(a.savedAt || "")));
+    folderLayoutFiles = layouts;
+    setFolderStatus(`已連結「${playbackFolderHandle.name || "播放台資料夾"}」｜${layouts.length} 個播放台檔案`);
+    renderHomeVersions();
+    if (!silent) setVersionMessage(`已同步資料夾預覽：${layouts.length} 個播放台檔案。`);
+  } catch (error) {
+    folderLayoutFiles = [];
+    setFolderStatus(`資料夾同步失敗：${error.message || "請重新選擇資料夾。"}`, true);
+    renderHomeVersions();
+  }
+}
+
+async function choosePlaybackFolder() {
+  if (!directoryAccessSupported()) {
+    setFolderStatus("這個瀏覽器不支援直接讀取資料夾，請改用開啟單一檔案。", true);
+    setVersionMessage("這個瀏覽器不支援資料夾預覽。請改用「開啟單一檔案」載入播放台。", true);
+    return;
+  }
+
+  try {
+    const handle = await window.showDirectoryPicker({ mode: "readwrite" });
+    playbackFolderHandle = handle;
+    await writeStoredPlaybackFolderHandle(handle);
+    await scanPlaybackFolder();
+  } catch (error) {
+    if (error?.name !== "AbortError") {
+      setFolderStatus(`選擇資料夾失敗：${error.message || "請再試一次。"}`, true);
+    }
+  }
+}
+
+async function restorePlaybackFolder() {
+  try {
+    playbackFolderHandle = await readStoredPlaybackFolderHandle();
+    if (playbackFolderHandle) {
+      if (await hasDirectoryPermission(playbackFolderHandle)) {
+        await scanPlaybackFolder({ silent: true });
+      } else {
+        setFolderStatus(`已記住「${playbackFolderHandle.name || "播放台資料夾"}」，按重新整理同步最新檔案。`);
+      }
+    } else {
+      setFolderStatus("尚未選擇播放台資料夾");
+    }
+  } catch {
+    setFolderStatus("無法讀取上次選擇的資料夾，請重新選擇。", true);
+  }
 }
 
 function savedLayoutEntries() {
@@ -601,11 +736,49 @@ function appendLayoutPreview(container, layout) {
   container.append(tabs, stage);
 }
 
-function appendHomeLayoutCard(layout, { current = false, cloud = false } = {}) {
-  const card = createEl("article", `home-layout-card${cloud ? " cloud-layout-card" : ""}`);
+function openHomeLayout(layout, { folderFile = false } = {}) {
+  if (folderFile && layout.handle) {
+    return layout.handle
+      .getFile()
+      .then((file) => readStudioFile(file, layout.handle))
+      .catch(async (error) => {
+        setVersionMessage(`開啟失敗：${error.message || "檔案可能已被移除，請重新整理資料夾。"}`, true);
+        await scanPlaybackFolder({ silent: true });
+      });
+  }
+  if (folderFile) {
+    applyStudioFileState(cloneValue(layout.state), layout.fileName || layout.name, null, layout.savedAt || "");
+    return Promise.resolve();
+  }
+  showStudio();
+  return Promise.resolve();
+}
+
+function appendCreateStudioCard() {
+  const card = createEl("button", "home-layout-card home-create-card");
+  card.type = "button";
+  card.addEventListener("click", createBlankStudio);
+  const plus = createEl("span", "home-create-plus", "+");
+  const text = createEl("span", "home-create-text", "建立新的播放台");
+  const hint = createEl("span", "home-create-hint", "先建立 JSON 檔，再開始編輯");
+  card.append(plus, text, hint);
+  els.homeLayoutGrid.appendChild(card);
+}
+
+function appendHomeLayoutCard(layout, { current = false, folderFile = false } = {}) {
+  const card = createEl("article", `home-layout-card${folderFile ? " folder-layout-card" : ""}`);
+  card.tabIndex = 0;
+  card.setAttribute("role", "button");
+  card.setAttribute("aria-label", folderFile ? `開啟舊檔案：${layout.name}` : `開啟播放台：${layout.name}`);
+  card.addEventListener("click", () => openHomeLayout(layout, { folderFile }));
+  card.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    openHomeLayout(layout, { folderFile });
+  });
   const title = createEl("div", "home-layout-title");
   const savedText = layout.savedAt ? `最近存檔 ${formatSavedAt(layout.savedAt)}` : "尚未存成檔案";
-  title.append(createEl("h3", "", layout.name), createEl("span", "", cloud ? `Google Drive｜${savedText}` : savedText));
+  title.append(createEl("h3", "", layout.name), createEl("span", "", folderFile ? `資料夾檔案｜${savedText}` : savedText));
 
   const preview = createEl("div", "home-preview");
   appendLayoutPreview(preview, layout);
@@ -617,24 +790,22 @@ function appendHomeLayoutCard(layout, { current = false, cloud = false } = {}) {
   layoutFeatureTags(layout).forEach((tag) => meta.appendChild(createEl("span", "", tag)));
 
   const actions = createEl("div", "home-layout-actions");
-  if (cloud) {
-    const openCloud = createEl("button", "", "開啟播放台");
-    openCloud.type = "button";
-    openCloud.addEventListener("click", () => {
-      applyStudioFileState(cloneValue(layout.state), `${layout.name}.json`, null, layout.savedAt || "");
+  if (folderFile) {
+    const openFolderFile = createEl("button", "", "開啟舊檔案");
+    openFolderFile.type = "button";
+    openFolderFile.addEventListener("click", (event) => {
+      event.stopPropagation();
+      openHomeLayout(layout, { folderFile: true });
     });
-    actions.appendChild(openCloud);
+    actions.appendChild(openFolderFile);
   } else {
-    const enter = createEl("button", "", "進入編輯");
+    const enter = createEl("button", "", "開啟播放台");
     enter.type = "button";
-    enter.addEventListener("click", showStudio);
-    const save = createEl("button", "secondary", currentFileHandle ? "立即存檔" : "另存檔案");
-    save.type = "button";
-    save.addEventListener("click", saveCurrentFile);
-    const open = createEl("button", "secondary", "開啟檔案");
-    open.type = "button";
-    open.addEventListener("click", openStudioFile);
-    actions.append(enter, save, open);
+    enter.addEventListener("click", (event) => {
+      event.stopPropagation();
+      showStudio();
+    });
+    actions.append(enter);
   }
 
   if (current) card.dataset.currentLayout = "true";
@@ -649,12 +820,20 @@ function renderHomeVersions() {
     savedAt: currentFileSavedAt || readFileMeta().savedAt || "",
     state: snapshot,
   };
+  const hasCurrentFile = Boolean(currentFileName || currentFileHandle);
+  const currentFileKey = currentFileName ? sanitizeFileName(currentFileName) : "";
+  const folderLayouts = folderLayoutFiles.filter((item) => !currentFileKey || folderLayoutName(item) !== currentFileKey);
+  const visibleCount = folderLayouts.length + (hasCurrentFile ? 1 : 0);
   els.homeLayoutGrid.innerHTML = "";
-  els.homeVersionCount.textContent = `${currentFileHandle ? "已連結檔案" : "尚未連結檔案"}｜${CLOUD_LAYOUT_PREVIEWS.length} 個雲端存檔`;
+  els.homeVersionCount.textContent = `${visibleCount} 個舊檔案`;
   setFileStatusInputs();
   setFileInputs(currentFileName || els.homeLayoutName.value || els.layoutName.value);
-  appendHomeLayoutCard(layout, { current: true });
-  CLOUD_LAYOUT_PREVIEWS.forEach((cloudLayout) => appendHomeLayoutCard(cloudLayout, { cloud: true }));
+  appendCreateStudioCard();
+  if (hasCurrentFile) appendHomeLayoutCard(layout, { current: true });
+  folderLayouts.forEach((folderLayout) => appendHomeLayoutCard(folderLayout, { folderFile: true }));
+  if (!visibleCount) {
+    els.homeLayoutGrid.appendChild(createEl("div", "home-empty", "選擇資料夾後，這裡會出現可開啟的舊播放台。"));
+  }
 }
 
 function currentLayoutSnapshotFromStorage() {
@@ -721,10 +900,34 @@ function showStudio() {
   restore();
 }
 
-function createBlankStudio() {
-  clearFileMeta();
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(blankStudioState()));
-  showStudio();
+async function createBlankStudio() {
+  const state = blankStudioState();
+  const payload = buildStudioFilePayload(state);
+  const name = sanitizeFileName(`classroom-studio-${new Date().toISOString().slice(0, 10)}`);
+
+  if (!fileSystemAccessSupported()) {
+    downloadStudioFile(payload, name);
+    applyStudioFileState(state, name, null, payload.savedAt);
+    setVersionMessage("已建立並下載新播放台檔案；這個瀏覽器無法自動寫回，後續請下載備份。");
+    return;
+  }
+
+  try {
+    const handle = await window.showSaveFilePicker({
+      suggestedName: name,
+      types: [
+        {
+          description: "播放台 JSON 檔",
+          accept: { "application/json": [".json"] },
+        },
+      ],
+    });
+    await writePayloadToHandle(handle, payload);
+    applyStudioFileState(state, handle.name || name, handle, payload.savedAt);
+    setVersionMessage(`已建立「${handle.name || name}」，接下來編輯會自動存檔。`);
+  } catch (error) {
+    if (error?.name !== "AbortError") setVersionMessage(`建立檔案失敗：${error.message || "請再試一次。"}`, true);
+  }
 }
 
 function initHomeMode() {
@@ -739,6 +942,7 @@ function initHomeMode() {
   document.body.classList.remove("studio-mode");
   renderSavedLayouts();
   renderHomeVersions();
+  restorePlaybackFolder();
 }
 
 function normalizePages(value) {
@@ -1366,6 +1570,7 @@ async function saveCurrentFileAs() {
     setFileStatusInputs();
     renderHomeVersions();
     renderSavedLayouts();
+    if (playbackFolderHandle) await scanPlaybackFolder({ silent: true });
     setVersionMessage(`已另存「${currentFileName}」，接下來編輯會自動存檔。`);
   } catch (error) {
     if (error?.name !== "AbortError") setVersionMessage(`另存失敗：${error.message || "請再試一次。"}`, true);
@@ -1385,6 +1590,7 @@ async function saveCurrentFile() {
     setFileStatusInputs();
     renderHomeVersions();
     renderSavedLayouts();
+    if (playbackFolderHandle) await scanPlaybackFolder({ silent: true });
     setVersionMessage(`已儲存到「${currentFileName}」。`);
   } catch (error) {
     currentFileAutoSave = false;
@@ -4832,7 +5038,7 @@ function restore() {
 }
 
 els.loadSlides.addEventListener("click", loadSlides);
-els.homeEnterStudio.addEventListener("click", showStudio);
+els.homeEnterStudio.addEventListener("click", openStudioFile);
 els.homeNewStudio.addEventListener("click", createBlankStudio);
 els.homeSaveLayout.addEventListener("click", saveHomeLayout);
 els.homeLayoutName.addEventListener("keydown", (event) => {
@@ -4847,6 +5053,8 @@ els.homeSyncLayouts.addEventListener("click", saveCurrentFile);
 els.homeLoadCloudLayouts.addEventListener("click", openStudioFile);
 els.homeExportLayouts.addEventListener("click", exportLayouts);
 els.homeImportLayouts.addEventListener("change", () => importLayoutsFromFile(els.homeImportLayouts.files?.[0]));
+els.homeChooseFolder.addEventListener("click", choosePlaybackFolder);
+els.homeRefreshFolder.addEventListener("click", () => scanPlaybackFolder());
 els.clearSlides.addEventListener("click", clearSlides);
 els.addSlidesWidget.addEventListener("click", addSlidesWidgetFromInput);
 els.switchSlidesMode.addEventListener("click", switchSlidesMode);
