@@ -618,11 +618,12 @@ function appendHomeLayoutCard(layout, { current = false, cloud = false } = {}) {
 
   const actions = createEl("div", "home-layout-actions");
   if (cloud) {
-    const openDrive = createEl("a", "link-button secondary", "開啟 Drive 檔案");
-    openDrive.href = layout.sourceUrl;
-    openDrive.target = "_blank";
-    openDrive.rel = "noreferrer";
-    actions.appendChild(openDrive);
+    const openCloud = createEl("button", "", "開啟播放台");
+    openCloud.type = "button";
+    openCloud.addEventListener("click", () => {
+      applyStudioFileState(cloneValue(layout.state), `${layout.name}.json`, null, layout.savedAt || "");
+    });
+    actions.appendChild(openCloud);
   } else {
     const enter = createEl("button", "", "進入編輯");
     enter.type = "button";
