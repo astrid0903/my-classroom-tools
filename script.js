@@ -4,6 +4,7 @@ const DRIVE_PLAYBACK_FOLDER_ID = "1u1aXfQ1ESmXTW0OAXiTvkzFNGExr4AuK";
 const DRIVE_PLAYBACK_FOLDER_NAME = "播放台存檔";
 const GOOGLE_DRIVE_CLIENT_ID = "229213858169-5tp9f6rjp8a45irarko8432h39uagt5a.apps.googleusercontent.com";
 const GOOGLE_DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.readonly";
+const GOOGLE_DRIVE_ALLOWED_ORIGINS = ["https://astrid0903.github.io"];
 const STUDIO_FILE_TYPE = "classroomSlidesStudio.file";
 const LEGACY_LAYOUTS_FILE_TYPE = "classroomSlidesStudio.layouts";
 const FIREBASE_CONFIG = {
@@ -522,6 +523,14 @@ function googleDriveAuthReady() {
   return Boolean(window.google?.accounts?.oauth2);
 }
 
+function currentOriginAllowedForDrive() {
+  return GOOGLE_DRIVE_ALLOWED_ORIGINS.includes(window.location.origin);
+}
+
+function driveOriginMessage() {
+  return `目前網址「${window.location.origin}」尚未登錄 Google 授權。請改用 GitHub Pages 版本，或到 OAuth 設定加入這個網址。`;
+}
+
 function driveApiHeaders() {
   return { Authorization: `Bearer ${driveAccessToken}` };
 }
@@ -536,6 +545,9 @@ async function waitForGoogleDriveAuth() {
 }
 
 async function requestDriveAccess({ prompt = "consent" } = {}) {
+  if (!currentOriginAllowedForDrive()) {
+    throw new Error(driveOriginMessage());
+  }
   if (!(await waitForGoogleDriveAuth())) {
     throw new Error("Google Drive 授權元件尚未載入。");
   }
@@ -628,6 +640,11 @@ async function scanDrivePlaybackFolder({ silent = false } = {}) {
 }
 
 async function scanPlaybackFolder({ silent = false } = {}) {
+  if (!currentOriginAllowedForDrive()) {
+    setFolderStatus(driveOriginMessage(), true);
+    if (!silent) setVersionMessage("這個網址不能向 Google 授權，請改用已登錄的 GitHub Pages 網址。", true);
+    return;
+  }
   try {
     await scanDrivePlaybackFolder({ silent });
   } catch (error) {
@@ -649,7 +666,11 @@ async function choosePlaybackFolder() {
 
 async function restorePlaybackFolder() {
   folderLayoutFiles = [];
-  setFolderStatus("尚未授權讀取 Drive 播放台資料夾");
+  if (currentOriginAllowedForDrive()) {
+    setFolderStatus("尚未授權讀取 Drive 播放台資料夾");
+  } else {
+    setFolderStatus(driveOriginMessage(), true);
+  }
 }
 
 function savedLayoutEntries() {
