@@ -91,7 +91,7 @@
   </section>
 
   <nav id="side-rail" class="side-rail hidden" aria-label="工具導覽">
-    <div class="rail-brand" aria-hidden="true">播</div>
+    <button class="rail-brand" type="button" id="rail-home" aria-label="回到檔案首頁">播</button>
     <button class="rail-btn" type="button" data-rail="slides" aria-label="簡報"><span>▣</span></button>
     <button class="rail-btn" type="button" data-rail="pages" aria-label="頁面"><span>▥</span></button>
     <button class="rail-btn" type="button" data-rail="timer" aria-label="計時器"><span>◷</span></button>
@@ -100,10 +100,8 @@
     <button class="rail-btn" type="button" data-rail="groups" aria-label="分組"><span>▦</span></button>
     <button class="rail-btn" type="button" data-rail="image" aria-label="圖片"><span>▧</span></button>
     <button class="rail-btn" type="button" data-rail="youtube" aria-label="YouTube"><span>▶</span></button>
-    <button class="rail-btn" type="button" data-rail="layouts" aria-label="檔案存檔"><span>▤</span></button>
     <button class="rail-btn" type="button" data-rail="arrange" aria-label="排列小工具"><span>⇆</span></button>
     <div class="rail-spacer"></div>
-    <button class="rail-btn" type="button" id="rail-fullscreen" aria-label="全螢幕"><span>⛶</span></button>
   </nav>
   <main class="studio hidden">
     <section class="stage-column" aria-label="簡報播放區">
@@ -118,8 +116,8 @@
           <header class="post-board-hero">
             <div>
               <span class="post-board-kicker">Live Post Board</span>
-              <h1 id="post-board-title">貼文板</h1>
-              <p id="post-board-detail">參與者掃描 QR Code 後可以新增文字貼文或上傳圖片。</p>
+              <h1 id="post-board-title" contenteditable="plaintext-only" spellcheck="false" tabindex="0" title="點擊可編輯標題">貼文板</h1>
+              <p id="post-board-detail"></p>
             </div>
             <div class="post-board-join-card" id="post-board-join-card">
               <button id="post-board-qr-toggle" type="button" class="post-board-qr-toggle" title="顯示／隱藏 QR Code">QR Code</button>
@@ -175,7 +173,7 @@
 
         <article id="timer-widget" class="widget timer-widget hidden" data-widget="timer" aria-label="計時器小工具">
           <button class="drag-handle" type="button" aria-label="拖曳計時器">⋮⋮</button>
-          <div id="stage-timer-title" class="widget-label">Timer</div>
+          <div id="stage-timer-title" class="widget-label">計時器</div>
           <div id="stage-timer" class="stage-timer">05:00</div>
           <div id="stage-timer-note" class="stage-note">準備中</div>
           <div class="stage-timer-actions" aria-label="計時器控制">
@@ -188,7 +186,7 @@
 
         <article id="clock-widget" class="widget clock-widget hidden" data-widget="clock" aria-label="現在時間小工具">
           <button class="drag-handle" type="button" aria-label="拖曳現在時間">⋮⋮</button>
-          <div id="stage-clock-title" class="widget-label">Clock</div>
+          <div id="stage-clock-title" class="widget-label">現在時間</div>
           <div id="stage-clock" class="stage-clock">--:--</div>
           <button class="resize-handle" type="button" aria-label="縮放現在時間"></button>
         </article>
@@ -319,7 +317,7 @@
           </label>
         </div>
         <label for="timer-title">標題</label>
-        <input id="timer-title" type="text" placeholder="例如：小組討論" value="Timer">
+        <input id="timer-title" type="text" placeholder="例如：小組討論" value="計時器">
         <div class="time-grid">
           <label>
             分鐘
@@ -346,7 +344,7 @@
           </label>
         </div>
         <label for="clock-title">標題</label>
-        <input id="clock-title" type="text" placeholder="例如：現在時間" value="Clock">
+        <input id="clock-title" type="text" placeholder="例如：現在時間" value="現在時間">
       </section>
 
       <section id="groups-panel" class="tool-section" data-panel="groups">
@@ -713,13 +711,18 @@
   </div>
 
   <div id="settings-backdrop" class="settings-backdrop hidden"></div>
-  <script src="./script.js?v=20260516-auto-contrast"></script>
+  <script src="./script.js?v=20260516-post-board-tools"></script>
   <script>
     // IA Step 1: side-rail wiring — forwards to existing dock buttons.
     (function () {
       var rail = document.getElementById('side-rail');
+      var home = document.getElementById('rail-home');
       var studio = document.querySelector('main.studio');
       if (!rail || !studio) return;
+      if (home) home.addEventListener('click', function () {
+        var target = document.querySelector('.tool-dock [data-tool="layouts"]');
+        if (target) target.click();
+      });
       // Map rail data-rail values to existing dock data-tool selectors.
       rail.addEventListener('click', function (e) {
         var btn = e.target.closest('[data-rail]');
@@ -731,12 +734,6 @@
           rail.querySelectorAll('.rail-btn.active').forEach(function (b) { b.classList.remove('active'); });
           btn.classList.add('active');
         }
-      });
-
-      var fs = document.getElementById('rail-fullscreen');
-      if (fs) fs.addEventListener('click', function () {
-        var existing = document.getElementById('fullscreen-button');
-        if (existing) existing.click();
       });
 
       // Show rail whenever studio is visible.
@@ -823,6 +820,11 @@
         else if (action === 'hidden-list') clickById('hidden-widgets-button');
         else if (action === 'hide-all') clickById('hide-widgets');
         else if (action === 'save-version') clickTool('layouts');
+        setCollapsed(true);
+      });
+      document.addEventListener('mousedown', function (e) {
+        if (root.classList.contains('collapsed')) return;
+        if (root.contains(e.target)) return;
         setCollapsed(true);
       });
       document.addEventListener('keydown', function (e) {

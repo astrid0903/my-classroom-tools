@@ -764,6 +764,7 @@ function normalizePostSections(value) {
     .map((section) => ({
       id: String(section?.id || "").trim(),
       name: String(section?.name || "").trim(),
+      description: String(section?.description || "").trim(),
     }))
     .filter((section) => section.id && section.name)
     .slice(0, 12);
@@ -1578,8 +1579,8 @@ function sanitizeDynamicState(state) {
 }
 
 function defaultDynamicState(type) {
-  if (type === "timer") return { title: "Timer", titleSize: "13", minutes: "5", seconds: "0", remaining: 300, settingsOpen: true };
-  if (type === "clock") return { title: "Clock", titleSize: "13", settingsOpen: true };
+  if (type === "timer") return { title: "計時器", titleSize: "13", minutes: "5", seconds: "0", remaining: 300, settingsOpen: true };
+  if (type === "clock") return { title: "現在時間", titleSize: "13", settingsOpen: true };
   if (type === "groups") return { title: "Groups", titleSize: "13", studentList: "", groupCount: "4", shuffle: true, groups: [], checkable: false, checkedStudents: {}, settingsOpen: true };
   if (type === "text") return { title: "Text", titleSize: "13", content: "文字框", size: "44", color: "#ffffff", align: "center", settingsOpen: true };
   if (type === "image") return { title: "Image", titleSize: "13", imageUrl: "", imageSource: "", imageScale: "100", settingsOpen: true };
@@ -1721,6 +1722,8 @@ function createDynamicWidget(type, state = {}, position = null) {
     ...cloneValue(state),
     pageId,
   };
+  if (type === "timer" && nextState.title === "Timer") nextState.title = "計時器";
+  if (type === "clock" && nextState.title === "Clock") nextState.title = "現在時間";
   delete nextState.id;
 
   const widget = document.createElement("article");
@@ -2587,6 +2590,21 @@ async function renamePostSection(sectionId) {
   await savePostSections(sections.map((item) => (item.id === sectionId ? { ...item, name: name.trim().slice(0, 40) } : item)));
 }
 
+async function editPostSectionDescription(sectionId) {
+  const page = activePage();
+  if (page.type !== "posts") return;
+  const sections = normalizePostSections(page.sections);
+  const section = sections.find((item) => item.id === sectionId);
+  if (!section) return;
+  const description = await showPromptModal("區段說明文字", section.description || "");
+  if (description === null) return;
+  await savePostSections(sections.map((item) => (
+    item.id === sectionId
+      ? { ...item, description: description.trim().slice(0, 120) }
+      : item
+  )));
+}
+
 async function deletePostSection(sectionId) {
   const page = activePage();
   if (page.type !== "posts") return;
@@ -2958,23 +2976,46 @@ function renderPostBoardColumns(page, sections) {
     });
 
     const head = createEl("div", "post-section-head");
+    const titleRow = createEl("div", "post-section-title-row");
     const titleButton = createEl("button", "post-section-title", section.name);
     titleButton.type = "button";
     titleButton.title = "重新命名區段";
     titleButton.addEventListener("click", () => renamePostSection(section.id));
-    const addLink = createEl("a", "post-section-add", "+");
+    const menuBtn = createEl("button", "post-section-menu-btn", "⋮");
+    menuBtn.type = "button";
+    menuBtn.title = "區段選項";
+    menuBtn.setAttribute("aria-label", `${section.name} 區段選項`);
+    const menu = createEl("div", "post-section-menu hidden");
+    const addLink = createEl("a", "", "增加貼文");
     addLink.href = postBoardSectionJoinUrl(page, section.id);
     addLink.target = "_blank";
     addLink.rel = "noreferrer";
     addLink.title = `到「${section.name}」投稿`;
-    const deleteBtn = createEl("button", "post-section-delete", "✕");
+    const descBtn = createEl("button", "", section.description ? "編輯區段說明" : "增加區段說明文字");
+    descBtn.type = "button";
+    descBtn.addEventListener("click", () => {
+      menu.classList.add("hidden");
+      editPostSectionDescription(section.id);
+    });
+    const deleteBtn = createEl("button", "danger", "刪除區段");
     deleteBtn.type = "button";
     deleteBtn.title = "刪除區段";
     deleteBtn.setAttribute("aria-label", "刪除區段");
-    deleteBtn.addEventListener("click", () => deletePostSection(section.id));
-    const sectionActions = createEl("div", "post-section-actions");
-    sectionActions.append(addLink, deleteBtn);
-    head.append(titleButton, sectionActions);
+    deleteBtn.addEventListener("click", () => {
+      menu.classList.add("hidden");
+      deletePostSection(section.id);
+    });
+    menuBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const wasOpen = !menu.classList.contains("hidden");
+      document.querySelectorAll(".post-menu:not(.hidden), .post-section-menu:not(.hidden)").forEach((item) => item.classList.add("hidden"));
+      if (!wasOpen) menu.classList.remove("hidden");
+    });
+    menu.addEventListener("click", (event) => event.stopPropagation());
+    menu.append(addLink, descBtn, deleteBtn);
+    titleRow.append(titleButton, menuBtn, menu);
+    head.appendChild(titleRow);
+    if (section.description) head.appendChild(createEl("p", "post-section-description", section.description));
     const body = createEl("div", "post-section-body");
     renderPostCards(body, postsForSection(postBoardPosts, section.id), { canManage: true, draggable: true });
     body.addEventListener("dragover", (e) => {
@@ -3023,16 +3064,31 @@ function renderPostBoardColumns(page, sections) {
   els.postBoardGrid.appendChild(boardColumns);
 }
 
+function commitPostBoardTitleEdit() {
+  const page = activePage();
+  if (page.type !== "posts") return;
+  const currentName = page.name || "貼文板";
+  const nextName = els.postBoardTitle.textContent.trim().slice(0, 40) || currentName;
+  els.postBoardTitle.textContent = nextName;
+  if (nextName === currentName) return;
+  pages = pages.map((item) => (item.id === page.id ? { ...item, name: nextName } : item));
+  els.postBoardJoinTitle.textContent = nextName;
+  renderPages();
+  updatePostBoardControls();
+  writeState();
+  syncActivePostBoardMetadata();
+}
+
 function renderPostBoard() {
   const page = activePage();
   if (page.type !== "posts") return;
   const sections = normalizePostSections(postBoardSections.length > 0 ? postBoardSections : page.sections);
   const joinUrl = postBoardJoinUrl(page);
   const boardName = page.name || "貼文板";
-  els.postBoardTitle.textContent = boardName;
+  if (document.activeElement !== els.postBoardTitle) els.postBoardTitle.textContent = boardName;
   applyPageTextPalette(page);
   els.postBoardJoinTitle.textContent = boardName;
-  els.postBoardDetail.textContent = "參與者掃描 QR Code 後可以新增文字貼文或上傳圖片。";
+  els.postBoardDetail.textContent = "";
   els.postBoardQr.src = buildQrCodeUrl(joinUrl, "260");
   els.postBoardLink.href = joinUrl || "#";
   els.postBoardMessage.textContent = postBoardPosts.length === 0 ? "等待參與者投稿中。" : `已收到 ${postBoardPosts.length} 則貼文。`;
@@ -3350,6 +3406,7 @@ function renderParticipantBoard(sections, posts) {
     addBtn.setAttribute("aria-label", `投稿到「${section.name}」`);
     addBtn.addEventListener("click", () => showParticipantForm(section.id));
     head.append(titleEl, addBtn);
+    if (section.description) head.appendChild(createEl("p", "post-section-description", section.description));
     const body = createEl("div", "post-section-body");
     renderParticipantPostCards(body, postsForSection(posts, section.id));
     column.append(head, body);
@@ -4128,7 +4185,7 @@ function formatTime(totalSeconds) {
 }
 
 function renderTimer() {
-  const title = els.timerTitle.value.trim() || "Timer";
+  const title = els.timerTitle.value.trim() || "計時器";
   els.stageTimerTitle.textContent = title;
   els.stageTimer.textContent = formatTime(timerRemaining);
   els.timerWidget.classList.toggle("hidden", !els.showTimer.checked);
@@ -4181,7 +4238,7 @@ function pauseTimer() {
 
 function renderClock() {
   const now = new Date();
-  els.stageClockTitle.textContent = els.clockTitle.value.trim() || "Clock";
+  els.stageClockTitle.textContent = els.clockTitle.value.trim() || "現在時間";
   els.stageClock.textContent = now.toLocaleTimeString("zh-Hant", {
     hour: "2-digit",
     minute: "2-digit",
@@ -4660,10 +4717,10 @@ function restore() {
   els.slidesUrl.value = state.slidesUrl || "";
   els.timerMinutes.value = state.timerMinutes || "5";
   els.timerSeconds.value = state.timerSeconds || "0";
-  els.timerTitle.value = state.timerTitle || "Timer";
+  els.timerTitle.value = state.timerTitle === "Timer" ? "計時器" : state.timerTitle || "計時器";
   els.showTimer.checked = Boolean(state.showTimer);
   els.showClock.checked = Boolean(state.showClock);
-  els.clockTitle.value = state.clockTitle || "Clock";
+  els.clockTitle.value = state.clockTitle === "Clock" ? "現在時間" : state.clockTitle || "現在時間";
   els.showGroups.checked = Boolean(state.showGroups);
   els.groupsTitle.value = state.groupsTitle || "Groups";
   els.showTextBox.checked = Boolean(state.showTextBox);
@@ -4973,6 +5030,7 @@ els.participantPostModal.addEventListener("click", (event) => {
 els.postBoardQrToggle.addEventListener("click", () => {
   els.postBoardJoinCard.classList.toggle("expanded");
 });
+els.postBoardJoinCard.addEventListener("click", (event) => event.stopPropagation());
 els.postBoardQrExpand.addEventListener("click", () => {
   const page = activePage();
   const joinUrl = postBoardJoinUrl(page);
@@ -5007,8 +5065,24 @@ els.postBoardNote.addEventListener("blur", () => {
 els.postBoardQrModal.addEventListener("click", (event) => {
   if (event.target === els.postBoardQrModal) els.postBoardQrModal.classList.add("hidden");
 });
+els.postBoardTitle.addEventListener("focus", () => {
+  document.querySelectorAll(".post-menu:not(.hidden), .post-section-menu:not(.hidden)").forEach((menu) => menu.classList.add("hidden"));
+});
+els.postBoardTitle.addEventListener("blur", commitPostBoardTitleEdit);
+els.postBoardTitle.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    els.postBoardTitle.blur();
+  }
+  if (event.key === "Escape") {
+    event.preventDefault();
+    els.postBoardTitle.textContent = activePage().name || "貼文板";
+    els.postBoardTitle.blur();
+  }
+});
 document.addEventListener("click", () => {
-  document.querySelectorAll(".post-menu:not(.hidden)").forEach((m) => m.classList.add("hidden"));
+  document.querySelectorAll(".post-menu:not(.hidden), .post-section-menu:not(.hidden)").forEach((m) => m.classList.add("hidden"));
+  els.postBoardJoinCard.classList.remove("expanded");
 });
 
 function closeAllWidgetSettings() {

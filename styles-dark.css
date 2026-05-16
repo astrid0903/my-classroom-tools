@@ -313,6 +313,32 @@ body[data-theme="dark"] .post-section-title:hover {
   background: var(--d-surface-2);
   color: var(--d-text);
 }
+body[data-theme="dark"] .post-section-menu-btn {
+  background: var(--d-surface);
+  border-color: var(--d-border);
+  color: var(--d-text);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.3);
+}
+body[data-theme="dark"] .post-section-menu-btn:hover { background: var(--d-surface-2); }
+body[data-theme="dark"] .post-section-menu {
+  background: var(--d-surface-strong);
+  border-color: var(--d-border);
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.38);
+}
+body[data-theme="dark"] .post-section-menu a,
+body[data-theme="dark"] .post-section-menu button {
+  color: var(--d-text);
+}
+body[data-theme="dark"] .post-section-menu a:hover,
+body[data-theme="dark"] .post-section-menu button:hover {
+  background: var(--d-surface-2);
+}
+body[data-theme="dark"] .post-section-menu button.danger {
+  color: var(--red);
+}
+body[data-theme="dark"] .post-section-description {
+  color: var(--page-muted-text, var(--d-text-2));
+}
 body[data-theme="dark"] .post-section-add,
 body[data-theme="dark"] .post-section-new {
   background: var(--d-surface);
@@ -534,13 +560,17 @@ body[data-theme="dark"] .participant-detail-image-button { background: rgba(255,
 .side-rail.hidden { display: none !important; }
 .rail-brand {
   width: 32px; height: 32px;
+  min-height: 32px;
+  padding: 0;
   display: grid; place-items: center;
+  border: 0;
   border-radius: 9px;
   background: linear-gradient(135deg, #5fa8ff, #f0b870);
   color: #06090d;
   font-weight: 800;
   font-size: 14px;
   margin-bottom: 6px;
+  cursor: pointer;
 }
 .rail-btn {
   width: 44px; height: 44px;
