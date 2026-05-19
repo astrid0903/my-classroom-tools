@@ -5,24 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Google Slides 教學播放台</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
-  <link rel="stylesheet" href="./styles.css?v=20260515-save-status">
-  <link rel="stylesheet" href="./styles-dark.css?v=20260515-save-status">
-  <script>
-    (function () {
-      try {
-        var saved = localStorage.getItem('classroom-theme');
-        if (saved === 'dark' || saved === 'light') {
-          document.documentElement.setAttribute('data-pre-theme', saved);
-        }
-      } catch (e) {}
-    })();
-  </script>
+  <link rel="stylesheet" href="./styles.css?v=20260516-drive-preview">
+  <link rel="stylesheet" href="./styles-dark.css?v=20260516-drive-preview">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
-<body>
-  <button id="theme-toggle" class="theme-toggle" type="button" aria-label="切換暗色主題" title="切換暗色主題">
-    <span class="sun" aria-hidden="true">☼</span>
-    <span class="moon" aria-hidden="true">☾</span>
-  </button>
+<body data-theme="dark">
   <div id="session-bar" class="session-bar hidden" aria-label="Session 狀態">
     <span class="session-dot" aria-hidden="true"></span>
     <span class="session-label">SESSION</span>
@@ -55,72 +42,48 @@
       </div>
     </div>
   </div>
-  <script>
-    (function () {
-      var key = 'classroom-theme';
-      var pre = document.documentElement.getAttribute('data-pre-theme');
-      // Direction B is dark-first: default to dark unless the user has explicitly chosen light.
-      var theme = pre || 'dark';
-      document.body.setAttribute('data-theme', theme);
-      document.documentElement.removeAttribute('data-pre-theme');
-      document.getElementById('theme-toggle').addEventListener('click', function () {
-        var cur = document.body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-        document.body.setAttribute('data-theme', cur);
-        try { localStorage.setItem(key, cur); } catch (e) {}
-      });
-    })();
-  </script>
   <section id="home-view" class="home-view" aria-label="檔案首頁">
     <div class="home-shell">
       <header class="home-hero">
         <div>
           <span class="home-kicker">Classroom Studio</span>
           <h1>Google Slides 教學播放台</h1>
-          <p>用檔案保存每一套教學播放配置，開啟後編輯內容會自動寫回目前檔案。</p>
-        </div>
-        <div class="home-actions" aria-label="首頁主要操作">
-          <button id="home-enter-studio" type="button">進入目前播放台</button>
-          <button id="home-new-studio" class="secondary" type="button">建立空白播放台</button>
+          <p>建立新播放台會先存成檔案再開始編輯；已有播放台就直接開啟 JSON 檔。</p>
         </div>
       </header>
 
-      <section class="home-save-panel" aria-label="目前播放台檔案">
-        <div>
-          <h2>目前播放台檔案</h2>
-          <p>開啟既有 JSON 檔，或將目前播放台另存成新檔。支援的瀏覽器會在編輯時自動存檔。</p>
-        </div>
-        <div class="home-save-controls">
-          <input id="home-layout-name" type="text" placeholder="例如：分組討論版.json">
-          <button id="home-save-layout" type="button">另存檔案</button>
-        </div>
-      </section>
-
-      <section class="home-sync-panel" aria-label="檔案操作">
-        <label for="home-sync-code">檔案操作</label>
-        <div class="home-sync-grid">
-          <input id="home-sync-code" type="text" placeholder="目前檔案狀態" readonly>
-          <button id="home-sync-layouts" type="button">儲存到目前檔案</button>
-          <button id="home-load-cloud-layouts" class="secondary" type="button">開啟檔案</button>
-          <button id="home-export-layouts" class="secondary" type="button">下載備份檔</button>
-          <label class="home-import-button secondary" for="home-import-layouts">從檔案匯入</label>
-          <input id="home-import-layouts" class="home-file-input" type="file" accept="application/json,.json">
-        </div>
-        <p id="home-file-status" class="file-status-line" aria-live="polite">尚未連結檔案</p>
-        <p id="home-version-message" class="home-message" aria-live="polite"></p>
-      </section>
-
-      <section class="home-version-section" aria-label="目前檔案預覽">
+      <section class="home-version-section" aria-label="可開啟的播放台">
         <div class="home-section-head">
-          <h2>目前檔案預覽</h2>
-          <span id="home-version-count">尚未連結檔案</span>
+          <div>
+            <h2>可開啟的播放台</h2>
+            <span id="home-version-count">0 個播放台檔案</span>
+          </div>
+          <div class="home-folder-actions" aria-label="資料夾操作">
+            <button id="home-choose-folder" type="button">授權讀取 Drive</button>
+            <button id="home-refresh-folder" class="secondary" type="button">重新整理</button>
+          </div>
         </div>
+        <p id="home-folder-status" class="folder-status-line" aria-live="polite">尚未授權讀取 Drive 播放台資料夾</p>
+        <p id="home-version-message" class="home-message" aria-live="polite"></p>
         <div id="home-layout-grid" class="home-layout-grid"></div>
+        <div class="home-internal-controls" aria-hidden="true">
+          <button id="home-new-studio" class="home-file-input" type="button">建立新播放台檔案</button>
+          <button id="home-enter-studio" class="home-file-input" type="button">開啟舊播放台檔案</button>
+          <input id="home-layout-name" class="home-file-input" type="text" placeholder="例如：分組討論版.json">
+          <button id="home-save-layout" class="home-file-input" type="button">另存檔案</button>
+          <input id="home-sync-code" class="home-file-input" type="text" placeholder="目前檔案狀態" readonly>
+          <button id="home-sync-layouts" class="home-file-input" type="button">儲存</button>
+          <button id="home-load-cloud-layouts" class="home-file-input" type="button">開啟檔案</button>
+          <button id="home-export-layouts" class="home-file-input" type="button">下載備份</button>
+          <input id="home-import-layouts" class="home-file-input" type="file" accept="application/json,.json">
+          <p id="home-file-status" class="home-file-input" aria-live="polite">尚未連結檔案</p>
+        </div>
       </section>
     </div>
   </section>
 
   <nav id="side-rail" class="side-rail hidden" aria-label="工具導覽">
-    <div class="rail-brand" aria-hidden="true">播</div>
+    <button class="rail-brand" type="button" id="rail-home" aria-label="回到檔案首頁">播</button>
 
     <!-- Group 1: Presentation -->
     <button class="rail-btn" type="button" data-rail="slides" aria-label="簡報" title="簡報">
@@ -154,18 +117,12 @@
 
     <span class="rail-sep" aria-hidden="true"></span>
 
-    <!-- Group 3: File & arrange -->
-    <button class="rail-btn" type="button" data-rail="layouts" aria-label="檔案存檔" title="檔案存檔">
-      <svg viewBox="0 0 24 24" class="rail-icon"><path d="M5 5h11l3 3v11H5z"/><path d="M8 5v5h7V5M8 19v-6h8v6"/></svg>
-    </button>
+    <!-- Group 3: Arrange -->
     <button class="rail-btn" type="button" data-rail="arrange" aria-label="排列小工具" title="排列小工具">
       <svg viewBox="0 0 24 24" class="rail-icon"><path d="M4 6h16M4 12h10M4 18h16"/></svg>
     </button>
 
     <div class="rail-spacer"></div>
-    <button class="rail-btn" type="button" id="rail-fullscreen" aria-label="全螢幕" title="全螢幕">
-      <svg viewBox="0 0 24 24" class="rail-icon"><path d="M4 9V5h4M20 9V5h-4M4 15v4h4M20 15v4h-4"/></svg>
-    </button>
   </nav>
   <main class="studio hidden">
     <section class="stage-column" aria-label="簡報播放區">
@@ -180,8 +137,8 @@
           <header class="post-board-hero">
             <div>
               <span class="post-board-kicker">Live Post Board</span>
-              <h1 id="post-board-title">貼文板</h1>
-              <p id="post-board-detail">參與者掃描 QR Code 後可以新增文字貼文或上傳圖片。</p>
+              <h1 id="post-board-title" contenteditable="plaintext-only" spellcheck="false" tabindex="0" title="點擊可編輯標題">貼文板</h1>
+              <p id="post-board-detail"></p>
             </div>
             <div class="post-board-join-card" id="post-board-join-card">
               <button id="post-board-qr-toggle" type="button" class="post-board-qr-toggle" title="顯示／隱藏 QR Code">QR Code</button>
@@ -237,7 +194,7 @@
 
         <article id="timer-widget" class="widget timer-widget hidden" data-widget="timer" aria-label="計時器小工具">
           <button class="drag-handle" type="button" aria-label="拖曳計時器">⋮⋮</button>
-          <div id="stage-timer-title" class="widget-label">Timer</div>
+          <div id="stage-timer-title" class="widget-label">計時器</div>
           <div id="stage-timer" class="stage-timer">05:00</div>
           <div id="stage-timer-note" class="stage-note">準備中</div>
           <div class="stage-timer-actions" aria-label="計時器控制">
@@ -250,7 +207,7 @@
 
         <article id="clock-widget" class="widget clock-widget hidden" data-widget="clock" aria-label="現在時間小工具">
           <button class="drag-handle" type="button" aria-label="拖曳現在時間">⋮⋮</button>
-          <div id="stage-clock-title" class="widget-label">Clock</div>
+          <div id="stage-clock-title" class="widget-label">現在時間</div>
           <div id="stage-clock" class="stage-clock">--:--</div>
           <button class="resize-handle" type="button" aria-label="縮放現在時間"></button>
         </article>
@@ -381,7 +338,7 @@
           </label>
         </div>
         <label for="timer-title">標題</label>
-        <input id="timer-title" type="text" placeholder="例如：小組討論" value="Timer">
+        <input id="timer-title" type="text" placeholder="例如：小組討論" value="計時器">
         <div class="time-grid">
           <label>
             分鐘
@@ -408,7 +365,7 @@
           </label>
         </div>
         <label for="clock-title">標題</label>
-        <input id="clock-title" type="text" placeholder="例如：現在時間" value="Clock">
+        <input id="clock-title" type="text" placeholder="例如：現在時間" value="現在時間">
       </section>
 
       <section id="groups-panel" class="tool-section" data-panel="groups">
@@ -775,13 +732,18 @@
   </div>
 
   <div id="settings-backdrop" class="settings-backdrop hidden"></div>
-  <script src="./script.js?v=20260515-save-status"></script>
+  <script src="./script.js?v=20260516-drive-auth-errors"></script>
   <script>
     // IA Step 1: side-rail wiring — forwards to existing dock buttons.
     (function () {
       var rail = document.getElementById('side-rail');
+      var home = document.getElementById('rail-home');
       var studio = document.querySelector('main.studio');
       if (!rail || !studio) return;
+      if (home) home.addEventListener('click', function () {
+        var target = document.querySelector('.tool-dock [data-tool="layouts"]');
+        if (target) target.click();
+      });
       // Map rail data-rail values to existing dock data-tool selectors.
       rail.addEventListener('click', function (e) {
         var btn = e.target.closest('[data-rail]');
@@ -793,12 +755,6 @@
           rail.querySelectorAll('.rail-btn.active').forEach(function (b) { b.classList.remove('active'); });
           btn.classList.add('active');
         }
-      });
-
-      var fs = document.getElementById('rail-fullscreen');
-      if (fs) fs.addEventListener('click', function () {
-        var existing = document.getElementById('fullscreen-button');
-        if (existing) existing.click();
       });
 
       // Show rail whenever studio is visible.
@@ -887,6 +843,11 @@
         else if (action === 'save-version') clickTool('layouts');
         setCollapsed(true);
       });
+      document.addEventListener('mousedown', function (e) {
+        if (root.classList.contains('collapsed')) return;
+        if (root.contains(e.target)) return;
+        setCollapsed(true);
+      });
       document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') setCollapsed(true);
       });
@@ -935,8 +896,8 @@
             // toggle to home view if a back button exists; fallback to clicking the brand
             var brand = document.querySelector('.rail-brand'); if (brand && brand.click) brand.click();
           } : function(){} },
-        { id:'enter-studio',label:'進入目前播放台',     group:'導覽', hint:'Studio',      run: clickById('home-enter-studio'), when: inHome },
-        { id:'new-studio',  label:'建立空白播放台',     group:'導覽', hint:'New',         run: clickById('home-new-studio'),   when: inHome },
+        { id:'enter-studio',label:'開啟舊播放台檔案',   group:'導覽', hint:'Open',        run: clickById('home-enter-studio'), when: inHome },
+        { id:'new-studio',  label:'建立新播放台檔案',   group:'導覽', hint:'New',         run: clickById('home-new-studio'),   when: inHome },
 
         // Tools (studio only)
         { id:'tool-slides', label:'簡報設定',           group:'工具', hint:'Slides',      run: clickTool('slides'),  when: inStudio },
@@ -958,9 +919,6 @@
         { id:'timer-pause', label:'計時器：暫停',       group:'動作', hint:'Timer ⏸',     run: clickById('timer-pause'),       when: inStudio },
         { id:'timer-reset', label:'計時器：重設',       group:'動作', hint:'Timer ↺',     run: clickById('timer-reset'),       when: inStudio },
         { id:'make-groups', label:'分組：產生分組',     group:'動作', hint:'Shuffle',     run: clickById('make-groups'),       when: inStudio },
-
-        // Theme
-        { id:'theme-toggle',label:'切換暗色／亮色主題', group:'外觀', hint:'Theme',       run: clickById('theme-toggle') },
       ];
 
       var selected = 0;
