@@ -1085,7 +1085,7 @@ function renderPages() {
     els.pageTabs.appendChild(tab);
   });
   els.pageSelect.value = activePage().id;
-  els.pageName.value = activePage().id === DEFAULT_PAGE.id ? "" : activePage().name;
+  els.pageName.value = activePage().name;
   els.deletePage.disabled = activePage().id === DEFAULT_PAGE.id;
   const curPage = activePage();
   els.pageTitleColor.value = curPage.titleColor || "#1a2330";
@@ -1451,7 +1451,6 @@ function switchPage(pageId) {
 
 function renameActivePage(name) {
   const page = activePage();
-  if (page.id === DEFAULT_PAGE.id) return;
   const nextName = name.trim();
   if (!nextName) return;
   pages = pages.map((item) => (item.id === page.id ? { ...item, name: nextName } : item));
