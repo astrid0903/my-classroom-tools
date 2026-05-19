@@ -384,6 +384,8 @@ body[data-theme="dark"] .post-section-menu {
 }
 body[data-theme="dark"] .post-section-menu a,
 body[data-theme="dark"] .post-section-menu button {
+  background: transparent;
+  border-color: transparent;
   color: var(--d-text);
 }
 body[data-theme="dark"] .post-section-menu a:hover,
@@ -479,6 +481,8 @@ body[data-theme="dark"] .slide-stage.page-bg-light .post-menu {
 body[data-theme="dark"] .slide-stage.page-bg-light .post-section-menu a,
 body[data-theme="dark"] .slide-stage.page-bg-light .post-section-menu button,
 body[data-theme="dark"] .slide-stage.page-bg-light .post-menu button {
+  background: transparent;
+  border-color: transparent;
   color: #26313b;
 }
 body[data-theme="dark"] .slide-stage.page-bg-light .post-section-menu a:hover,
@@ -610,9 +614,12 @@ body[data-theme="dark"] .post-edit-dialog {
 body[data-theme="dark"] .post-edit-dialog h3 { color: var(--d-text); }
 
 /* ── Participant view ────────────────────── */
-body[data-theme="dark"] .participant-view,
-body[data-theme="dark"] .participant-screen {
+body[data-theme="dark"] .participant-view {
   background: var(--d-bg);
+  color: var(--page-text, var(--d-text));
+}
+body[data-theme="dark"] .participant-screen {
+  background: transparent;
   color: var(--page-text, var(--d-text));
 }
 body[data-theme="dark"] .participant-head { color: var(--page-muted-text, var(--d-text-2)); }
@@ -705,6 +712,58 @@ body[data-theme="dark"] .post-section-add:hover {
   background: rgba(95, 168, 255, 0.10);
   border-color: rgba(95, 168, 255, 0.28);
   color: var(--d-cool);
+}
+
+body[data-theme="dark"] .participant-view.page-bg-light .participant-note,
+body[data-theme="dark"] .participant-view.page-bg-light .participant-form,
+body[data-theme="dark"] .participant-view.page-bg-light .participant-form-head,
+body[data-theme="dark"] .participant-view.page-bg-light .participant-post-card,
+body[data-theme="dark"] .participant-view.page-bg-light .post-section-title,
+body[data-theme="dark"] .participant-view.page-bg-light .post-section-add {
+  background: rgba(255, 255, 255, 0.74);
+  border-color: rgba(17, 24, 32, 0.10);
+  color: var(--page-title-text, #111820);
+  box-shadow: 0 14px 28px rgba(17, 24, 32, 0.12);
+}
+
+body[data-theme="dark"] .participant-view.page-bg-light .participant-form-head {
+  background: rgba(255, 255, 255, 0.90);
+}
+
+body[data-theme="dark"] .participant-view.page-bg-light .participant-form label,
+body[data-theme="dark"] .participant-view.page-bg-light .participant-form .hint,
+body[data-theme="dark"] .participant-view.page-bg-light .participant-note,
+body[data-theme="dark"] .participant-view.page-bg-light .post-meta,
+body[data-theme="dark"] .participant-view.page-bg-light .post-section-description,
+body[data-theme="dark"] .participant-view.page-bg-light .post-card.empty-post {
+  color: var(--page-muted-text, rgba(17, 24, 32, 0.72));
+}
+
+body[data-theme="dark"] .participant-view.page-bg-light .participant-form input[type="text"],
+body[data-theme="dark"] .participant-view.page-bg-light .participant-form textarea,
+body[data-theme="dark"] .participant-view.page-bg-light .participant-form select,
+body[data-theme="dark"] .participant-view.page-bg-light .participant-form input[type="file"] {
+  background: rgba(255, 255, 255, 0.88);
+  border-color: rgba(17, 24, 32, 0.14);
+  color: #111820;
+}
+
+body[data-theme="dark"] .participant-view.page-bg-light .participant-form select option {
+  background: #ffffff;
+  color: #111820;
+}
+
+body[data-theme="dark"] .participant-view.page-bg-light .participant-post-card .post-content,
+body[data-theme="dark"] .participant-view.page-bg-light .participant-post-card .post-content a,
+body[data-theme="dark"] .participant-view.page-bg-light .participant-section-title {
+  color: var(--page-title-text, #111820);
+}
+
+body[data-theme="dark"] .participant-view.page-bg-light .participant-back-btn,
+body[data-theme="dark"] .participant-view.page-bg-light .participant-fab {
+  background: rgba(255, 255, 255, 0.82);
+  border-color: rgba(17, 24, 32, 0.12);
+  color: var(--page-title-text, #111820);
 }
 
 /* ── Theme toggle button (always visible) ── */
