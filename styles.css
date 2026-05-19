@@ -1307,12 +1307,12 @@ body.studio-mode .page-tabs {
   display: block;
   width: 100%;
   min-height: 0;
-  padding: 8px 12px;
+  padding: 7px 10px;
   border: none;
   border-radius: 5px;
   background: transparent;
   color: #26313b;
-  font-size: 0.88rem;
+  font-size: 0.82rem;
   font-weight: 600;
   text-align: left;
   cursor: pointer;
@@ -1358,14 +1358,29 @@ body.studio-mode .page-tabs {
 }
 
 .post-image-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .post-image-actions button,
 .post-image-actions .link-button {
-  min-height: 36px;
+  flex: 0 1 auto;
+  min-height: 30px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  background: rgba(77, 90, 103, 0.06);
+  border-color: rgba(77, 90, 103, 0.18);
+  color: #4d5a67;
+}
+
+.post-image-actions button:hover,
+.post-image-actions .link-button:hover {
+  background: rgba(77, 90, 103, 0.10);
+  border-color: rgba(77, 90, 103, 0.28);
+  color: #26313b;
 }
 
 .empty-state {
@@ -2543,35 +2558,50 @@ body.studio-mode .page-tabs {
 
 .participant-post-actions {
   display: flex;
-  gap: 8px;
-  margin-top: 6px;
+  gap: 6px;
+  margin-top: 8px;
 }
 
 .participant-post-open,
 .participant-post-edit,
 .participant-post-delete {
-  flex: 1;
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 0.8rem;
+  flex: 0 1 auto;
+  min-height: 30px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.76rem;
   border: 1px solid;
   cursor: pointer;
   background: transparent;
+  font-weight: 700;
 }
 
 .participant-post-open {
-  color: #1f6f9f;
-  border-color: #1f6f9f40;
+  color: #4d5a67;
+  border-color: rgba(77, 90, 103, 0.22);
 }
 
 .participant-post-edit {
-  color: #2563eb;
-  border-color: #2563eb40;
+  color: #4d5a67;
+  border-color: rgba(77, 90, 103, 0.22);
 }
 
 .participant-post-delete {
-  color: #dc2626;
-  border-color: #dc262640;
+  color: #9d3f35;
+  border-color: rgba(157, 63, 53, 0.20);
+}
+
+.participant-post-open:hover,
+.participant-post-edit:hover {
+  background: rgba(77, 90, 103, 0.07);
+  border-color: rgba(77, 90, 103, 0.32);
+  color: #26313b;
+}
+
+.participant-post-delete:hover {
+  background: rgba(157, 63, 53, 0.07);
+  border-color: rgba(157, 63, 53, 0.30);
+  color: #842f27;
 }
 
 .participant-post-modal {

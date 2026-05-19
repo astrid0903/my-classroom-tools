@@ -467,15 +467,15 @@ body[data-theme="dark"] .slide-stage.page-bg-light .post-board-join-footer a {
 }
 body[data-theme="dark"] .slide-stage.page-bg-light .post-image-actions button,
 body[data-theme="dark"] .slide-stage.page-bg-light .post-image-actions .link-button {
-  background: rgba(255, 255, 255, 0.86);
-  border-color: rgba(17, 24, 32, 0.12);
-  color: var(--page-title-text, #111820);
-  box-shadow: 0 4px 12px rgba(17, 24, 32, 0.08);
+  background: rgba(17, 24, 32, 0.035);
+  border-color: rgba(17, 24, 32, 0.10);
+  color: rgba(17, 24, 32, 0.66);
+  box-shadow: none;
 }
 body[data-theme="dark"] .slide-stage.page-bg-light .post-image-actions button:hover,
 body[data-theme="dark"] .slide-stage.page-bg-light .post-image-actions .link-button:hover {
-  background: rgba(255, 255, 255, 0.96);
-  border-color: rgba(17, 24, 32, 0.18);
+  background: rgba(17, 24, 32, 0.07);
+  border-color: rgba(17, 24, 32, 0.16);
   color: var(--page-title-text, #111820);
 }
 body[data-theme="dark"] .slide-stage.page-bg-light .post-menu-btn {
@@ -701,6 +701,23 @@ body[data-theme="dark"] .participant-post-modal-close {
 body[data-theme="dark"] .participant-detail-content.muted { color: var(--d-text-3); }
 body[data-theme="dark"] .participant-detail-image-button { background: rgba(255, 255, 255, 0.04); }
 
+body[data-theme="dark"] .participant-post-open,
+body[data-theme="dark"] .participant-post-edit,
+body[data-theme="dark"] .participant-post-delete {
+  background: rgba(255, 255, 255, 0.055);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: var(--d-text-2);
+  box-shadow: none;
+}
+
+body[data-theme="dark"] .participant-post-open:hover,
+body[data-theme="dark"] .participant-post-edit:hover,
+body[data-theme="dark"] .participant-post-delete:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: var(--d-text);
+}
+
 /* post cards in participant board — dark glass */
 body[data-theme="dark"] .participant-post-card {
   background: rgba(255, 255, 255, 0.04);
@@ -781,6 +798,22 @@ body[data-theme="dark"] .participant-view.page-bg-light .participant-back-btn,
 body[data-theme="dark"] .participant-view.page-bg-light .participant-fab {
   background: rgba(255, 255, 255, 0.82);
   border-color: rgba(17, 24, 32, 0.12);
+  color: var(--page-title-text, #111820);
+}
+
+body[data-theme="dark"] .participant-view.page-bg-light .participant-post-open,
+body[data-theme="dark"] .participant-view.page-bg-light .participant-post-edit,
+body[data-theme="dark"] .participant-view.page-bg-light .participant-post-delete {
+  background: rgba(17, 24, 32, 0.035);
+  border-color: rgba(17, 24, 32, 0.10);
+  color: rgba(17, 24, 32, 0.66);
+}
+
+body[data-theme="dark"] .participant-view.page-bg-light .participant-post-open:hover,
+body[data-theme="dark"] .participant-view.page-bg-light .participant-post-edit:hover,
+body[data-theme="dark"] .participant-view.page-bg-light .participant-post-delete:hover {
+  background: rgba(17, 24, 32, 0.07);
+  border-color: rgba(17, 24, 32, 0.16);
   color: var(--page-title-text, #111820);
 }
 
