@@ -2446,3 +2446,370 @@ body[data-theme="dark"].studio-mode .studio-action-bar {
 body[data-theme="dark"].studio-mode .top-control {
   display: block !important;
 }
+
+/* ============================================================
+   2026-05-19  Patch: 首頁卡片按鈕 + 播放控制中心 → B 方向設計語言
+   貼到 styles-dark.css 最末端即可，原本的規則會被這段 override。
+   只動視覺，不改 HTML / JS 結構。
+   ============================================================ */
+
+/* ── 1. 首頁卡片按鈕（.home-layout-actions）─────────────────
+   結構：actions 內 2 顆 button
+     - first-child = 開啟播放台 / 開啟舊檔案 → cool pill (主要)
+     - .secondary  = 立即存檔 / 另存檔案    → warm pill (強調)
+   ─────────────────────────────────────────────────────────── */
+body[data-theme="dark"] .home-layout-actions {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  margin-top: 4px;
+}
+body[data-theme="dark"] .home-layout-actions button {
+  height: 36px;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+/* primary：藍 pill */
+body[data-theme="dark"] .home-layout-actions button:first-child {
+  background: color-mix(in oklab, #5fa8ff 14%, transparent);
+  border: 1px solid color-mix(in oklab, #5fa8ff 35%, transparent);
+  color: #5fa8ff;
+}
+body[data-theme="dark"] .home-layout-actions button:first-child:hover {
+  background: color-mix(in oklab, #5fa8ff 22%, transparent);
+  border-color: color-mix(in oklab, #5fa8ff 55%, transparent);
+}
+/* secondary：暖橘 pill（存檔 / 另存） */
+body[data-theme="dark"] .home-layout-actions button.secondary {
+  background: color-mix(in oklab, #f0b870 12%, transparent);
+  border: 1px solid color-mix(in oklab, #f0b870 35%, transparent);
+  color: #f0b870;
+}
+body[data-theme="dark"] .home-layout-actions button.secondary:hover {
+  background: color-mix(in oklab, #f0b870 20%, transparent);
+  border-color: color-mix(in oklab, #f0b870 55%, transparent);
+}
+body[data-theme="dark"] .home-layout-actions button.danger {
+  width: auto;
+  padding: 0 14px;
+  background: transparent;
+  color: var(--d-text-3);
+  border: 1px solid var(--d-border);
+}
+body[data-theme="dark"] .home-layout-actions button.danger:hover {
+  color: var(--red);
+  background: rgba(255, 138, 120, 0.08);
+  border-color: rgba(255, 138, 120, 0.35);
+}
+
+/* ── 2. 首頁資料夾動作（.home-folder-actions）─────────────── */
+body[data-theme="dark"] .home-folder-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+body[data-theme="dark"] .home-folder-actions button {
+  height: 38px;
+  min-height: 38px;
+  padding: 0 16px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.82);
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+body[data-theme="dark"] .home-folder-actions button:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+/* 主要動作（選擇資料夾）著色為冷藍 */
+body[data-theme="dark"] .home-folder-actions button:not(.secondary):not(.danger) {
+  background: color-mix(in oklab, #5fa8ff 14%, transparent);
+  border-color: color-mix(in oklab, #5fa8ff 35%, transparent);
+  color: #5fa8ff;
+}
+body[data-theme="dark"] .home-folder-actions button:not(.secondary):not(.danger):hover {
+  background: color-mix(in oklab, #5fa8ff 22%, transparent);
+  border-color: color-mix(in oklab, #5fa8ff 55%, transparent);
+}
+
+/* ── 3. 卡片計數徽章 + 卡片 hover 微光 ────────────────────── */
+body[data-theme="dark"] .home-layout-card {
+  transition: border-color 0.18s ease, background 0.18s ease,
+              transform 0.18s ease, box-shadow 0.18s ease;
+}
+body[data-theme="dark"] .home-layout-card:hover {
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.36),
+              0 0 0 1px rgba(95, 168, 255, 0.06);
+}
+/* 目前自動存檔中的檔案：在卡片左上角加個綠脈動點 */
+body[data-theme="dark"] .home-layout-card[data-current-layout="true"] {
+  border-color: rgba(95, 212, 154, 0.28);
+  background: linear-gradient(180deg,
+    rgba(95, 212, 154, 0.04),
+    rgba(255, 255, 255, 0.02));
+}
+body[data-theme="dark"] .home-layout-card[data-current-layout="true"]::after {
+  content: "AUTO-SAVING";
+  position: absolute;
+  top: 14px;
+  left: 16px;
+  padding: 3px 8px 3px 14px;
+  border-radius: 999px;
+  background: rgba(95, 212, 154, 0.10);
+  border: 1px solid rgba(95, 212, 154, 0.28);
+  color: #7ddfb0;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  background-image: radial-gradient(circle at 7px 50%, #5fd49a 2px, transparent 2.5px);
+  background-repeat: no-repeat;
+}
+body[data-theme="dark"] .home-layout-card[data-current-layout="true"] .home-layout-title {
+  padding-top: 22px;
+}
+
+/* ── 4. 卡片 meta tag：mono kicker 風 + 色彩編碼 ──────────── */
+body[data-theme="dark"] .home-layout-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+body[data-theme="dark"] .home-layout-meta span {
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.62);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+/* 色彩編碼 tag（需要 script.js 在 meta span 加上 data-tag-type）
+   若你不想改 JS，下面兩條就只是備用：tags 仍會是中性灰色，但不會出錯。*/
+body[data-theme="dark"] .home-layout-meta span[data-tag-type="posts"] {
+  color: #f0b870;
+  border-color: color-mix(in oklab, #f0b870 28%, transparent);
+  background: color-mix(in oklab, #f0b870 6%, transparent);
+}
+body[data-theme="dark"] .home-layout-meta span[data-tag-type="slides"] {
+  color: #5fa8ff;
+  border-color: color-mix(in oklab, #5fa8ff 28%, transparent);
+  background: color-mix(in oklab, #5fa8ff 6%, transparent);
+}
+
+/* ── 5. 播放控制中心 toggle（▣ 圓角方形）────────────────── */
+.top-control-toggle {
+  width: 40px !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  border-radius: 12px !important;
+  background: rgba(15, 20, 28, 0.82) !important;
+  border: 1px solid rgba(255, 255, 255, 0.10) !important;
+  color: rgba(255, 255, 255, 0.78) !important;
+  font-size: 16px !important;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease !important;
+}
+.top-control-toggle:hover {
+  background: color-mix(in oklab, #5fa8ff 14%, transparent) !important;
+  border-color: color-mix(in oklab, #5fa8ff 35%, transparent) !important;
+  color: #5fa8ff !important;
+}
+
+/* ── 6. 播放控制中心面板（.top-control-panel）─────────────── */
+.top-control-panel {
+  width: 320px !important;
+  padding: 12px !important;
+  gap: 10px !important;
+  border-radius: 14px !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  background: rgba(15, 20, 28, 0.92) !important;
+  backdrop-filter: blur(28px) saturate(160%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 24px 60px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* 收合鈕：縮成圓角方形 icon-only */
+.top-control-collapse {
+  width: 28px !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  padding: 0 !important;
+  border-radius: 8px !important;
+  font-size: 0 !important;             /* 隱掉「收合」文字 */
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  color: rgba(255, 255, 255, 0.62) !important;
+  position: relative;
+}
+.top-control-collapse::before {
+  content: "▾";
+  font-size: 14px;
+  line-height: 1;
+}
+.top-control-collapse:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #fff !important;
+}
+
+/* studio-file-status：壓縮一行、加綠脈動點 */
+#studio-file-status,
+.top-control-panel .studio-file-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.top-control-panel .studio-file-status::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: #5fd49a;
+  box-shadow: 0 0 6px rgba(95, 212, 154, 0.7);
+  animation: tcPulse 2.2s ease-in-out infinite;
+}
+@keyframes tcPulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.55; }
+}
+
+/* 頁面清單前的 mono kicker */
+.top-page-list::before {
+  content: "PAGES";
+  display: block;
+  padding: 2px 2px 4px;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.36);
+}
+
+/* 頁面項目：序號 + 頁名 + 右側型別 badge */
+.top-page-item {
+  min-height: 34px !important;
+  padding: 0 10px !important;
+  border-radius: 8px !important;
+  gap: 10px !important;
+  font-weight: 500 !important;
+  font-size: 13px !important;
+  letter-spacing: -0.005em;
+}
+.top-page-item .page-tab-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.top-page-item.active .page-tab-dot[data-page-type="slides"] {
+  box-shadow: 0 0 0 3px rgba(95, 168, 255, 0.18);
+}
+.top-page-item.active .page-tab-dot[data-page-type="posts"] {
+  box-shadow: 0 0 0 3px rgba(240, 184, 112, 0.18);
+}
+.top-page-item .page-tab-idx {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.36);
+  flex-shrink: 0;
+}
+.top-page-item.active .page-tab-idx {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+/* ── 7. top-action-grid → pill 排列 ──────────────────────── */
+.top-action-grid {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 34px 34px 34px !important;
+  gap: 6px !important;
+}
+.top-action-grid button {
+  min-height: 34px !important;
+  height: 34px !important;
+  padding: 0 12px !important;
+  border-radius: 999px !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.005em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+/* icon-only 三顆中間鍵 */
+.top-action-grid button[data-action="arrange"],
+.top-action-grid button[data-action="hidden-list"],
+.top-action-grid button[data-action="hide-all"] {
+  width: 34px !important;
+  padding: 0 !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: rgba(255, 255, 255, 0.62) !important;
+}
+.top-action-grid button[data-action="arrange"]:hover,
+.top-action-grid button[data-action="hidden-list"]:hover,
+.top-action-grid button[data-action="hide-all"]:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+  color: #fff !important;
+}
+/* 全螢幕：冷藍 pill */
+.top-action-grid button[data-action="fullscreen"] {
+  background: color-mix(in oklab, #5fa8ff 14%, transparent) !important;
+  border: 1px solid color-mix(in oklab, #5fa8ff 35%, transparent) !important;
+  color: #5fa8ff !important;
+}
+.top-action-grid button[data-action="fullscreen"]:hover {
+  background: color-mix(in oklab, #5fa8ff 22%, transparent) !important;
+  border-color: color-mix(in oklab, #5fa8ff 55%, transparent) !important;
+}
+/* 存檔：獨佔一行，warm pill */
+.top-action-grid button[data-action="save-version"] {
+  grid-column: 1 / -1;
+  background: color-mix(in oklab, #f0b870 12%, transparent) !important;
+  border: 1px solid color-mix(in oklab, #f0b870 35%, transparent) !important;
+  color: #f0b870 !important;
+}
+.top-action-grid button[data-action="save-version"]:hover {
+  background: color-mix(in oklab, #f0b870 20%, transparent) !important;
+  border-color: color-mix(in oklab, #f0b870 55%, transparent) !important;
+}
+
+/* === 結束 patch === */
