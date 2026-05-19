@@ -642,11 +642,19 @@ body[data-theme="dark"] .theme-toggle:hover { background: rgba(255, 255, 255, 0.
   font-size: 1.1rem;
   cursor: pointer;
 }
-.rail-btn:hover {
+/* Override the generic dark-button rule which gives all buttons var(--d-cool) bg */
+body[data-theme="dark"] .rail-btn {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+  border-color: transparent;
+}
+.rail-btn:hover,
+body[data-theme="dark"] .rail-btn:hover {
   background: rgba(255,255,255,0.06);
   color: #fff;
 }
-.rail-btn.active {
+.rail-btn.active,
+body[data-theme="dark"] .rail-btn.active {
   background: rgba(95, 168, 255, 0.14);
   border-color: rgba(95, 168, 255, 0.32);
   color: #5fa8ff;
@@ -1858,6 +1866,31 @@ body[data-theme="dark"] .button-row .link-button {
   border-radius: 999px;
   font-size: 12.5px;
   font-weight: 500;
+}
+/* Explicit dark overrides for secondary inside button-row
+   (specificity must beat the base button.secondary light rule) */
+body[data-theme="dark"] .tool-section .button-row button.secondary,
+body[data-theme="dark"] .tool-section .button-row .link-button.secondary {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  color: var(--d-text-2);
+}
+body[data-theme="dark"] .tool-section .button-row button.secondary:hover,
+body[data-theme="dark"] .tool-section .button-row .link-button.secondary:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: var(--d-text);
+}
+/* Primary pill buttons inside button-row */
+body[data-theme="dark"] .tool-section .button-row button:not(.secondary):not(.danger) {
+  background: color-mix(in oklab, #5fa8ff 14%, transparent);
+  border: 1px solid color-mix(in oklab, #5fa8ff 38%, transparent);
+  color: #cfe6ff;
+}
+body[data-theme="dark"] .tool-section .button-row button:not(.secondary):not(.danger):hover {
+  background: color-mix(in oklab, #5fa8ff 22%, transparent);
+  border-color: color-mix(in oklab, #5fa8ff 58%, transparent);
+  color: #e8f2ff;
 }
 
 /* Time-grid + group-controls — stepper-flavored two-up layout */
