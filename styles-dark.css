@@ -2857,4 +2857,23 @@ body[data-theme="dark"] .post-menu button:hover {
   color: var(--d-text);
 }
 
+/* ── page-bg-light 淺色背景：頁籤可見度修正 ───────────────────── */
+body[data-theme="dark"] .slide-stage.page-bg-light .page-tabs .page-tab.active {
+  background: rgba(17, 24, 32, 0.06);
+  border-color: rgba(17, 24, 32, 0.12);
+  box-shadow: inset 0 -2px 0 rgba(17, 24, 32, 0.55);
+  color: rgba(17, 24, 32, 0.92);
+}
+body[data-theme="dark"] .slide-stage.page-bg-light .page-tabs .page-tab[data-page-type="slides"].active {
+  box-shadow: inset 0 -2px 0 #4d8fff;
+}
+body[data-theme="dark"] .slide-stage.page-bg-light .page-tabs .page-tab[data-page-type="posts"].active {
+  box-shadow: inset 0 -2px 0 #c8821e;
+}
+body[data-theme="dark"] .slide-stage.page-bg-light .page-tabs .page-tab:not(.active):hover {
+  background: rgba(17, 24, 32, 0.06);
+  border-color: rgba(17, 24, 32, 0.12);
+  color: rgba(17, 24, 32, 0.88);
+}
+
 /* === 結束 patch === */
