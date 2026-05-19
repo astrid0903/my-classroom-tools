@@ -2876,4 +2876,87 @@ body[data-theme="dark"] .slide-stage.page-bg-light .page-tabs .page-tab:not(.act
   color: rgba(17, 24, 32, 0.88);
 }
 
+/* ── 實心藍底全局修正 ──────────────────────────────────────────── */
+
+/* dock-item: 圖示鈕，透明底（覆蓋全局 button 規則） */
+body[data-theme="dark"] .dock-item {
+  background: transparent;
+}
+
+/* ghost 按鈕：qr-expand、retry、image-viewer-close */
+body[data-theme="dark"] #post-board-qr-expand,
+body[data-theme="dark"] #retry-slides,
+body[data-theme="dark"] #image-viewer-close {
+  background: var(--d-surface);
+  border: 1px solid var(--d-border);
+  color: var(--d-text-2);
+}
+body[data-theme="dark"] #post-board-qr-expand:hover,
+body[data-theme="dark"] #retry-slides:hover,
+body[data-theme="dark"] #image-viewer-close:hover {
+  background: var(--d-surface-2);
+  border-color: var(--d-border-strong);
+  color: var(--d-text);
+}
+
+/* 計時器控制鈕：玻璃 secondary */
+body[data-theme="dark"] #stage-timer-start,
+body[data-theme="dark"] #stage-timer-pause,
+body[data-theme="dark"] #stage-timer-reset {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  color: var(--d-text);
+}
+body[data-theme="dark"] #stage-timer-start:hover,
+body[data-theme="dark"] #stage-timer-pause:hover,
+body[data-theme="dark"] #stage-timer-reset:hover {
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: var(--d-text);
+}
+
+/* 首頁動作鈕：玻璃藍（透明底＋cool 邊框） */
+body[data-theme="dark"] button.home-file-input {
+  background: color-mix(in oklab, var(--d-cool) 14%, rgba(15, 20, 28, 0.6));
+  border: 1px solid color-mix(in oklab, var(--d-cool) 38%, transparent);
+  color: var(--d-cool);
+  backdrop-filter: blur(8px);
+}
+body[data-theme="dark"] button.home-file-input:hover {
+  background: color-mix(in oklab, var(--d-cool) 22%, rgba(15, 20, 28, 0.6));
+  border-color: color-mix(in oklab, var(--d-cool) 55%, transparent);
+  color: #cfe6ff;
+}
+
+/* 主要確認鈕（submit / save / ok）：玻璃藍 */
+body[data-theme="dark"] #participant-submit,
+body[data-theme="dark"] #post-edit-save,
+body[data-theme="dark"] #prompt-modal-ok,
+body[data-theme="dark"] .post-board-qr-modal-close {
+  background: color-mix(in oklab, var(--d-cool) 18%, rgba(15, 20, 28, 0.55));
+  border: 1px solid color-mix(in oklab, var(--d-cool) 42%, transparent);
+  color: var(--d-cool);
+  backdrop-filter: blur(8px);
+}
+body[data-theme="dark"] #participant-submit:hover,
+body[data-theme="dark"] #post-edit-save:hover,
+body[data-theme="dark"] #prompt-modal-ok:hover,
+body[data-theme="dark"] .post-board-qr-modal-close:hover {
+  background: color-mix(in oklab, var(--d-cool) 28%, rgba(15, 20, 28, 0.55));
+  border-color: color-mix(in oklab, var(--d-cool) 60%, transparent);
+  color: #cfe6ff;
+}
+
+/* participant FAB：稍重的玻璃藍，保持視覺重量 */
+body[data-theme="dark"] .participant-fab {
+  background: color-mix(in oklab, var(--d-cool) 68%, rgba(6, 9, 13, 0.4));
+  border: 1px solid color-mix(in oklab, var(--d-cool) 56%, transparent);
+  color: #06090d;
+  box-shadow: 0 8px 28px rgba(95, 168, 255, 0.26);
+}
+body[data-theme="dark"] .participant-fab:hover {
+  background: color-mix(in oklab, var(--d-cool) 82%, white);
+  box-shadow: 0 8px 36px rgba(95, 168, 255, 0.38);
+}
+
 /* === 結束 patch === */
