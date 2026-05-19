@@ -818,6 +818,7 @@
           var btn = document.createElement('button');
           btn.type = 'button';
           btn.className = 'top-page-item' + (tab.classList.contains('active') ? ' active' : '');
+          btn.dataset.pageType = tab.dataset.pageType || 'slides';
           btn.innerHTML = tab.innerHTML;
           btn.addEventListener('click', function () {
             tab.click();

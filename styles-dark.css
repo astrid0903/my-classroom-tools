@@ -2812,4 +2812,9 @@ body[data-theme="dark"] .home-layout-meta span[data-tag-type="slides"] {
   border-color: color-mix(in oklab, #f0b870 55%, transparent) !important;
 }
 
+/* ── top-page-item dot 顏色（補設計遺漏）──────────────────── */
+.top-page-item .page-tab-dot[data-page-type="slides"] { background: #5fa8ff; }
+.top-page-item .page-tab-dot[data-page-type="posts"]  { background: #f0b870; }
+.top-page-item .page-tab-dot[data-page-type="dark"]   { background: rgba(255,255,255,0.45); }
+
 /* === 結束 patch === */
