@@ -1047,6 +1047,14 @@ body.studio-mode .page-tabs {
   gap: 10px;
 }
 
+.post-section-title-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 34px;
+  gap: 8px;
+  align-items: center;
+}
+
 .post-section-title {
   width: 100%;
   min-height: 40px;
@@ -1065,6 +1073,72 @@ body.studio-mode .page-tabs {
 .post-section-title:hover {
   background: rgba(255, 255, 255, 0.82);
   color: #111820;
+}
+
+.post-section-menu-btn {
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
+  padding: 0;
+  border: 1px solid rgba(30, 37, 44, 0.08);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.64);
+  color: #53606c;
+  font-size: 1.1rem;
+  line-height: 1;
+  box-shadow: 0 12px 28px rgba(28, 42, 56, 0.08);
+}
+
+.post-section-menu-btn:hover {
+  background: rgba(255, 255, 255, 0.82);
+  color: #1e252c;
+}
+
+.post-section-menu {
+  position: absolute;
+  top: 40px;
+  right: 0;
+  z-index: 210;
+  min-width: 180px;
+  border: 1px solid rgba(30, 37, 44, 0.12);
+  border-radius: 8px;
+  padding: 5px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 18px 36px rgba(28, 42, 56, 0.16);
+  backdrop-filter: blur(12px);
+}
+
+.post-section-menu a,
+.post-section-menu button {
+  width: 100%;
+  min-height: 34px;
+  justify-content: start;
+  border: 0;
+  border-radius: 5px;
+  padding: 0 10px;
+  background: transparent;
+  color: #26313b;
+  font-size: 0.88rem;
+  font-weight: 700;
+  text-align: left;
+  text-decoration: none;
+}
+
+.post-section-menu a:hover,
+.post-section-menu button:hover {
+  background: rgba(30, 37, 44, 0.06);
+}
+
+.post-section-menu button.danger {
+  color: #c0392b;
+}
+
+.post-section-description {
+  margin: 0;
+  color: #5f6974;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.5;
 }
 
 .post-section-add {

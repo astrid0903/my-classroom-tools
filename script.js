@@ -1,10 +1,8 @@
 const STORAGE_KEY = "classroomSlidesStudio.v1";
 const FILE_META_KEY = "classroomSlidesStudio.fileMeta.v1";
-const DRIVE_PLAYBACK_FOLDER_ID = "1u1aXfQ1ESmXTW0OAXiTvkzFNGExr4AuK";
-const DRIVE_PLAYBACK_FOLDER_NAME = "播放台存檔";
-const GOOGLE_DRIVE_CLIENT_ID = "229213858169-5tp9f6rjp8a45irarko8432h39uagt5a.apps.googleusercontent.com";
-const GOOGLE_DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
-const GOOGLE_DRIVE_ALLOWED_ORIGINS = ["https://astrid0903.github.io"];
+const PLAYBACK_DIRECTORY_DB_NAME = "classroomSlidesStudio.directory.v1";
+const PLAYBACK_DIRECTORY_STORE_NAME = "handles";
+const PLAYBACK_DIRECTORY_HANDLE_KEY = "playbackDirectory";
 const DEFAULT_SLIDES_URL = "https://docs.google.com/presentation/d/e/2PACX-1vRRH1JQUUujy7boeq3EJuDSAzPJOEWjPt3u-qilhtKb5LEOHmWzWvNjpfqV__3AuzwQ26mjhiT5nRS7/pub?start=false&loop=false&delayms=3000";
 const STUDIO_FILE_TYPE = "classroomSlidesStudio.file";
 const LEGACY_LAYOUTS_FILE_TYPE = "classroomSlidesStudio.layouts";
@@ -280,7 +278,6 @@ let participantBoardPosts = [];
 let participantUid = null;
 let participantEditingPostId = null;
 let currentFileHandle = null;
-let currentDriveFileId = "";
 let currentFileName = "";
 let currentFileSavedAt = "";
 let currentFileAutoSave = false;
@@ -289,8 +286,7 @@ let fileSaveInProgress = false;
 let fileSaveQueued = false;
 let suppressFileAutoSave = false;
 let folderLayoutFiles = [];
-let driveAccessToken = "";
-let driveTokenClient = null;
+let playbackDirectoryHandle = null;
 const DEFAULT_PAGE = { id: "main", name: "主簡報", type: "slides" };
 const PAGE_TYPES = new Set(["slides", "dark", "posts"]);
 const DYNAMIC_WIDGET_TYPES = new Set(["timer", "clock", "groups", "text", "image", "youtube", "slides", "qr"]);
@@ -331,7 +327,6 @@ function writeFileMeta(extra = {}) {
   currentFileName = next.name || "";
   currentFileSavedAt = next.savedAt || "";
   currentFileAutoSave = Boolean(next.autoSave);
-  currentDriveFileId = next.driveFileId || "";
 }
 
 function clearFileMeta() {
@@ -340,7 +335,6 @@ function clearFileMeta() {
   currentFileSavedAt = "";
   currentFileAutoSave = false;
   currentFileHandle = null;
-  currentDriveFileId = "";
 }
 
 function buildState(extra = {}) {
@@ -442,6 +436,10 @@ function fileSystemAccessSupported() {
   return Boolean(window.isSecureContext && window.showOpenFilePicker && window.showSaveFilePicker);
 }
 
+function directoryAccessSupported() {
+  return Boolean(window.isSecureContext && window.showDirectoryPicker && window.indexedDB);
+}
+
 function sanitizeFileName(value) {
   const cleaned = String(value || "")
     .replace(/\.json$/i, "")
@@ -476,8 +474,7 @@ function formatFileSavedAt(value) {
 function currentFileStatusText() {
   const savedText = formatFileSavedAt(currentFileSavedAt);
   const suffix = savedText ? `｜最新存檔：${savedText}` : "｜最新存檔：尚未存檔";
-  if (currentDriveFileId && currentFileName) return `Drive 自動存檔中｜檔名：${currentFileName}${suffix}`;
-  if (currentFileHandle && currentFileName) return `自動存檔中｜檔名：${currentFileName}${suffix}`;
+  if (currentFileHandle && currentFileName) return `本機自動存檔中｜檔名：${currentFileName}${suffix}`;
   if (currentFileName) return `已載入檔案（需手動另存）｜檔名：${currentFileName}${suffix}`;
   return `尚未連結檔案｜檔名：未命名${suffix}`;
 }
@@ -524,196 +521,159 @@ function folderLayoutName(layout) {
   return sanitizeFileName(layout.fileName || layout.name || "");
 }
 
-function googleDriveAuthReady() {
-  return Boolean(window.google?.accounts?.oauth2);
+function openPlaybackDirectoryDb() {
+  return new Promise((resolve, reject) => {
+    const request = window.indexedDB.open(PLAYBACK_DIRECTORY_DB_NAME, 1);
+    request.onupgradeneeded = () => {
+      request.result.createObjectStore(PLAYBACK_DIRECTORY_STORE_NAME);
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error || new Error("無法開啟播放台資料夾記錄。"));
+  });
 }
 
-function currentOriginAllowedForDrive() {
-  return GOOGLE_DRIVE_ALLOWED_ORIGINS.includes(window.location.origin);
+async function readPlaybackDirectoryHandle() {
+  if (!directoryAccessSupported()) return null;
+  const db = await openPlaybackDirectoryDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(PLAYBACK_DIRECTORY_STORE_NAME, "readonly");
+    const request = tx.objectStore(PLAYBACK_DIRECTORY_STORE_NAME).get(PLAYBACK_DIRECTORY_HANDLE_KEY);
+    request.onsuccess = () => resolve(request.result || null);
+    request.onerror = () => reject(request.error || new Error("無法讀取播放台資料夾記錄。"));
+    tx.oncomplete = () => db.close();
+  });
 }
 
-function driveOriginMessage() {
-  return `目前網址「${window.location.origin}」尚未登錄 Google 授權。請改用 GitHub Pages 版本，或到 OAuth 設定加入這個網址。`;
+async function writePlaybackDirectoryHandle(handle) {
+  const db = await openPlaybackDirectoryDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(PLAYBACK_DIRECTORY_STORE_NAME, "readwrite");
+    tx.objectStore(PLAYBACK_DIRECTORY_STORE_NAME).put(handle, PLAYBACK_DIRECTORY_HANDLE_KEY);
+    tx.oncomplete = () => {
+      db.close();
+      resolve();
+    };
+    tx.onerror = () => {
+      db.close();
+      reject(tx.error || new Error("無法保存播放台資料夾授權。"));
+    };
+  });
 }
 
-function driveApiHeaders() {
-  return { Authorization: `Bearer ${driveAccessToken}` };
-}
-
-async function waitForGoogleDriveAuth() {
-  if (googleDriveAuthReady()) return true;
-  for (let attempts = 0; attempts < 50; attempts += 1) {
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    if (googleDriveAuthReady()) return true;
+async function hasHandlePermission(handle, { request = false } = {}) {
+  if (!handle) return false;
+  const options = { mode: "readwrite" };
+  if (typeof handle.queryPermission === "function") {
+    const permission = await handle.queryPermission(options);
+    if (permission === "granted") return true;
+    if (!request) return false;
+  }
+  if (request && typeof handle.requestPermission === "function") {
+    return (await handle.requestPermission(options)) === "granted";
   }
   return false;
 }
 
-async function requestDriveAccess({ prompt = "consent" } = {}) {
-  if (!currentOriginAllowedForDrive()) {
-    throw new Error(driveOriginMessage());
-  }
-  if (!(await waitForGoogleDriveAuth())) {
-    throw new Error("Google Drive 授權元件尚未載入。");
-  }
-  return new Promise((resolve, reject) => {
-    driveTokenClient = window.google.accounts.oauth2.initTokenClient({
-      client_id: GOOGLE_DRIVE_CLIENT_ID,
-      scope: GOOGLE_DRIVE_SCOPE,
-      callback: (response) => {
-        if (response?.error) {
-          reject(new Error(response.error_description || response.error));
-          return;
-        }
-        driveAccessToken = response.access_token || "";
-        if (!driveAccessToken) {
-          reject(new Error("沒有取得 Drive 讀寫權限。"));
-          return;
-        }
-        resolve(driveAccessToken);
-      },
-      error_callback: (error) => {
-        reject(new Error(error?.message || error?.type || "請確認 OAuth 用戶端設定。"));
-      },
-    });
-    driveTokenClient.requestAccessToken({ prompt });
-  });
-}
-
-async function ensureDriveAccess() {
-  if (driveAccessToken) return true;
-  await requestDriveAccess({ prompt: "consent" });
-  return Boolean(driveAccessToken);
-}
-
-function driveAuthExpiredError() {
-  return Object.assign(new Error("Drive 授權已過期，請重新授權。"), { code: "drive-auth-expired" });
-}
-
-async function driveApiError(response, fallback = "Drive 讀取失敗") {
-  let payload = null;
-  try {
-    payload = await response.clone().json();
-  } catch {
-    payload = null;
-  }
-  const error = payload?.error || {};
-  const reason = error.errors?.[0]?.reason || error.status || "";
-  const message = error.message || `${fallback}（${response.status}）`;
-  if (response.status === 401 || reason === "authError" || reason === "invalidCredentials") {
-    driveAccessToken = "";
-    return driveAuthExpiredError();
-  }
-  return Object.assign(new Error(`Drive API 拒絕讀取：${message}`), {
-    code: "drive-api-error",
-    status: response.status,
-    reason,
-  });
-}
-
-async function fetchDriveJson(url) {
-  const response = await fetch(url, { headers: driveApiHeaders() });
-  if (!response.ok) throw await driveApiError(response, "Drive 讀取失敗");
-  return response.json();
-}
-
-async function fetchDrivePlaybackFile(file) {
-  const response = await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(file.id)}?alt=media`, {
-    headers: driveApiHeaders(),
-  });
-  if (!response.ok) throw await driveApiError(response, `無法讀取「${file.name}」`);
-  const payload = await response.json();
+async function layoutFromFileHandle(handle) {
+  const file = await handle.getFile();
+  if (!file.name.toLowerCase().endsWith(".json")) return null;
+  const payload = JSON.parse(await file.text());
   const state = normalizeStudioFilePayload(payload);
   if (!state) return null;
+  const modifiedTime = file.lastModified ? new Date(file.lastModified).toISOString() : "";
   return {
     name: file.name,
     fileName: file.name,
-    savedAt: payload.savedAt || file.modifiedTime || "",
+    savedAt: payload.savedAt || modifiedTime,
     state,
-    driveFile: true,
-    driveId: file.id,
-    modifiedTime: file.modifiedTime || "",
+    handle,
+    modifiedTime,
   };
 }
 
-async function scanDrivePlaybackFolder({ silent = false } = {}) {
-  await ensureDriveAccess();
-  const query = [
-    `'${DRIVE_PLAYBACK_FOLDER_ID}' in parents`,
-    "trashed=false",
-    "mimeType='application/json'",
-  ].join(" and ");
-  const params = new URLSearchParams({
-    q: query,
-    fields: "files(id,name,mimeType,modifiedTime,size,webViewLink)",
-    orderBy: "modifiedTime desc",
-    pageSize: "100",
-  });
-  const list = await fetchDriveJson(`https://www.googleapis.com/drive/v3/files?${params.toString()}`);
-  const layouts = [];
-  for (const file of list.files || []) {
-    try {
-      const layout = await fetchDrivePlaybackFile(file);
-      if (layout) layouts.push(layout);
-    } catch {
-      // Ignore JSON files that are not playback files.
-    }
-  }
-  folderLayoutFiles = layouts;
-  setFolderStatus(`已授權讀取「${DRIVE_PLAYBACK_FOLDER_NAME}」｜${layouts.length} 個播放台檔案`);
-  renderHomeVersions();
-  if (!silent) setVersionMessage(`已從 Drive 同步播放台預覽：${layouts.length} 個檔案。`);
-}
-
 async function scanPlaybackFolder({ silent = false } = {}) {
-  if (!currentOriginAllowedForDrive()) {
-    setFolderStatus(driveOriginMessage(), true);
-    if (!silent) setVersionMessage("這個網址不能向 Google 授權，請改用已登錄的 GitHub Pages 網址。", true);
+  if (!directoryAccessSupported()) {
+    folderLayoutFiles = [];
+    setFolderStatus("這個瀏覽器不支援本機資料夾預覽；請改用 Chrome / Edge，或用單一 JSON 開啟與下載。", true);
+    renderHomeVersions();
     return;
   }
+  if (!playbackDirectoryHandle) {
+    playbackDirectoryHandle = await readPlaybackDirectoryHandle();
+  }
+  if (!playbackDirectoryHandle) {
+    folderLayoutFiles = [];
+    setFolderStatus("尚未選擇播放台資料夾");
+    renderHomeVersions();
+    return;
+  }
+  if (!(await hasHandlePermission(playbackDirectoryHandle))) {
+    folderLayoutFiles = [];
+    setFolderStatus("播放台資料夾權限已失效，請重新選擇資料夾。", true);
+    renderHomeVersions();
+    return;
+  }
+
+  const layouts = [];
   try {
-    await scanDrivePlaybackFolder({ silent });
-  } catch (error) {
-    if (error?.code === "drive-auth-expired") {
+    for await (const entry of playbackDirectoryHandle.values()) {
+      if (entry.kind !== "file" || !entry.name.toLowerCase().endsWith(".json")) continue;
       try {
-        setFolderStatus("Drive 授權已過期，請重新授權。");
-        if (!silent) setVersionMessage("正在重新授權 Drive...");
-        if (window.google?.accounts?.oauth2?.revoke && driveAccessToken) {
-          window.google.accounts.oauth2.revoke(driveAccessToken, () => {});
-        }
-        driveAccessToken = "";
-        await requestDriveAccess({ prompt: "consent" });
-        await scanDrivePlaybackFolder({ silent });
-        return;
-      } catch (reauthError) {
-        setFolderStatus(reauthError.message || "Drive 重新授權失敗。", true);
-        if (!silent) setVersionMessage(reauthError.message || "Drive 重新授權失敗。", true);
-        return;
+        const layout = await layoutFromFileHandle(entry);
+        if (layout) layouts.push(layout);
+      } catch {
+        // Ignore JSON files that are not playback files.
       }
     }
-    setFolderStatus(error.message || "Drive 同步失敗，請重新授權。", true);
-    if (!silent) setVersionMessage(error.message || "Drive 同步失敗，請重新授權。", true);
+  } catch (error) {
+    folderLayoutFiles = [];
+    setFolderStatus(`讀取資料夾失敗：${error.message || "請重新選擇資料夾。"}`, true);
+    renderHomeVersions();
+    return;
   }
+
+  layouts.sort((a, b) => String(b.modifiedTime || b.savedAt || "").localeCompare(String(a.modifiedTime || a.savedAt || "")));
+  folderLayoutFiles = layouts;
+  setFolderStatus(`已連結本機播放台資料夾｜${layouts.length} 個播放台檔案`);
+  renderHomeVersions();
+  if (!silent) setVersionMessage(`已重新整理播放台預覽：${layouts.length} 個檔案。`);
 }
 
 async function choosePlaybackFolder() {
+  if (!directoryAccessSupported()) {
+    setFolderStatus("這個瀏覽器不支援選擇本機資料夾；請改用 Chrome / Edge。", true);
+    return;
+  }
   try {
-    await requestDriveAccess({ prompt: "consent" });
-    await scanDrivePlaybackFolder();
+    const handle = await window.showDirectoryPicker({ mode: "readwrite" });
+    if (!(await hasHandlePermission(handle, { request: true }))) {
+      setFolderStatus("沒有取得本機播放台資料夾讀寫權限。", true);
+      return;
+    }
+    playbackDirectoryHandle = handle;
+    await writePlaybackDirectoryHandle(handle);
+    await scanPlaybackFolder();
   } catch (error) {
     if (error?.name !== "AbortError") {
-      setFolderStatus(`Drive 授權失敗：${error.message || "請再試一次。"}`, true);
+      setFolderStatus(`選擇資料夾失敗：${error.message || "請再試一次。"}`, true);
     }
   }
 }
 
 async function restorePlaybackFolder() {
   folderLayoutFiles = [];
-  if (currentOriginAllowedForDrive()) {
-    setFolderStatus("尚未授權讀取 Drive 播放台資料夾");
-  } else {
-    setFolderStatus(driveOriginMessage(), true);
+  if (!directoryAccessSupported()) {
+    setFolderStatus("這個瀏覽器不支援本機資料夾預覽；請改用 Chrome / Edge。", true);
+    renderHomeVersions();
+    return;
   }
+  playbackDirectoryHandle = await readPlaybackDirectoryHandle();
+  if (!playbackDirectoryHandle) {
+    setFolderStatus("尚未選擇播放台資料夾");
+    renderHomeVersions();
+    return;
+  }
+  await scanPlaybackFolder({ silent: true });
 }
 
 function savedLayoutEntries() {
@@ -803,11 +763,6 @@ function openHomeLayout(layout, { folderFile = false } = {}) {
         await scanPlaybackFolder({ silent: true });
       });
   }
-  if (folderFile) {
-    const driveFile = layout.driveFile && layout.driveId ? { id: layout.driveId } : null;
-    applyStudioFileState(cloneValue(layout.state), layout.fileName || layout.name, null, layout.savedAt || "", driveFile);
-    return Promise.resolve();
-  }
   showStudio();
   return Promise.resolve();
 }
@@ -836,7 +791,7 @@ function appendHomeLayoutCard(layout, { current = false, folderFile = false } = 
   });
   const title = createEl("div", "home-layout-title");
   const savedText = layout.savedAt ? `最近存檔 ${formatSavedAt(layout.savedAt)}` : "尚未存成檔案";
-  title.append(createEl("h3", "", layout.name), createEl("span", "", folderFile ? `Drive 檔案｜${savedText}` : savedText));
+  title.append(createEl("h3", "", layout.name), createEl("span", "", folderFile ? `本機檔案｜${savedText}` : savedText));
 
   const preview = createEl("div", "home-preview");
   appendLayoutPreview(preview, layout);
@@ -863,7 +818,7 @@ function appendHomeLayoutCard(layout, { current = false, folderFile = false } = 
       event.stopPropagation();
       showStudio();
     });
-    const save = createEl("button", "secondary", currentFileHandle || currentDriveFileId ? "立即存檔" : "另存檔案");
+    const save = createEl("button", "secondary", currentFileHandle ? "立即存檔" : "另存檔案");
     save.type = "button";
     save.addEventListener("click", (event) => {
       event.stopPropagation();
@@ -889,14 +844,14 @@ function renderHomeVersions() {
   const folderLayouts = folderLayoutFiles.filter((item) => !currentFileKey || folderLayoutName(item) !== currentFileKey);
   const visibleCount = folderLayouts.length + (hasCurrentFile ? 1 : 0);
   els.homeLayoutGrid.innerHTML = "";
-  els.homeVersionCount.textContent = `${visibleCount} 個舊檔案`;
+  els.homeVersionCount.textContent = `${visibleCount} 個播放台檔案`;
   setFileStatusInputs();
   setFileInputs(currentFileName || els.homeLayoutName.value || els.layoutName.value);
   appendCreateStudioCard();
   if (hasCurrentFile) appendHomeLayoutCard(layout, { current: true });
   folderLayouts.forEach((folderLayout) => appendHomeLayoutCard(folderLayout, { folderFile: true }));
   if (!visibleCount) {
-    els.homeLayoutGrid.appendChild(createEl("div", "home-empty", "授權讀取 Drive 後，這裡會出現可開啟的播放台。"));
+    els.homeLayoutGrid.appendChild(createEl("div", "home-empty", "選擇播放台資料夾後，這裡會出現可開啟的播放台。"));
   }
 }
 
@@ -953,6 +908,7 @@ function showHome() {
   document.body.classList.add("home-mode");
   document.body.classList.remove("studio-mode");
   renderHomeVersions();
+  if (playbackDirectoryHandle) scanPlaybackFolder({ silent: true });
   window.scrollTo({ top: 0, behavior: "instant" });
 }
 
@@ -971,10 +927,31 @@ async function createBlankStudio() {
   const payload = buildStudioFilePayload(state);
   const name = sanitizeFileName(`classroom-studio-${new Date().toISOString().slice(0, 10)}`);
 
+  if (!playbackDirectoryHandle && directoryAccessSupported()) {
+    playbackDirectoryHandle = await readPlaybackDirectoryHandle();
+  }
+  if (playbackDirectoryHandle && directoryAccessSupported()) {
+    try {
+      if (!(await hasHandlePermission(playbackDirectoryHandle, { request: true }))) {
+        setVersionMessage("播放台資料夾權限已失效，請重新選擇資料夾。", true);
+        return;
+      }
+      const handle = await createUniquePlaybackFile(name);
+      await writePayloadToHandle(handle, payload);
+      applyStudioFileState(state, handle.name || name, handle, payload.savedAt);
+      await scanPlaybackFolder({ silent: true });
+      setVersionMessage(`已建立「${handle.name || name}」，接下來編輯會自動存檔。`);
+      return;
+    } catch (error) {
+      setVersionMessage(`建立檔案失敗：${error.message || "請再試一次。"}`, true);
+      return;
+    }
+  }
+
   if (!fileSystemAccessSupported()) {
     downloadStudioFile(payload, name);
     applyStudioFileState(state, name, null, payload.savedAt);
-    setVersionMessage("已建立並下載新播放台檔案；這個瀏覽器無法自動寫回，後續請下載備份。");
+    setVersionMessage("已建立並下載新播放台檔案；若要自動存檔，請使用 Chrome / Edge 選擇播放台資料夾。");
     return;
   }
 
@@ -1001,7 +978,6 @@ function initHomeMode() {
   currentFileName = meta.name || "";
   currentFileSavedAt = meta.savedAt || "";
   currentFileAutoSave = Boolean(meta.autoSave);
-  currentDriveFileId = meta.driveFileId || "";
   els.homeView.classList.remove("hidden");
   els.studio.classList.add("hidden");
   els.studioFileStatus.classList.add("hidden");
@@ -1526,7 +1502,7 @@ function normalizeStudioFilePayload(payload) {
   return null;
 }
 
-function applyStudioFileState(state, name = "", handle = null, savedAt = "", driveFile = null) {
+function applyStudioFileState(state, name = "", handle = null, savedAt = "") {
   if (!state || typeof state !== "object") {
     setVersionMessage("檔案內容不是可用的播放台設定。", true);
     return;
@@ -1534,22 +1510,18 @@ function applyStudioFileState(state, name = "", handle = null, savedAt = "", dri
   suppressFileAutoSave = true;
   try {
     currentFileHandle = handle;
-    currentDriveFileId = driveFile?.id || "";
     const nextName = sanitizeFileName(name || currentFileName || preferredFileName());
     const nextSavedAt = savedAt || new Date().toISOString();
     writeFileMeta({
       name: nextName,
       savedAt: nextSavedAt,
-      autoSave: Boolean(handle || currentDriveFileId),
-      driveFileId: currentDriveFileId,
+      autoSave: Boolean(handle),
     });
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...state, activeTool: "", moreToolsOpen: false, hiddenWidgetsOpen: false }));
     setFileInputs(nextName);
     setFileStatusInputs();
     showStudio();
-    if (currentDriveFileId) {
-      setVersionMessage(`已開啟「${nextName}」，之後編輯會自動存回 Drive。`);
-    } else if (handle) {
+    if (handle) {
       setVersionMessage(`已開啟「${nextName}」，之後編輯會自動存檔。`);
     } else {
       setVersionMessage(`已匯入「${nextName}」。若要自動存檔，請按「另存檔案」。`);
@@ -1601,32 +1573,28 @@ async function writePayloadToHandle(handle, payload) {
   await writable.close();
 }
 
-async function writePayloadToDrive(fileId, payload, { allowPrompt = true } = {}) {
-  if (!fileId) throw new Error("尚未連結 Drive 檔案。");
-  if (!driveAccessToken) {
-    if (!allowPrompt) throw driveAuthExpiredError();
-    await ensureDriveAccess();
-  }
-  const request = () => fetch(`https://www.googleapis.com/upload/drive/v3/files/${encodeURIComponent(fileId)}?uploadType=media`, {
-    method: "PATCH",
-    headers: {
-      ...driveApiHeaders(),
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload, null, 2),
-  });
-  let response = await request();
-  if (!response.ok) {
-    const error = await driveApiError(response, "Drive 存檔失敗");
-    if (allowPrompt && error.code === "drive-auth-expired") {
-      await requestDriveAccess({ prompt: "consent" });
-      response = await request();
-    } else {
+function fileWriteErrorMessage(error, fallback = "請改用另存檔案。") {
+  if (error?.name === "NotFoundError") return "檔案已不存在，請另存新檔。";
+  if (error?.name === "NotAllowedError") return "沒有檔案寫入權限，請重新開啟或另存新檔。";
+  return error?.message || fallback;
+}
+
+async function createUniquePlaybackFile(suggestedName) {
+  if (!playbackDirectoryHandle) throw new Error("尚未選擇播放台資料夾。");
+  const fileName = sanitizeFileName(suggestedName);
+  const base = fileName.replace(/\.json$/i, "");
+  for (let index = 1; index <= 999; index += 1) {
+    const nextName = index === 1 ? fileName : `${base}-${index}.json`;
+    try {
+      await playbackDirectoryHandle.getFileHandle(nextName);
+    } catch (error) {
+      if (error?.name === "NotFoundError") {
+        return playbackDirectoryHandle.getFileHandle(nextName, { create: true });
+      }
       throw error;
     }
   }
-  if (!response.ok) throw await driveApiError(response, "Drive 存檔失敗");
-  return response.json();
+  throw new Error("無法建立不重複的播放台檔名。");
 }
 
 function downloadStudioFile(payload, name = preferredFileName()) {
@@ -1647,8 +1615,7 @@ async function saveCurrentFileAs() {
   if (!fileSystemAccessSupported()) {
     downloadStudioFile(payload, name);
     currentFileHandle = null;
-    currentDriveFileId = "";
-    writeFileMeta({ name, savedAt: payload.savedAt, autoSave: false, driveFileId: "" });
+    writeFileMeta({ name, savedAt: payload.savedAt, autoSave: false });
     setFileInputs(name);
     setFileStatusInputs();
     renderHomeVersions();
@@ -1669,13 +1636,12 @@ async function saveCurrentFileAs() {
     });
     await writePayloadToHandle(handle, payload);
     currentFileHandle = handle;
-    currentDriveFileId = "";
-    writeFileMeta({ name: sanitizeFileName(handle.name || name), savedAt: payload.savedAt, autoSave: true, driveFileId: "" });
+    writeFileMeta({ name: sanitizeFileName(handle.name || name), savedAt: payload.savedAt, autoSave: true });
     setFileInputs(currentFileName);
     setFileStatusInputs();
     renderHomeVersions();
     renderSavedLayouts();
-    if (driveAccessToken) await scanPlaybackFolder({ silent: true });
+    await scanPlaybackFolder({ silent: true });
     setVersionMessage(`已另存「${currentFileName}」，接下來編輯會自動存檔。`);
   } catch (error) {
     if (error?.name !== "AbortError") setVersionMessage(`另存失敗：${error.message || "請再試一次。"}`, true);
@@ -1683,30 +1649,25 @@ async function saveCurrentFileAs() {
 }
 
 async function saveCurrentFile() {
-  if (!currentFileHandle && !currentDriveFileId) {
+  if (!currentFileHandle) {
     await saveCurrentFileAs();
     return;
   }
   const payload = buildStudioFilePayload(layoutSnapshot());
   try {
-    if (currentDriveFileId) {
-      await writePayloadToDrive(currentDriveFileId, payload);
-      writeFileMeta({ name: sanitizeFileName(currentFileName || preferredFileName()), savedAt: payload.savedAt, autoSave: true, driveFileId: currentDriveFileId });
-    } else {
-      await writePayloadToHandle(currentFileHandle, payload);
-      writeFileMeta({ name: sanitizeFileName(currentFileHandle.name || currentFileName), savedAt: payload.savedAt, autoSave: true, driveFileId: "" });
-    }
+    await writePayloadToHandle(currentFileHandle, payload);
+    writeFileMeta({ name: sanitizeFileName(currentFileHandle.name || currentFileName), savedAt: payload.savedAt, autoSave: true });
     setFileInputs(currentFileName);
     setFileStatusInputs();
     renderHomeVersions();
     renderSavedLayouts();
-    if (driveAccessToken) await scanPlaybackFolder({ silent: true });
+    await scanPlaybackFolder({ silent: true });
     setVersionMessage(`已儲存到「${currentFileName}」。`);
   } catch (error) {
     currentFileAutoSave = false;
     writeFileMeta({ autoSave: false });
     setFileStatusInputs();
-    setVersionMessage(`存檔失敗：${error.message || "請改用另存檔案。"}`, true);
+    setVersionMessage(`存檔失敗：${fileWriteErrorMessage(error)}`, true);
   }
 }
 
@@ -1726,13 +1687,13 @@ function disconnectCurrentFile() {
 }
 
 function scheduleFileAutoSave() {
-  if (suppressFileAutoSave || (!currentFileHandle && !currentDriveFileId) || !currentFileAutoSave) return;
+  if (suppressFileAutoSave || !currentFileHandle || !currentFileAutoSave) return;
   clearTimeout(fileSaveTimerId);
   fileSaveTimerId = setTimeout(autoSaveCurrentFile, 900);
 }
 
 async function autoSaveCurrentFile() {
-  if ((!currentFileHandle && !currentDriveFileId) || !currentFileAutoSave) return;
+  if (!currentFileHandle || !currentFileAutoSave) return;
   if (fileSaveInProgress) {
     fileSaveQueued = true;
     return;
@@ -1740,20 +1701,15 @@ async function autoSaveCurrentFile() {
   fileSaveInProgress = true;
   try {
     const payload = buildStudioFilePayload(currentFileSnapshotFromStorage());
-    if (currentDriveFileId) {
-      await writePayloadToDrive(currentDriveFileId, payload, { allowPrompt: false });
-      writeFileMeta({ name: sanitizeFileName(currentFileName || preferredFileName()), savedAt: payload.savedAt, autoSave: true, driveFileId: currentDriveFileId });
-    } else {
-      await writePayloadToHandle(currentFileHandle, payload);
-      writeFileMeta({ name: sanitizeFileName(currentFileHandle.name || currentFileName), savedAt: payload.savedAt, autoSave: true, driveFileId: "" });
-    }
+    await writePayloadToHandle(currentFileHandle, payload);
+    writeFileMeta({ name: sanitizeFileName(currentFileHandle.name || currentFileName), savedAt: payload.savedAt, autoSave: true });
     setFileStatusInputs();
     setVersionMessage(`已自動存檔到「${currentFileName}」。`);
   } catch (error) {
     currentFileAutoSave = false;
     writeFileMeta({ autoSave: false });
     setFileStatusInputs();
-    setVersionMessage(`自動存檔失敗：${error.message || "請改用另存檔案。"}`, true);
+    setVersionMessage(`自動存檔失敗：${fileWriteErrorMessage(error)}`, true);
   } finally {
     fileSaveInProgress = false;
     if (fileSaveQueued) {
@@ -1771,7 +1727,7 @@ function renderSavedLayouts(selectedName = "") {
   els.savedLayouts.appendChild(option);
   els.savedLayouts.value = option.value;
   els.loadLayout.disabled = false;
-  els.deleteLayout.disabled = !currentFileHandle && !currentDriveFileId && !currentFileName;
+  els.deleteLayout.disabled = !currentFileHandle && !currentFileName;
   els.exportLayouts.disabled = false;
   els.homeExportLayouts.disabled = false;
   els.syncLayouts.disabled = false;
@@ -5538,6 +5494,11 @@ window.addEventListener("pointerup", () => {
 window.addEventListener("pointercancel", () => {
   stopDrag();
   stopResize();
+});
+window.addEventListener("focus", () => {
+  if (playbackDirectoryHandle && els.homeView && !els.homeView.classList.contains("hidden")) {
+    scanPlaybackFolder({ silent: true });
+  }
 });
 
 initControlTooltips();
