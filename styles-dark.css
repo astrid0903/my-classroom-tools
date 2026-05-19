@@ -49,6 +49,15 @@ body[data-theme="dark"] select {
   background: var(--d-surface);
   border-color: var(--d-border-strong);
   color: var(--d-text);
+  color-scheme: dark;
+}
+body[data-theme="dark"] select option {
+  background-color: #111820;
+  color: #e8edf2;
+}
+body[data-theme="dark"] select option:checked {
+  background-color: #1e3a5c;
+  color: #cfe6ff;
 }
 body[data-theme="dark"] textarea::placeholder,
 body[data-theme="dark"] input::placeholder {
