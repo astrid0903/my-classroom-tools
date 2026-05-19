@@ -287,6 +287,7 @@ let fileSaveQueued = false;
 let suppressFileAutoSave = false;
 let folderLayoutFiles = [];
 let playbackDirectoryHandle = null;
+let nativePickerInProgress = false;
 const DEFAULT_PAGE = { id: "main", name: "主簡報", type: "slides" };
 const PAGE_TYPES = new Set(["slides", "dark", "posts"]);
 const DYNAMIC_WIDGET_TYPES = new Set(["timer", "clock", "groups", "text", "image", "youtube", "slides", "qr"]);
@@ -517,6 +518,49 @@ function setFolderStatus(text, isError = false) {
   els.homeFolderStatus.classList.toggle("error", isError);
 }
 
+function setNativePickerControlsDisabled(disabled) {
+  [
+    els.homeChooseFolder,
+    els.homeEnterStudio,
+    els.homeNewStudio,
+    els.homeSaveLayout,
+    els.homeLoadCloudLayouts,
+    els.loadCloudLayouts,
+    els.saveLayout,
+  ].forEach((button) => {
+    if (button) button.disabled = disabled;
+  });
+}
+
+function nativePickerBusyMessage(actionName) {
+  return `已有檔案或資料夾選擇視窗開啟，請先完成或關閉它，再${actionName}。`;
+}
+
+function isNativePickerBusyError(error) {
+  return error?.name === "InvalidStateError" || String(error?.message || "").includes("File picker already active");
+}
+
+async function runNativePicker(actionName, picker, reportBusy = setVersionMessage) {
+  if (nativePickerInProgress) {
+    reportBusy(nativePickerBusyMessage(actionName), true);
+    return { cancelled: true };
+  }
+  nativePickerInProgress = true;
+  setNativePickerControlsDisabled(true);
+  try {
+    return { value: await picker() };
+  } catch (error) {
+    if (isNativePickerBusyError(error)) {
+      reportBusy(nativePickerBusyMessage(actionName), true);
+      return { cancelled: true };
+    }
+    throw error;
+  } finally {
+    nativePickerInProgress = false;
+    setNativePickerControlsDisabled(false);
+  }
+}
+
 function folderLayoutName(layout) {
   return sanitizeFileName(layout.fileName || layout.name || "");
 }
@@ -645,7 +689,9 @@ async function choosePlaybackFolder() {
     return;
   }
   try {
-    const handle = await window.showDirectoryPicker({ mode: "readwrite" });
+    const picked = await runNativePicker("選擇播放台資料夾", () => window.showDirectoryPicker({ mode: "readwrite" }), setFolderStatus);
+    const handle = picked.value;
+    if (!handle) return;
     if (!(await hasHandlePermission(handle, { request: true }))) {
       setFolderStatus("沒有取得本機播放台資料夾讀寫權限。", true);
       return;
@@ -961,7 +1007,7 @@ async function createBlankStudio() {
   }
 
   try {
-    const handle = await window.showSaveFilePicker({
+    const picked = await runNativePicker("建立新播放台檔案", () => window.showSaveFilePicker({
       suggestedName: name,
       types: [
         {
@@ -969,7 +1015,9 @@ async function createBlankStudio() {
           accept: { "application/json": [".json"] },
         },
       ],
-    });
+    }));
+    const handle = picked.value;
+    if (!handle) return;
     await writePayloadToHandle(handle, payload);
     applyStudioFileState(state, handle.name || name, handle, payload.savedAt);
     setVersionMessage(`已建立「${handle.name || name}」，接下來編輯會自動存檔。`);
@@ -1555,7 +1603,7 @@ async function openStudioFile() {
     return;
   }
   try {
-    const [handle] = await window.showOpenFilePicker({
+    const picked = await runNativePicker("開啟播放台檔案", () => window.showOpenFilePicker({
       types: [
         {
           description: "播放台 JSON 檔",
@@ -1563,7 +1611,9 @@ async function openStudioFile() {
         },
       ],
       multiple: false,
-    });
+    }));
+    const [handle] = picked.value || [];
+    if (!handle) return;
     const file = await handle.getFile();
     await readStudioFile(file, handle);
   } catch (error) {
@@ -1629,7 +1679,7 @@ async function saveCurrentFileAs() {
   }
 
   try {
-    const handle = await window.showSaveFilePicker({
+    const picked = await runNativePicker("另存播放台檔案", () => window.showSaveFilePicker({
       suggestedName: name,
       types: [
         {
@@ -1637,7 +1687,9 @@ async function saveCurrentFileAs() {
           accept: { "application/json": [".json"] },
         },
       ],
-    });
+    }));
+    const handle = picked.value;
+    if (!handle) return;
     await writePayloadToHandle(handle, payload);
     currentFileHandle = handle;
     writeFileMeta({ name: sanitizeFileName(handle.name || name), savedAt: payload.savedAt, autoSave: true });
