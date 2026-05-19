@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Google Slides 教學播放台</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
-  <link rel="stylesheet" href="./styles.css?v=20260519l">
-  <link rel="stylesheet" href="./styles-dark.css?v=20260519l">
+  <link rel="stylesheet" href="./styles.css?v=20260519m">
+  <link rel="stylesheet" href="./styles-dark.css?v=20260519m">
 </head>
 <body data-theme="dark">
   <div id="session-bar" class="session-bar hidden" aria-label="Session 狀態">
@@ -660,8 +660,15 @@
           </div>
           <label for="participant-content">貼文內容</label>
           <textarea id="participant-content" rows="5" maxlength="600" placeholder="寫下你的想法、問題或回饋"></textarea>
-          <label for="participant-image">上傳圖片</label>
-          <input id="participant-image" type="file" accept="image/*">
+          <label for="participant-image">上傳圖片（最多 5 張）</label>
+          <input id="participant-image" type="file" accept="image/*" multiple>
+          <div id="participant-image-preview" class="participant-image-preview hidden" aria-live="polite">
+            <div class="participant-image-preview-head">
+              <span>圖片預覽</span>
+              <button id="participant-image-clear" type="button">移除</button>
+            </div>
+            <div id="participant-image-preview-img" class="participant-image-preview-grid" aria-label="待上傳圖片預覽"></div>
+          </div>
           <button id="participant-submit" type="submit">送出貼文</button>
           <p id="participant-message" class="hint" aria-live="polite"></p>
         </form>
@@ -733,7 +740,7 @@
   </div>
 
   <div id="settings-backdrop" class="settings-backdrop hidden"></div>
-  <script src="./script.js?v=20260519l"></script>
+  <script src="./script.js?v=20260519m"></script>
   <script>
     // IA Step 1: side-rail wiring — forwards to existing dock buttons.
     (function () {

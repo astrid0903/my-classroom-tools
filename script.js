@@ -18,6 +18,9 @@ const FIREBASE_CONFIG = {
 const FIREBASE_COLLECTION = "classroomToolLayouts";
 const POST_BOARDS_COLLECTION = "classroomPostBoards";
 const POST_BOARD_BACKGROUND_IMAGE_LIMIT = 850000;
+const POST_IMAGE_MAX_COUNT = 5;
+const POST_IMAGE_MAX_TOTAL_LENGTH = 950000;
+const POST_IMAGE_MAX_ITEM_LENGTH = 180000;
 
 const els = {
   homeView: document.querySelector("#home-view"),
@@ -207,6 +210,9 @@ const els = {
   participantSectionRow: document.querySelector("#participant-section-row"),
   participantContent: document.querySelector("#participant-content"),
   participantImage: document.querySelector("#participant-image"),
+  participantImagePreview: document.querySelector("#participant-image-preview"),
+  participantImagePreviewImg: document.querySelector("#participant-image-preview-img"),
+  participantImageClear: document.querySelector("#participant-image-clear"),
   participantSubmit: document.querySelector("#participant-submit"),
   participantMessage: document.querySelector("#participant-message"),
   participantPostModal: document.querySelector("#participant-post-modal"),
@@ -277,6 +283,7 @@ let participantBoardSections = [];
 let participantBoardPosts = [];
 let participantUid = null;
 let participantEditingPostId = null;
+let participantImagePreviewUrls = [];
 let currentFileHandle = null;
 let currentFileName = "";
 let currentFileSavedAt = "";
@@ -2912,11 +2919,18 @@ function updatePostBoardControls() {
   els.openPostBoardLink.href = url || "#";
 }
 
-function postImageFilename(post) {
-  const source = String(post?.imageDataUrl || "");
+function postImageSources(post) {
+  const images = Array.isArray(post?.imageDataUrls) ? post.imageDataUrls : [];
+  const normalized = images.filter((item) => typeof item === "string" && item.startsWith("data:image/"));
+  const legacy = typeof post?.imageDataUrl === "string" && post.imageDataUrl.startsWith("data:image/") ? [post.imageDataUrl] : [];
+  return (normalized.length ? normalized : legacy).slice(0, POST_IMAGE_MAX_COUNT);
+}
+
+function postImageFilename(post, index = 0, source = postImageSources(post)[index] || "") {
   const extension = source.startsWith("data:image/png") ? "png" : source.startsWith("data:image/webp") ? "webp" : "jpg";
   const id = String(post?.id || Date.now()).replace(/[^a-zA-Z0-9_-]+/g, "-").slice(0, 36);
-  return `post-image-${id || "download"}.${extension}`;
+  const suffix = index > 0 ? `-${index + 1}` : "";
+  return `post-image-${id || "download"}${suffix}.${extension}`;
 }
 
 function setImageViewerZoom(value) {
@@ -2932,6 +2946,52 @@ function openImageViewer(imageDataUrl, filename) {
   els.imageViewerZoom.value = 100;
   setImageViewerZoom(100);
   els.imageViewer.classList.remove("hidden");
+}
+
+function createPostImageGallery(post, { actions = false, className = "" } = {}) {
+  const sources = postImageSources(post);
+  if (sources.length === 0) return null;
+  let index = 0;
+  const wrap = createEl("div", `post-image-wrap${className ? ` ${className}` : ""}`);
+  const image = document.createElement("img");
+  const counter = createEl("span", "post-image-counter");
+  const imageActions = actions ? createEl("div", "post-image-actions") : null;
+  const expand = actions ? createEl("button", "secondary", "展開") : null;
+  const download = actions ? createEl("a", "link-button secondary", "下載") : null;
+
+  function renderImage() {
+    const source = sources[index];
+    const filename = postImageFilename(post, index, source);
+    image.src = source;
+    image.alt = post.content ? `貼文圖片 ${index + 1}：${post.content.slice(0, 24)}` : `貼文圖片 ${index + 1}`;
+    image.title = sources.length > 1 ? "點擊切換下一張圖片" : "點擊展開圖片";
+    counter.textContent = `${index + 1}/${sources.length}`;
+    counter.classList.toggle("hidden", sources.length < 2);
+    if (expand) {
+      expand.onclick = () => openImageViewer(source, filename);
+    }
+    if (download) {
+      download.href = source;
+      download.download = filename;
+    }
+  }
+
+  image.addEventListener("click", () => {
+    if (sources.length > 1) {
+      index = (index + 1) % sources.length;
+      renderImage();
+      return;
+    }
+    openImageViewer(sources[0], postImageFilename(post, 0, sources[0]));
+  });
+  wrap.append(image, counter);
+  if (actions && imageActions && expand && download) {
+    expand.type = "button";
+    imageActions.append(expand, download);
+    wrap.appendChild(imageActions);
+  }
+  renderImage();
+  return wrap;
 }
 
 function closeImageViewer() {
@@ -3119,7 +3179,7 @@ function editPost(post) {
   const onSave = async () => {
     const nextAuthor = els.postEditAuthor.value.trim().slice(0, 40);
     const nextContent = els.postEditContent.value.trim().slice(0, 600);
-    if (!nextContent && !post.imageDataUrl) {
+    if (!nextContent && postImageSources(post).length === 0) {
       els.postEditMessage.textContent = "內容不能為空。";
       return;
     }
@@ -3197,7 +3257,7 @@ function exportPostBoardToObsidian() {
       const author = post.author || "匿名";
       lines.push(`**${author}**`);
       if (post.content) lines.push(post.content);
-      if (post.imageDataUrl) lines.push(`![](${post.imageDataUrl})`);
+      postImageSources(post).forEach((source) => lines.push(`![](${source})`));
       lines.push(``);
     });
   }
@@ -3281,25 +3341,8 @@ function renderPostCards(container, posts, options = {}) {
       content.innerHTML = linkifyText(post.content);
       card.appendChild(content);
     }
-    if (post.imageDataUrl) {
-      const filename = postImageFilename(post);
-      const imageWrap = createEl("div", "post-image-wrap");
-      const image = document.createElement("img");
-      image.src = post.imageDataUrl;
-      image.alt = post.content ? `貼文圖片：${post.content.slice(0, 24)}` : "貼文圖片";
-      image.addEventListener("click", () => openImageViewer(post.imageDataUrl, filename));
-
-      const imageActions = createEl("div", "post-image-actions");
-      const expand = createEl("button", "secondary", "展開");
-      expand.type = "button";
-      expand.addEventListener("click", () => openImageViewer(post.imageDataUrl, filename));
-      const download = createEl("a", "link-button secondary", "下載");
-      download.href = post.imageDataUrl;
-      download.download = filename;
-      imageActions.append(expand, download);
-      imageWrap.append(image, imageActions);
-      card.appendChild(imageWrap);
-    }
+    const imageGallery = createPostImageGallery(post, { actions: true });
+    if (imageGallery) card.appendChild(imageGallery);
     container.appendChild(card);
   });
 }
@@ -3570,9 +3613,46 @@ function setParticipantMessage(text, isError = false) {
   els.participantMessage.classList.toggle("error", isError);
 }
 
+function clearParticipantImagePreview({ clearInput = false } = {}) {
+  participantImagePreviewUrls.forEach((url) => URL.revokeObjectURL(url));
+  participantImagePreviewUrls = [];
+  if (clearInput && els.participantImage) els.participantImage.value = "";
+  if (els.participantImagePreviewImg) els.participantImagePreviewImg.innerHTML = "";
+  if (els.participantImagePreview) els.participantImagePreview.classList.add("hidden");
+}
+
+function updateParticipantImagePreview(files) {
+  clearParticipantImagePreview();
+  const imageFiles = Array.from(files || []).slice(0, POST_IMAGE_MAX_COUNT);
+  if (imageFiles.length === 0) return;
+  if (imageFiles.some((file) => !file.type.startsWith("image/"))) {
+    clearParticipantImagePreview({ clearInput: true });
+    setParticipantMessage("請選擇圖片檔，最多 5 張。", true);
+    return;
+  }
+  if ((files?.length || 0) > POST_IMAGE_MAX_COUNT) {
+    setParticipantMessage(`最多可上傳 ${POST_IMAGE_MAX_COUNT} 張圖片，已先預覽前 ${POST_IMAGE_MAX_COUNT} 張。`);
+  } else {
+    els.participantMessage.textContent = "";
+    els.participantMessage.classList.remove("error");
+  }
+  imageFiles.forEach((file, index) => {
+    const url = URL.createObjectURL(file);
+    participantImagePreviewUrls.push(url);
+    const item = createEl("figure", "participant-image-preview-item");
+    const img = document.createElement("img");
+    img.src = url;
+    img.alt = `待上傳圖片預覽 ${index + 1}`;
+    item.append(img, createEl("figcaption", "", `${index + 1}/${imageFiles.length}`));
+    els.participantImagePreviewImg.appendChild(item);
+  });
+  els.participantImagePreview.classList.remove("hidden");
+}
+
 function showParticipantBoard() {
   participantEditingPostId = null;
   els.participantFormTitle.textContent = "新增貼文";
+  clearParticipantImagePreview({ clearInput: true });
   els.participantBoardScreen.classList.remove("hidden");
   els.participantFormScreen.classList.add("hidden");
 }
@@ -3581,6 +3661,7 @@ function showParticipantForm(sectionId) {
   if (sectionId) els.participantSection.value = sectionId;
   els.participantMessage.textContent = "";
   els.participantMessage.classList.remove("error");
+  clearParticipantImagePreview({ clearInput: true });
   els.participantBoardScreen.classList.add("hidden");
   els.participantFormScreen.classList.remove("hidden");
   els.participantContent.focus();
@@ -3594,6 +3675,7 @@ function showParticipantEditForm(post) {
   if (els.participantSection && post.sectionId) els.participantSection.value = post.sectionId;
   els.participantMessage.textContent = "";
   els.participantMessage.classList.remove("error");
+  clearParticipantImagePreview({ clearInput: true });
   els.participantBoardScreen.classList.add("hidden");
   els.participantFormScreen.classList.remove("hidden");
   els.participantContent.focus();
@@ -3680,7 +3762,6 @@ function closeParticipantPostModal() {
 }
 
 function openParticipantPostModal(post) {
-  const filename = postImageFilename(post);
   els.participantPostModalMeta.innerHTML = "";
   els.participantPostModalMeta.append(
     createEl("strong", "", post.author || "匿名"),
@@ -3693,18 +3774,8 @@ function openParticipantPostModal(post) {
     els.participantPostModalContent.appendChild(createEl("p", "post-content participant-detail-content muted", "這則貼文沒有文字內容。"));
   }
   els.participantPostModalImage.innerHTML = "";
-  if (post.imageDataUrl) {
-    const imageButton = createEl("button", "participant-detail-image-button");
-    imageButton.type = "button";
-    imageButton.title = "展開圖片";
-    imageButton.setAttribute("aria-label", "展開圖片");
-    const img = document.createElement("img");
-    img.src = post.imageDataUrl;
-    img.alt = post.content ? `貼文圖片：${post.content.slice(0, 24)}` : "貼文圖片";
-    imageButton.appendChild(img);
-    imageButton.addEventListener("click", () => openImageViewer(post.imageDataUrl, filename));
-    els.participantPostModalImage.appendChild(imageButton);
-  }
+  const imageGallery = createPostImageGallery(post, { className: "participant-detail-image-gallery" });
+  if (imageGallery) els.participantPostModalImage.appendChild(imageGallery);
   els.participantPostModal.classList.remove("hidden");
 }
 
@@ -3725,16 +3796,10 @@ function renderParticipantPostCards(container, posts) {
     meta.append(createEl("strong", "", post.author || "匿名"), createEl("span", "", formatPostTime(post.createdAt)));
     card.appendChild(meta);
     if (post.content) card.appendChild(postContentElement(post));
-    if (post.imageDataUrl) {
-      const img = document.createElement("img");
-      img.src = post.imageDataUrl;
-      img.className = "post-thumb";
-      img.alt = post.content ? `貼文圖片：${post.content.slice(0, 24)}` : "貼文圖片";
-      img.addEventListener("click", (event) => {
-        event.stopPropagation();
-        openImageViewer(post.imageDataUrl, postImageFilename(post));
-      });
-      card.appendChild(img);
+    const imageGallery = createPostImageGallery(post, { className: "participant-card-image-gallery" });
+    if (imageGallery) {
+      imageGallery.addEventListener("click", (event) => event.stopPropagation());
+      card.appendChild(imageGallery);
     }
     const actions = createEl("div", "participant-post-actions");
     const openBtn = createEl("button", "participant-post-open", "查看內容");
@@ -3821,7 +3886,11 @@ async function imageFileToPostDataUrl(file) {
   if (!file) return "";
   if (!file.type.startsWith("image/")) throw new Error("請選擇圖片檔。");
 
-  return imageFileToJpegDataUrl(file, { maxSide: 1280, qualities: [0.78] });
+  return imageFileToJpegDataUrl(file, {
+    maxSide: 960,
+    maxBytes: POST_IMAGE_MAX_ITEM_LENGTH,
+    qualities: [0.76, 0.68, 0.6, 0.52, 0.44, 0.36],
+  });
 }
 
 async function imageFileToBackgroundDataUrl(file) {
@@ -3845,9 +3914,9 @@ async function submitParticipantPost(event) {
   const author = els.participantName.value.trim().slice(0, 40);
   const sectionId = els.participantSection.value || params.get("section") || "section-a";
   const content = els.participantContent.value.trim().slice(0, 600);
-  const file = els.participantImage.files?.[0] || null;
+  const files = Array.from(els.participantImage.files || []).slice(0, POST_IMAGE_MAX_COUNT);
   if (!boardId) return;
-  if (!content && !file) {
+  if (!content && files.length === 0) {
     setParticipantMessage("請先輸入內容或選擇圖片。", true);
     return;
   }
@@ -3855,34 +3924,49 @@ async function submitParticipantPost(event) {
   try {
     els.participantSubmit.disabled = true;
     setParticipantMessage("正在送出...");
-    const imageDataUrl = file ? await imageFileToPostDataUrl(file) : "";
-    if (imageDataUrl.length > 950000) {
-      throw new Error("圖片太大，請換一張較小的圖片。");
+    const imageDataUrls = [];
+    for (const file of files) {
+      const imageDataUrl = await imageFileToPostDataUrl(file);
+      if (imageDataUrl.length > POST_IMAGE_MAX_ITEM_LENGTH) {
+        throw new Error("有圖片太大，請換一張較小的圖片。");
+      }
+      imageDataUrls.push(imageDataUrl);
+    }
+    const totalImageLength = imageDataUrls.reduce((sum, source) => sum + source.length, 0);
+    if (totalImageLength > POST_IMAGE_MAX_TOTAL_LENGTH) {
+      throw new Error("圖片總容量太大，請減少張數或換較小的圖片。");
     }
     const api = await loadFirebaseApi();
     const user = await requireFirebaseUser(api);
     participantUid = user.uid;
     if (participantEditingPostId) {
       const ref = api.doc(postBoardPostsRef(api, boardId), participantEditingPostId);
-      await api.updateDoc(ref, {
+      const updatePayload = {
         author,
         sectionId,
         content,
         updatedAt: api.serverTimestamp(),
-      });
+      };
+      if (imageDataUrls.length > 0) {
+        updatePayload.imageDataUrls = imageDataUrls;
+        updatePayload.imageDataUrl = imageDataUrls[0];
+      }
+      await api.updateDoc(ref, updatePayload);
       participantEditingPostId = null;
     } else {
       await api.addDoc(postBoardPostsRef(api, boardId), {
         author,
         sectionId,
         content,
-        imageDataUrl,
+        imageDataUrl: imageDataUrls[0] || "",
+        imageDataUrls,
         createdAt: api.serverTimestamp(),
         authorUid: participantUid || "",
       });
     }
     els.participantContent.value = "";
     els.participantImage.value = "";
+    clearParticipantImagePreview();
     els.participantFormTitle.textContent = "新增貼文";
     showParticipantBoard();
   } catch (error) {
@@ -5406,6 +5490,8 @@ els.participantPostModalClose.addEventListener("click", closeParticipantPostModa
 els.participantPostModal.addEventListener("click", (event) => {
   if (event.target === els.participantPostModal) closeParticipantPostModal();
 });
+els.participantImage.addEventListener("change", () => updateParticipantImagePreview(els.participantImage.files || []));
+els.participantImageClear.addEventListener("click", () => clearParticipantImagePreview({ clearInput: true }));
 els.postBoardQrToggle.addEventListener("click", () => {
   els.postBoardJoinCard.classList.toggle("expanded");
 });

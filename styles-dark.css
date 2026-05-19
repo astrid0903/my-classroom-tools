@@ -671,6 +671,21 @@ body[data-theme="dark"] .participant-form select:focus {
   border-color: rgba(95, 168, 255, 0.55);
   box-shadow: 0 0 0 3px rgba(95, 168, 255, 0.14);
 }
+body[data-theme="dark"] .participant-image-preview {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.10);
+}
+body[data-theme="dark"] .participant-image-preview-head {
+  color: var(--d-text-2);
+}
+body[data-theme="dark"] .participant-image-preview-head button {
+  background: rgba(255, 255, 255, 0.055);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: var(--d-text-2);
+}
+body[data-theme="dark"] .participant-image-preview-item img {
+  background: rgba(255, 255, 255, 0.04);
+}
 body[data-theme="dark"] .participant-form-head {
   background: rgba(6, 9, 13, 0.88);
   border-bottom: 1px solid var(--d-border);
@@ -776,6 +791,18 @@ body[data-theme="dark"] .participant-view.page-bg-light .participant-form input[
   background: rgba(255, 255, 255, 0.88);
   border-color: rgba(17, 24, 32, 0.14);
   color: #111820;
+}
+body[data-theme="dark"] .participant-view.page-bg-light .participant-image-preview {
+  background: rgba(255, 255, 255, 0.64);
+  border-color: rgba(17, 24, 32, 0.08);
+}
+body[data-theme="dark"] .participant-view.page-bg-light .participant-image-preview-head {
+  color: rgba(17, 24, 32, 0.66);
+}
+body[data-theme="dark"] .participant-view.page-bg-light .participant-image-preview-head button {
+  background: rgba(17, 24, 32, 0.035);
+  border-color: rgba(17, 24, 32, 0.10);
+  color: rgba(17, 24, 32, 0.66);
 }
 
 body[data-theme="dark"] .participant-view.page-bg-light .participant-form select option {
