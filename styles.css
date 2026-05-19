@@ -1110,6 +1110,8 @@ body.studio-mode .page-tabs {
 
 .post-section-menu a,
 .post-section-menu button {
+  display: flex;
+  align-items: center;
   width: 100%;
   min-height: 34px;
   justify-content: start;
@@ -1122,6 +1124,7 @@ body.studio-mode .page-tabs {
   font-weight: 700;
   text-align: left;
   text-decoration: none;
+  box-sizing: border-box;
 }
 
 .post-section-menu a:hover,

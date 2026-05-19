@@ -720,14 +720,14 @@ body[data-theme="dark"] .participant-view.page-bg-light .participant-form-head,
 body[data-theme="dark"] .participant-view.page-bg-light .participant-post-card,
 body[data-theme="dark"] .participant-view.page-bg-light .post-section-title,
 body[data-theme="dark"] .participant-view.page-bg-light .post-section-add {
-  background: rgba(255, 255, 255, 0.74);
-  border-color: rgba(17, 24, 32, 0.10);
+  background: rgba(255, 255, 255, 0.68);
+  border-color: rgba(17, 24, 32, 0.08);
   color: var(--page-title-text, #111820);
-  box-shadow: 0 14px 28px rgba(17, 24, 32, 0.12);
+  box-shadow: 0 8px 20px rgba(17, 24, 32, 0.08);
 }
 
 body[data-theme="dark"] .participant-view.page-bg-light .participant-form-head {
-  background: rgba(255, 255, 255, 0.90);
+  background: rgba(255, 255, 255, 0.82);
 }
 
 body[data-theme="dark"] .participant-view.page-bg-light .participant-form label,
@@ -764,6 +764,19 @@ body[data-theme="dark"] .participant-view.page-bg-light .participant-fab {
   background: rgba(255, 255, 255, 0.82);
   border-color: rgba(17, 24, 32, 0.12);
   color: var(--page-title-text, #111820);
+}
+
+body[data-theme="dark"] .participant-view.page-bg-light .post-card.empty-post {
+  background: rgba(255, 255, 255, 0.48);
+  border-color: rgba(17, 24, 32, 0.06);
+  color: rgba(17, 24, 32, 0.52);
+  box-shadow: inset 0 0 0 1px rgba(17, 24, 32, 0.03);
+}
+
+body[data-theme="dark"] .participant-view.page-bg-light .participant-post-card:hover,
+body[data-theme="dark"] .participant-view.page-bg-light .participant-post-card:focus-visible {
+  border-color: rgba(17, 24, 32, 0.14);
+  box-shadow: 0 10px 24px rgba(17, 24, 32, 0.10);
 }
 
 /* ── Theme toggle button (always visible) ── */
