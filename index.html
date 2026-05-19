@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Google Slides 教學播放台</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
-  <link rel="stylesheet" href="./styles.css?v=20260519f">
-  <link rel="stylesheet" href="./styles-dark.css?v=20260519f">
+  <link rel="stylesheet" href="./styles.css?v=20260519h">
+  <link rel="stylesheet" href="./styles-dark.css?v=20260519h">
 </head>
 <body data-theme="dark">
   <div id="session-bar" class="session-bar hidden" aria-label="Session 狀態">
@@ -278,7 +278,7 @@
           <label for="page-name">頁面名稱</label>
           <input id="page-name" type="text" placeholder="例如：討論白板、影片頁">
           <div class="button-row three">
-            <button id="add-page" type="button">＋ 暗色頁</button>
+            <button id="add-page" type="button">＋ 白板</button>
             <button id="add-post-board-page" class="secondary" type="button">＋ 貼文板</button>
             <button id="delete-page" class="danger" type="button">刪除</button>
           </div>
@@ -327,7 +327,7 @@
           <button id="export-obsidian" class="secondary" type="button">匯出 Obsidian 筆記</button>
         </div>
 
-        <p id="page-message" class="hint" aria-live="polite">可新增暗色白板或貼文板；小工具只會顯示在目前頁面。</p>
+        <p id="page-message" class="hint" aria-live="polite">可新增白板或貼文板；白板與貼文板都可調整標題與背景，小工具只會顯示在目前頁面。</p>
       </section>
 
       <section id="timer-panel" class="tool-section" data-panel="timer">
@@ -733,7 +733,7 @@
   </div>
 
   <div id="settings-backdrop" class="settings-backdrop hidden"></div>
-  <script src="./script.js?v=20260519f"></script>
+  <script src="./script.js?v=20260519h"></script>
   <script>
     // IA Step 1: side-rail wiring — forwards to existing dock buttons.
     (function () {

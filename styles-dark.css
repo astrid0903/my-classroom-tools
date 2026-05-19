@@ -3078,4 +3078,9 @@ body[data-theme="dark"] .participant-fab:hover {
   box-shadow: 0 8px 36px rgba(95, 168, 255, 0.38);
 }
 
+/* Page switching stays in the top-right control center, not on the slide. */
+body[data-theme="dark"].studio-mode .slide-stage > .page-tabs {
+  display: none !important;
+}
+
 /* === 結束 patch === */

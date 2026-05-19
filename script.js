@@ -1468,8 +1468,9 @@ function placeDynamicSettings(instance) {
 }
 
 function addDarkPage() {
-  const name = els.pageName.value.trim() || `暗色頁面 ${pages.length}`;
-  const page = { id: makePageId(), name, type: "dark" };
+  const whiteboardCount = pages.filter((page) => page.type === "dark").length + 1;
+  const name = els.pageName.value.trim() || (whiteboardCount === 1 ? "白板" : `白板 ${whiteboardCount}`);
+  const page = { id: makePageId(), name, type: "dark", bgColor: "#ffffff" };
   pages = [...pages, page];
   activePageId = page.id;
   els.pageMessage.textContent = `已新增「${name}」。`;
