@@ -746,6 +746,8 @@ body[data-theme="dark"] .theme-toggle:hover { background: rgba(255, 255, 255, 0.
 .side-rail.hidden { display: none !important; }
 .rail-brand {
   width: 32px; height: 32px;
+  min-height: 32px;
+  padding: 0;
   display: grid; place-items: center;
   border-radius: 9px;
   background: linear-gradient(135deg, #5fa8ff, #f0b870);
@@ -2878,8 +2880,13 @@ body[data-theme="dark"] .slide-stage.page-bg-light .page-tabs .page-tab:not(.act
 
 /* ── 實心藍底全局修正 ──────────────────────────────────────────── */
 
-/* dock-item: 圖示鈕，透明底（覆蓋全局 button 規則） */
-body[data-theme="dark"] .dock-item {
+/* 圖示／ghost 鈕：透明底（覆蓋全局 button 規則） */
+body[data-theme="dark"] .dock-item,
+body[data-theme="dark"] .page-tab,
+body[data-theme="dark"] .top-page-item,
+body[data-theme="dark"] .post-menu-btn,
+body[data-theme="dark"] .post-section-menu-btn,
+body[data-theme="dark"] .drag-handle {
   background: transparent;
 }
 
