@@ -1,7 +1,6 @@
-/* ─── Dark theme overlay ─────────────────────────────────────
-   Activated when <body data-theme="dark">. Layered on top of styles.css.
-   Strategy: re-bind the existing CSS variables + override surfaces
-   that hard-code colors. Keeps original light theme intact.
+/* ─── Dark theme layer ───────────────────────────────────────
+   Activated by the app's fixed <body data-theme="dark"> attribute and
+   layered on top of styles.css.
 */
 
 body[data-theme="dark"] {
@@ -193,10 +192,10 @@ body[data-theme="dark"] .slide-stage.post-page {
 }
 body[data-theme="dark"] #slides-frame { background: var(--d-bg); }
 
-body[data-theme="dark"] .empty-state { color: var(--d-text); }
-body[data-theme="dark"] .empty-state span { color: var(--d-text-2); }
+body[data-theme="dark"] .empty-state { color: var(--page-title-text, var(--d-text)); }
+body[data-theme="dark"] .empty-state span { color: var(--page-muted-text, var(--d-text-2)); }
 
-/* page tabs already dark-ish in light theme — refine */
+/* page tabs refinement */
 body[data-theme="dark"] .page-tabs {
   background: var(--d-surface-strong);
   border-color: var(--d-border);
@@ -238,11 +237,11 @@ body[data-theme="dark"] .page-tab.active {
 .page-tab.active .page-tab-idx { color: rgba(255,255,255,0.7); }
 .page-tab-name { font-size: 13px; }
 
-/* ── Post board (stage) — flip light surfaces dark ── */
-body[data-theme="dark"] .post-board-stage { color: var(--d-text); }
-body[data-theme="dark"] .post-board-kicker { color: var(--d-text-3); letter-spacing: 0.12em; }
-body[data-theme="dark"] .post-board-hero h1 { color: var(--d-text); }
-body[data-theme="dark"] .post-board-hero p { color: var(--d-text-2); }
+/* ── Post board (stage) ── */
+body[data-theme="dark"] .post-board-stage { color: var(--page-text, var(--d-text)); }
+body[data-theme="dark"] .post-board-kicker { color: var(--page-kicker-text, var(--d-text-3)); letter-spacing: 0.12em; }
+body[data-theme="dark"] .post-board-hero h1 { color: var(--page-title-text, var(--d-text)); }
+body[data-theme="dark"] .post-board-hero p { color: var(--page-muted-text, var(--d-text-2)); }
 body[data-theme="dark"] .post-board-message { color: var(--d-text-3); }
 
 body[data-theme="dark"] .post-board-qr-toggle,
@@ -313,6 +312,51 @@ body[data-theme="dark"] .post-section-title {
 body[data-theme="dark"] .post-section-title:hover {
   background: var(--d-surface-2);
   color: var(--d-text);
+}
+body[data-theme="dark"] .post-section-menu-btn {
+  background: var(--d-surface);
+  border-color: var(--d-border);
+  color: var(--d-text);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.3);
+}
+body[data-theme="dark"] .post-section-menu-btn:hover { background: var(--d-surface-2); }
+body[data-theme="dark"] .post-section-menu {
+  background: var(--d-surface-strong);
+  border-color: var(--d-border);
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.38);
+}
+body[data-theme="dark"] .post-section-menu a,
+body[data-theme="dark"] .post-section-menu button {
+  color: var(--d-text);
+}
+body[data-theme="dark"] .post-section-menu a:hover,
+body[data-theme="dark"] .post-section-menu button:hover {
+  background: var(--d-surface-2);
+}
+body[data-theme="dark"] .post-section-menu button.danger {
+  color: var(--red);
+}
+body[data-theme="dark"] .post-section-description {
+  color: var(--page-muted-text, var(--d-text-2));
+}
+body[data-theme="dark"] .slide-stage.page-bg-light .post-section-title {
+  background: rgba(255, 255, 255, 0.72);
+  border-color: rgba(17, 24, 32, 0.08);
+  color: var(--page-title-text, #111820);
+  box-shadow: 0 14px 28px rgba(17, 24, 32, 0.12);
+}
+body[data-theme="dark"] .slide-stage.page-bg-light .post-section-title:hover {
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--page-title-text, #111820);
+}
+body[data-theme="dark"] .slide-stage.page-bg-light .post-section-menu-btn {
+  background: rgba(255, 255, 255, 0.66);
+  border-color: rgba(17, 24, 32, 0.08);
+  color: var(--page-title-text, #111820);
+  box-shadow: 0 14px 28px rgba(17, 24, 32, 0.12);
+}
+body[data-theme="dark"] .slide-stage.page-bg-light .post-section-menu-btn:hover {
+  background: rgba(255, 255, 255, 0.88);
 }
 body[data-theme="dark"] .post-section-add,
 body[data-theme="dark"] .post-section-new {
@@ -491,35 +535,16 @@ body[data-theme="dark"] .participant-section-title {
   color: var(--page-title-text, var(--d-text));
 }
 body[data-theme="dark"] .participant-form {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  color: var(--d-text);
-  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.4);
+  color: var(--page-text, var(--d-text));
 }
 body[data-theme="dark"] .participant-form label,
 body[data-theme="dark"] .participant-form .hint {
-  color: var(--d-text-2);
-}
-body[data-theme="dark"] .participant-form input[type="text"],
-body[data-theme="dark"] .participant-form textarea,
-body[data-theme="dark"] .participant-form select,
-body[data-theme="dark"] .participant-form input[type="file"] {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.12);
-  color: var(--d-text);
-  border-radius: 9px;
-}
-body[data-theme="dark"] .participant-form input[type="text"]:focus,
-body[data-theme="dark"] .participant-form textarea:focus,
-body[data-theme="dark"] .participant-form select:focus {
-  border-color: rgba(95, 168, 255, 0.55);
-  box-shadow: 0 0 0 3px rgba(95, 168, 255, 0.14);
+  color: var(--page-muted-text, var(--d-text-2));
 }
 body[data-theme="dark"] .participant-form-head {
-  background: rgba(6, 9, 13, 0.88);
+  background: var(--d-surface-strong);
   border-bottom: 1px solid var(--d-border);
   color: var(--page-title-text, var(--d-text));
-  backdrop-filter: blur(12px);
 }
 body[data-theme="dark"] .participant-back-btn {
   background: var(--d-surface);
@@ -529,7 +554,7 @@ body[data-theme="dark"] .participant-back-btn {
 body[data-theme="dark"] .participant-fab {
   background: var(--d-cool);
   color: #06090d;
-  box-shadow: 0 8px 28px rgba(95, 168, 255, 0.36);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
 }
 body[data-theme="dark"] .participant-post-dialog {
   background: rgba(15, 20, 28, 0.96);
@@ -544,65 +569,6 @@ body[data-theme="dark"] .participant-post-modal-close {
 }
 body[data-theme="dark"] .participant-detail-content.muted { color: var(--d-text-3); }
 body[data-theme="dark"] .participant-detail-image-button { background: rgba(255, 255, 255, 0.04); }
-
-/* post cards in participant board — dark glass */
-body[data-theme="dark"] .participant-post-card {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.08);
-  color: var(--d-text);
-}
-body[data-theme="dark"] .participant-post-card:hover {
-  border-color: rgba(255, 255, 255, 0.14);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-}
-body[data-theme="dark"] .participant-section-title {
-  background: rgba(255, 255, 255, 0.07);
-  border-color: rgba(255, 255, 255, 0.14);
-  box-shadow: none;
-}
-body[data-theme="dark"] .post-section-add {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.10);
-  color: var(--d-text-2);
-}
-body[data-theme="dark"] .post-section-add:hover {
-  background: rgba(95, 168, 255, 0.10);
-  border-color: rgba(95, 168, 255, 0.28);
-  color: var(--d-cool);
-}
-
-/* ── Theme toggle button (always visible) ── */
-.theme-toggle {
-  position: fixed;
-  top: 14px;
-  right: 14px;
-  z-index: 999;
-  width: 38px;
-  height: 38px;
-  min-height: 38px;
-  padding: 0;
-  display: grid;
-  place-items: center;
-  border: 1px solid rgba(0, 0, 0, 0.10);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.86);
-  color: #1e252c;
-  font-size: 1rem;
-  line-height: 1;
-  cursor: pointer;
-  backdrop-filter: blur(12px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.14);
-  transition: transform 0.18s ease, background 0.18s ease, color 0.18s ease;
-}
-.theme-toggle:hover { transform: scale(1.06); background: #fff; }
-
-body[data-theme="dark"] .theme-toggle {
-  background: var(--d-surface-strong);
-  border-color: var(--d-border-strong);
-  color: var(--d-text);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
-}
-body[data-theme="dark"] .theme-toggle:hover { background: rgba(255, 255, 255, 0.08); }
 
 /* ── IA Step 1: Side rail + hide bottom dock ───── */
 .side-rail {
@@ -621,14 +587,20 @@ body[data-theme="dark"] .theme-toggle:hover { background: rgba(255, 255, 255, 0.
 }
 .side-rail.hidden { display: none !important; }
 .rail-brand {
-  width: 32px; height: 32px;
+  width: 44px; height: 44px;
+  min-height: 44px;
+  padding: 0;
   display: grid; place-items: center;
-  border-radius: 9px;
-  background: linear-gradient(135deg, #5fa8ff, #f0b870);
-  color: #06090d;
+  border: 1px solid rgba(95, 168, 255, 0.44);
+  border-radius: 10px;
+  background:
+    radial-gradient(circle at 30% 22%, rgba(240, 184, 112, 0.78), transparent 32%),
+    linear-gradient(135deg, rgba(95, 168, 255, 0.9), rgba(95, 168, 255, 0.34));
+  color: #06111d;
   font-weight: 800;
   font-size: 14px;
   margin-bottom: 6px;
+  cursor: pointer;
 }
 .rail-btn {
   width: 44px; height: 44px;
@@ -671,42 +643,6 @@ body.studio-mode #side-rail:not(.hidden) ~ main .slide-stage {
 body.studio-mode #side-rail:not(.hidden) ~ main .slide-stage {
   inset: 0 0 0 64px;
 }
-/* ── Direction B: page tabs as horizontal strip at top of stage ── */
-body[data-theme="dark"].studio-mode .page-tabs {
-  display: flex !important;
-  flex-direction: row;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  scrollbar-width: none;
-  top: 16px;
-  left: 16px;
-  right: 210px; /* leave room for session pill + theme toggle */
-  width: auto;
-  max-width: none;
-  max-height: none;
-  padding: 5px 6px;
-  gap: 4px;
-  align-items: center;
-  border-radius: 10px;
-  /* prevent column stacking from styles.css */
-  flex-direction: row;
-}
-body[data-theme="dark"].studio-mode .page-tabs::-webkit-scrollbar { display: none; }
-body[data-theme="dark"].studio-mode .page-tab {
-  flex: 0 0 auto;
-  height: 30px;
-  min-height: 30px;
-  padding: 0 11px;
-  font-size: 12.5px;
-  border-radius: 8px;
-  white-space: nowrap;
-}
-.theme-toggle { right: 14px; top: 14px; }
-body.studio-mode .theme-toggle {
-  right: calc(14px + 44px + 8px); /* 66px — 貼著 ▣ 左側 */
-  top: 14px;
-}
-
 /* IA Step 3a: session bar */
 .session-bar {
   position: fixed;
@@ -972,18 +908,49 @@ body[data-theme="dark"] .home-sync-panel {
   padding: 16px 20px;
   box-shadow: none;
 }
-body[data-theme="dark"] .home-sync-panel label {
+body[data-theme="dark"] .home-panel-head {
+  align-items: center;
+}
+body[data-theme="dark"] .home-current-file-row {
+  border-top-color: var(--d-border);
+}
+body[data-theme="dark"] .home-panel-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--d-text);
+}
+body[data-theme="dark"] .home-panel-head p,
+body[data-theme="dark"] .home-current-file-row p {
+  font-size: 12px;
+  color: var(--d-text-3);
+}
+body[data-theme="dark"] .home-folder-actions button,
+body[data-theme="dark"] .home-sync-grid button {
+  min-height: 38px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 500;
+}
+body[data-theme="dark"] .home-sync-panel > label {
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   font-size: 10px;
   letter-spacing: 0.16em;
   color: var(--d-text-3);
   text-transform: uppercase;
 }
+body[data-theme="dark"] .folder-status-line {
+  color: var(--d-text-3);
+  font-size: 12px;
+  font-weight: 600;
+}
+body[data-theme="dark"] .folder-status-line.error {
+  color: #ffb3a5;
+}
 
 /* version section ─────────────────────── */
 body[data-theme="dark"] .home-version-section { margin-top: 28px; }
 body[data-theme="dark"] .home-section-head {
-  align-items: baseline;
+  align-items: center;
   border-bottom: 1px solid var(--d-border);
   padding-bottom: 12px;
   margin-bottom: 20px;
@@ -1023,6 +990,30 @@ body[data-theme="dark"] .home-layout-card:hover {
   background: var(--d-surface-2);
   transform: translateY(-1px);
 }
+body[data-theme="dark"] .home-create-card {
+  min-height: 250px;
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(95, 168, 255, 0.26);
+  box-shadow: none;
+}
+body[data-theme="dark"] .home-create-card::before {
+  content: none;
+}
+body[data-theme="dark"] .home-create-plus {
+  border-color: rgba(95, 168, 255, 0.32);
+  background: rgba(95, 168, 255, 0.1);
+  color: var(--d-cool);
+}
+body[data-theme="dark"] .home-create-text {
+  color: var(--d-text);
+  font-size: 15px;
+  font-weight: 600;
+}
+body[data-theme="dark"] .home-create-hint {
+  color: var(--d-text-3);
+  font-size: 12px;
+  font-weight: 500;
+}
 body[data-theme="dark"] .home-layout-card::before {
   content: counter(layoutCard, decimal-leading-zero);
   position: absolute;
@@ -1032,6 +1023,9 @@ body[data-theme="dark"] .home-layout-card::before {
   font-size: 10px;
   letter-spacing: 0.12em;
   color: rgba(255, 255, 255, 0.28);
+}
+body[data-theme="dark"] .home-create-card::before {
+  content: none;
 }
 body[data-theme="dark"] .home-layout-title {
   gap: 4px;
@@ -1115,10 +1109,19 @@ body[data-theme="dark"] .home-layout-actions button {
   font-weight: 500;
   border-radius: 8px;
 }
+body[data-theme="dark"] .home-layout-actions .link-button {
+  min-height: 34px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 8px;
+}
 body[data-theme="dark"] .home-layout-actions button:first-child {
   background: rgba(95, 168, 255, 0.12);
   color: var(--d-cool);
   border: 1px solid rgba(95, 168, 255, 0.22);
+}
+body[data-theme="dark"] .folder-layout-card {
+  border-color: rgba(95, 168, 255, 0.28);
 }
 body[data-theme="dark"] .home-layout-actions button:first-child:hover {
   background: rgba(95, 168, 255, 0.2);
@@ -1520,11 +1523,6 @@ body[data-theme="dark"] .panel-group .button-row.three button {
   min-height: 36px;
 }
 
-.theme-toggle .sun { display: inline; }
-.theme-toggle .moon { display: none; }
-body[data-theme="dark"] .theme-toggle .sun { display: none; }
-body[data-theme="dark"] .theme-toggle .moon { display: inline; }
-
 /* IA Step 3b: timer running state — cool pulse dot top-right */
 body[data-theme="dark"] .timer-widget { position: relative; }
 body[data-theme="dark"] .timer-widget.is-running::after {
@@ -1591,7 +1589,6 @@ body[data-theme="dark"] .stage-clock {
   font-family: "PingFang TC", "Noto Sans TC", -apple-system, system-ui, sans-serif;
 }
 .studio-action-bar.hidden { display: none !important; }
-body:not([data-theme="dark"]) .studio-action-bar,
 body.studio-mode .studio-action-bar { display: none !important; }
 
 /* ── Direction B: ⌘K Command Palette ── */
@@ -2031,25 +2028,5 @@ body[data-theme="dark"] .tool-section .hint {
   background: rgba(255, 255, 255, 0.06);
   color: #fff;
 }
-/* nudge the bar when rail is visible (light mode fallback) */
+/* nudge the bar when rail is visible */
 body.studio-mode #side-rail:not(.hidden) ~ main .studio-action-bar { left: calc(50% + 32px); }
-
-/* ══════════════════════════════════════════════════════════
-   Direction B — dark studio mode: hide session bar + action bar;
-   top-control (▣) is the single entry point for page nav + actions.
-   ══════════════════════════════════════════════════════════ */
-
-/* Session bar: hidden in dark studio (▣ top-control covers it) */
-body[data-theme="dark"].studio-mode .session-bar {
-  display: none !important;
-}
-
-/* Studio action bar: hidden in dark studio */
-body[data-theme="dark"].studio-mode .studio-action-bar {
-  display: none !important;
-}
-
-/* Top-control: show in dark studio mode */
-body[data-theme="dark"].studio-mode .top-control {
-  display: block !important;
-}
