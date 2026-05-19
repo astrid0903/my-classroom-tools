@@ -465,6 +465,19 @@ body[data-theme="dark"] .slide-stage.page-bg-light .post-content a,
 body[data-theme="dark"] .slide-stage.page-bg-light .post-board-join-footer a {
   color: #2364aa;
 }
+body[data-theme="dark"] .slide-stage.page-bg-light .post-image-actions button,
+body[data-theme="dark"] .slide-stage.page-bg-light .post-image-actions .link-button {
+  background: rgba(255, 255, 255, 0.86);
+  border-color: rgba(17, 24, 32, 0.12);
+  color: var(--page-title-text, #111820);
+  box-shadow: 0 4px 12px rgba(17, 24, 32, 0.08);
+}
+body[data-theme="dark"] .slide-stage.page-bg-light .post-image-actions button:hover,
+body[data-theme="dark"] .slide-stage.page-bg-light .post-image-actions .link-button:hover {
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(17, 24, 32, 0.18);
+  color: var(--page-title-text, #111820);
+}
 body[data-theme="dark"] .slide-stage.page-bg-light .post-menu-btn {
   color: rgba(17, 24, 32, 0.52);
 }
@@ -755,8 +768,13 @@ body[data-theme="dark"] .participant-view.page-bg-light .participant-form select
 
 body[data-theme="dark"] .participant-view.page-bg-light .participant-post-card .post-content,
 body[data-theme="dark"] .participant-view.page-bg-light .participant-post-card .post-content a,
+body[data-theme="dark"] .participant-view.page-bg-light .participant-post-card .post-meta strong,
 body[data-theme="dark"] .participant-view.page-bg-light .participant-section-title {
   color: var(--page-title-text, #111820);
+}
+
+body[data-theme="dark"] .participant-view.page-bg-light .participant-post-card .post-meta span {
+  color: rgba(17, 24, 32, 0.68);
 }
 
 body[data-theme="dark"] .participant-view.page-bg-light .participant-back-btn,
