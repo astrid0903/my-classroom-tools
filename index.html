@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Google Slides 教學播放台</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
-  <link rel="stylesheet" href="./styles.css?v=20260519-local-folder">
-  <link rel="stylesheet" href="./styles-dark.css?v=20260519-local-folder">
+  <link rel="stylesheet" href="./styles.css?v=20260519b">
+  <link rel="stylesheet" href="./styles-dark.css?v=20260519b">
 </head>
 <body data-theme="dark">
   <div id="session-bar" class="session-bar hidden" aria-label="Session 狀態">
@@ -82,7 +82,9 @@
   </section>
 
   <nav id="side-rail" class="side-rail hidden" aria-label="工具導覽">
-    <button class="rail-brand" type="button" id="rail-home" aria-label="回到檔案首頁">播</button>
+    <button class="rail-brand" type="button" id="rail-home" aria-label="回到檔案首頁">
+        <svg viewBox="0 0 24 24" aria-hidden="true" class="rail-icon" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M12 17v4M8 21h8"/><path d="M10 9.5 15.5 12 10 14.5V9.5z" fill="currentColor" stroke="none"/></svg>
+      </button>
 
     <!-- Group 1: Presentation -->
     <button class="rail-btn" type="button" data-rail="slides" aria-label="簡報" title="簡報">
@@ -731,7 +733,7 @@
   </div>
 
   <div id="settings-backdrop" class="settings-backdrop hidden"></div>
-  <script src="./script.js?v=20260519-local-folder"></script>
+  <script src="./script.js?v=20260519b"></script>
   <script>
     // IA Step 1: side-rail wiring — forwards to existing dock buttons.
     (function () {
@@ -818,6 +820,7 @@
           var btn = document.createElement('button');
           btn.type = 'button';
           btn.className = 'top-page-item' + (tab.classList.contains('active') ? ' active' : '');
+          btn.dataset.pageType = tab.dataset.pageType || 'slides';
           btn.innerHTML = tab.innerHTML;
           btn.addEventListener('click', function () {
             tab.click();
