@@ -2880,14 +2880,42 @@ body[data-theme="dark"] .slide-stage.page-bg-light .page-tabs .page-tab:not(.act
 
 /* ── 實心藍底全局修正 ──────────────────────────────────────────── */
 
-/* 圖示／ghost 鈕：透明底（覆蓋全局 button 規則） */
-body[data-theme="dark"] .dock-item,
-body[data-theme="dark"] .page-tab,
-body[data-theme="dark"] .top-page-item,
+/* 圖示／ghost 鈕：透明底＋文字色（覆蓋全局 button 藍底＋黑字） */
+body[data-theme="dark"] .dock-item {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+}
+body[data-theme="dark"] .page-tab {
+  background: transparent;
+  color: var(--d-text-2);
+}
+body[data-theme="dark"] .page-tab.active,
+body[data-theme="dark"] .page-tab:hover {
+  color: var(--d-text);
+}
+body[data-theme="dark"] .top-page-item {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.82);
+}
+body[data-theme="dark"] .top-page-item.active,
+body[data-theme="dark"] .top-page-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
 body[data-theme="dark"] .post-menu-btn,
-body[data-theme="dark"] .post-section-menu-btn,
+body[data-theme="dark"] .post-section-menu-btn {
+  background: transparent;
+  color: var(--d-text-2);
+}
+body[data-theme="dark"] .post-menu-btn:hover,
+body[data-theme="dark"] .post-section-menu-btn:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--d-text);
+}
 body[data-theme="dark"] .drag-handle {
   background: transparent;
+  color: var(--d-text-3);
 }
 
 /* ghost 按鈕：qr-expand、retry、image-viewer-close */
