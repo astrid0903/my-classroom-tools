@@ -51,12 +51,14 @@ body[data-theme="dark"] select {
   color: var(--d-text);
   color-scheme: dark;
 }
+body[data-theme="dark"] select,
 body[data-theme="dark"] select option {
   background-color: #111820;
   color: #e8edf2;
 }
-body[data-theme="dark"] select option:checked {
-  background-color: #1e3a5c;
+body[data-theme="dark"] select option:checked,
+body[data-theme="dark"] select option:hover {
+  background-color: color-mix(in oklab, #5fa8ff 20%, #111820);
   color: #cfe6ff;
 }
 body[data-theme="dark"] textarea::placeholder,
@@ -608,7 +610,8 @@ body[data-theme="dark"] .post-edit-dialog {
 body[data-theme="dark"] .post-edit-dialog h3 { color: var(--d-text); }
 
 /* ── Participant view ────────────────────── */
-body[data-theme="dark"] .participant-view {
+body[data-theme="dark"] .participant-view,
+body[data-theme="dark"] .participant-screen {
   background: var(--d-bg);
   color: var(--page-text, var(--d-text));
 }

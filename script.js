@@ -800,7 +800,12 @@ function appendHomeLayoutCard(layout, { current = false, folderFile = false } = 
   const widgetsForLayout = layoutWidgets(layout);
   const meta = createEl("div", "home-layout-meta");
   meta.append(createEl("span", "", `${pagesForLayout.length} 頁`), createEl("span", "", `${widgetsForLayout.length} 個小工具`));
-  layoutFeatureTags(layout).forEach((tag) => meta.appendChild(createEl("span", "", tag)));
+  layoutFeatureTags(layout).forEach((tag) => {
+    const span = createEl("span", "", tag);
+    if (tag === "Slides") span.dataset.tagType = "slides";
+    else if (tag === "貼文板") span.dataset.tagType = "posts";
+    meta.appendChild(span);
+  });
 
   const actions = createEl("div", "home-layout-actions");
   if (folderFile) {
@@ -1072,7 +1077,7 @@ function renderPages() {
     tab.className = "page-tab";
     tab.dataset.pageType = page.type || "slides";
     const idx = String(i + 1).padStart(2, "0");
-    tab.innerHTML = `<span class="page-tab-dot" aria-hidden="true"></span><span class="page-tab-idx">${idx}</span><span class="page-tab-name"></span>`;
+    tab.innerHTML = `<span class="page-tab-dot" data-page-type="${page.type || 'slides'}" aria-hidden="true"></span><span class="page-tab-idx">${idx}</span><span class="page-tab-name"></span>`;
     tab.querySelector(".page-tab-name").textContent = page.name;
     tab.classList.toggle("active", page.id === activePage().id);
     tab.setAttribute("aria-current", page.id === activePage().id ? "page" : "false");
@@ -1080,7 +1085,7 @@ function renderPages() {
     els.pageTabs.appendChild(tab);
   });
   els.pageSelect.value = activePage().id;
-  els.pageName.value = activePage().id === DEFAULT_PAGE.id ? "" : activePage().name;
+  els.pageName.value = activePage().name;
   els.deletePage.disabled = activePage().id === DEFAULT_PAGE.id;
   const curPage = activePage();
   els.pageTitleColor.value = curPage.titleColor || "#1a2330";
@@ -1446,7 +1451,6 @@ function switchPage(pageId) {
 
 function renameActivePage(name) {
   const page = activePage();
-  if (page.id === DEFAULT_PAGE.id) return;
   const nextName = name.trim();
   if (!nextName) return;
   pages = pages.map((item) => (item.id === page.id ? { ...item, name: nextName } : item));
