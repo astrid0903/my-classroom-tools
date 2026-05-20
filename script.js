@@ -36,6 +36,7 @@ const els = {
   homeChooseFolder: document.querySelector("#home-choose-folder"),
   homeRefreshFolder: document.querySelector("#home-refresh-folder"),
   homeFolderStatus: document.querySelector("#home-folder-status"),
+  homeFolderImport: document.querySelector("#home-folder-import"),
   homeFileStatus: document.querySelector("#home-file-status"),
   homeVersionMessage: document.querySelector("#home-version-message"),
   homeVersionCount: document.querySelector("#home-version-count"),
@@ -448,6 +449,10 @@ function directoryAccessSupported() {
   return Boolean(window.isSecureContext && window.showDirectoryPicker && window.indexedDB);
 }
 
+function directoryFileInputSupported() {
+  return Boolean(els.homeFolderImport && "files" in els.homeFolderImport);
+}
+
 function sanitizeFileName(value) {
   const cleaned = String(value || "")
     .replace(/\.json$/i, "")
@@ -611,9 +616,9 @@ async function writePlaybackDirectoryHandle(handle) {
   });
 }
 
-async function hasHandlePermission(handle, { request = false } = {}) {
+async function hasHandlePermission(handle, { request = false, mode = "readwrite" } = {}) {
   if (!handle) return false;
-  const options = { mode: "readwrite" };
+  const options = { mode };
   if (typeof handle.queryPermission === "function") {
     const permission = await handle.queryPermission(options);
     if (permission === "granted") return true;
@@ -627,6 +632,10 @@ async function hasHandlePermission(handle, { request = false } = {}) {
 
 async function layoutFromFileHandle(handle) {
   const file = await handle.getFile();
+  return layoutFromFile(file, handle);
+}
+
+async function layoutFromFile(file, handle = null) {
   if (!file.name.toLowerCase().endsWith(".json")) return null;
   const payload = JSON.parse(await file.text());
   const state = normalizeStudioFilePayload(payload);
@@ -638,14 +647,18 @@ async function layoutFromFileHandle(handle) {
     savedAt: payload.savedAt || modifiedTime,
     state,
     handle,
+    file: handle ? null : file,
     modifiedTime,
   };
 }
 
 async function scanPlaybackFolder({ silent = false } = {}) {
   if (!directoryAccessSupported()) {
-    folderLayoutFiles = [];
-    setFolderStatus("這個瀏覽器不支援本機資料夾預覽；請改用 Chrome / Edge，或用單一 JSON 開啟與下載。", true);
+    if (folderLayoutFiles.length) {
+      setFolderStatus(`已用預覽模式載入本機播放台資料夾｜${folderLayoutFiles.length} 個播放台檔案；若資料夾有更新，請重新選擇資料夾。`);
+    } else {
+      setFolderStatus("這個瀏覽器不支援自動連結本機資料夾；請按「選擇資料夾」用預覽模式載入 JSON。", false);
+    }
     renderHomeVersions();
     return;
   }
@@ -658,7 +671,7 @@ async function scanPlaybackFolder({ silent = false } = {}) {
     renderHomeVersions();
     return;
   }
-  if (!(await hasHandlePermission(playbackDirectoryHandle))) {
+  if (!(await hasHandlePermission(playbackDirectoryHandle, { mode: "read" }))) {
     folderLayoutFiles = [];
     setFolderStatus("播放台資料夾權限已失效，請重新選擇資料夾。", true);
     renderHomeVersions();
@@ -690,17 +703,50 @@ async function scanPlaybackFolder({ silent = false } = {}) {
   if (!silent) setVersionMessage(`已重新整理播放台預覽：${layouts.length} 個檔案。`);
 }
 
+async function importPlaybackFolderFiles(fileList) {
+  const files = Array.from(fileList || []).filter((file) => file.name.toLowerCase().endsWith(".json"));
+  if (!files.length) {
+    folderLayoutFiles = [];
+    setFolderStatus("選取的資料夾裡沒有可用的播放台 JSON 檔。", true);
+    renderHomeVersions();
+    return;
+  }
+
+  const layouts = [];
+  for (const file of files) {
+    try {
+      const layout = await layoutFromFile(file);
+      if (layout) layouts.push(layout);
+    } catch {
+      // Ignore JSON files that are not playback files.
+    }
+  }
+  layouts.sort((a, b) => String(b.modifiedTime || b.savedAt || "").localeCompare(String(a.modifiedTime || a.savedAt || "")));
+  folderLayoutFiles = layouts;
+  setFolderStatus(`已用預覽模式載入本機播放台資料夾｜${layouts.length} 個播放台檔案；這個瀏覽器不支援自動寫回資料夾。`);
+  renderHomeVersions();
+  setVersionMessage(`已載入播放台預覽：${layouts.length} 個檔案。`);
+}
+
 async function choosePlaybackFolder() {
   if (!directoryAccessSupported()) {
+    if (directoryFileInputSupported()) {
+      els.homeFolderImport.value = "";
+      setFolderStatus("請在選擇視窗中選取播放台資料夾；這裡會用預覽模式讀取 JSON。");
+      els.homeFolderImport.click();
+      return;
+    }
     setFolderStatus("這個瀏覽器不支援選擇本機資料夾；請改用 Chrome / Edge。", true);
     return;
   }
   try {
-    const picked = await runNativePicker("選擇播放台資料夾", () => window.showDirectoryPicker({ mode: "readwrite" }), setFolderStatus);
+    setFolderStatus("正在選擇播放台資料夾...");
+    const picked = await runNativePicker("選擇播放台資料夾", () => window.showDirectoryPicker({ mode: "read" }), setFolderStatus);
     const handle = picked.value;
     if (!handle) return;
-    if (!(await hasHandlePermission(handle, { request: true }))) {
-      setFolderStatus("沒有取得本機播放台資料夾讀寫權限。", true);
+    setFolderStatus("正在讀取播放台資料夾...");
+    if (!(await hasHandlePermission(handle, { request: true, mode: "read" }))) {
+      setFolderStatus("沒有取得本機播放台資料夾讀取權限。", true);
       return;
     }
     playbackDirectoryHandle = handle;
@@ -716,7 +762,7 @@ async function choosePlaybackFolder() {
 async function restorePlaybackFolder() {
   folderLayoutFiles = [];
   if (!directoryAccessSupported()) {
-    setFolderStatus("這個瀏覽器不支援本機資料夾預覽；請改用 Chrome / Edge。", true);
+    setFolderStatus("尚未選擇播放台資料夾；這個瀏覽器會用預覽模式讀取 JSON，無法自動寫回資料夾。");
     renderHomeVersions();
     return;
   }
@@ -815,6 +861,9 @@ function openHomeLayout(layout, { folderFile = false } = {}) {
         setVersionMessage(`開啟失敗：${error.message || "檔案可能已被移除，請重新整理資料夾。"}`, true);
         await scanPlaybackFolder({ silent: true });
       });
+  }
+  if (folderFile && layout.file) {
+    return readStudioFile(layout.file);
   }
   showStudio();
   return Promise.resolve();
@@ -5268,6 +5317,7 @@ els.homeSyncLayouts.addEventListener("click", saveCurrentFile);
 els.homeLoadCloudLayouts.addEventListener("click", openStudioFile);
 els.homeExportLayouts.addEventListener("click", exportLayouts);
 els.homeImportLayouts.addEventListener("change", () => importLayoutsFromFile(els.homeImportLayouts.files?.[0]));
+els.homeFolderImport.addEventListener("change", () => importPlaybackFolderFiles(els.homeFolderImport.files));
 els.homeChooseFolder.addEventListener("click", choosePlaybackFolder);
 els.homeRefreshFolder.addEventListener("click", () => scanPlaybackFolder());
 els.clearSlides.addEventListener("click", clearSlides);

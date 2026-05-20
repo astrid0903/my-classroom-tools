@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Google Slides 教學播放台</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
-  <link rel="stylesheet" href="./styles.css?v=20260519n">
-  <link rel="stylesheet" href="./styles-dark.css?v=20260519n">
+  <link rel="stylesheet" href="./styles.css?v=20260520b">
+  <link rel="stylesheet" href="./styles-dark.css?v=20260520b">
 </head>
 <body data-theme="dark">
   <div id="session-bar" class="session-bar hidden" aria-label="Session 狀態">
@@ -65,6 +65,7 @@
         <div class="home-internal-controls" aria-hidden="true">
           <button id="home-new-studio" class="home-file-input" type="button">建立新播放台檔案</button>
           <button id="home-enter-studio" class="home-file-input" type="button">開啟舊播放台檔案</button>
+          <input id="home-folder-import" class="home-file-input" type="file" accept="application/json,.json" webkitdirectory multiple>
           <input id="home-layout-name" class="home-file-input" type="text" placeholder="例如：分組討論版.json">
           <button id="home-save-layout" class="home-file-input" type="button">另存檔案</button>
           <input id="home-sync-code" class="home-file-input" type="text" placeholder="目前檔案狀態" readonly>
@@ -742,7 +743,7 @@
   </div>
 
   <div id="settings-backdrop" class="settings-backdrop hidden"></div>
-  <script src="./script.js?v=20260519n"></script>
+  <script src="./script.js?v=20260520b"></script>
   <script>
     // IA Step 1: side-rail wiring — forwards to existing dock buttons.
     (function () {
