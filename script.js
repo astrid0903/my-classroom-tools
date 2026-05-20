@@ -516,6 +516,12 @@ function formatSavedAt(value) {
   });
 }
 
+function savedAtTime(value) {
+  if (!value) return 0;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+}
+
 function setVersionMessage(text, isError = false) {
   [els.homeVersionMessage, els.layoutMessage].forEach((element) => {
     if (!element) return;
@@ -892,6 +898,28 @@ function openHomeLayout(layout, { folderFile = false } = {}) {
   return Promise.resolve();
 }
 
+function layoutDisplayTime(layout) {
+  return savedAtTime(layout?.savedAt) || savedAtTime(layout?.modifiedTime);
+}
+
+function sameLayoutName(a, b) {
+  return Boolean(a && b && sanitizeFileName(a) === sanitizeFileName(b));
+}
+
+function sameLayoutHandle(layout) {
+  return Boolean(layout?.handle && currentFileHandle && layout.handle === currentFileHandle);
+}
+
+function layoutVersionState(layout, currentLayout) {
+  if (!currentLayout?.name || !sameLayoutName(layout?.fileName || layout?.name, currentLayout.name)) return "";
+  if (sameLayoutHandle(layout)) return "same";
+  const folderTime = layoutDisplayTime(layout);
+  const currentTime = layoutDisplayTime(currentLayout);
+  if (folderTime && currentTime && folderTime > currentTime) return "newer";
+  if (folderTime && currentTime && folderTime < currentTime) return "older";
+  return "same-name";
+}
+
 function appendCreateStudioCard() {
   const card = createEl("button", "home-layout-card home-create-card");
   card.type = "button";
@@ -903,8 +931,9 @@ function appendCreateStudioCard() {
   els.homeLayoutGrid.appendChild(card);
 }
 
-function appendHomeLayoutCard(layout, { current = false, folderFile = false } = {}) {
+function appendHomeLayoutCard(layout, { current = false, folderFile = false, versionState = "" } = {}) {
   const card = createEl("article", `home-layout-card${folderFile ? " folder-layout-card" : ""}`);
+  if (versionState) card.dataset.versionState = versionState;
   card.tabIndex = 0;
   card.setAttribute("role", "button");
   card.setAttribute("aria-label", folderFile ? `開啟舊檔案：${layout.name}` : `開啟播放台：${layout.name}`);
@@ -916,7 +945,15 @@ function appendHomeLayoutCard(layout, { current = false, folderFile = false } = 
   });
   const title = createEl("div", "home-layout-title");
   const savedText = layout.savedAt ? `最近存檔 ${formatSavedAt(layout.savedAt)}` : "尚未存成檔案";
+  const badges = createEl("div", "home-layout-badges");
+  if (current) badges.appendChild(createEl("span", "home-layout-badge current", "目前開啟中"));
+  if (folderFile) badges.appendChild(createEl("span", "home-layout-badge folder", "資料夾版本"));
+  if (versionState === "newer") badges.appendChild(createEl("span", "home-layout-badge newer", "較新版本"));
+  else if (versionState === "older") badges.appendChild(createEl("span", "home-layout-badge muted", "較舊版本"));
+  else if (versionState === "same-name") badges.appendChild(createEl("span", "home-layout-badge muted", "同名檔案"));
+  else if (versionState === "same") badges.appendChild(createEl("span", "home-layout-badge muted", "同一檔案"));
   title.append(createEl("h3", "", layout.name), createEl("span", "", folderFile ? `本機檔案｜${savedText}` : savedText));
+  if (badges.childElementCount > 0) title.appendChild(badges);
 
   const preview = createEl("div", "home-preview");
   appendLayoutPreview(preview, layout);
@@ -934,7 +971,7 @@ function appendHomeLayoutCard(layout, { current = false, folderFile = false } = 
 
   const actions = createEl("div", "home-layout-actions");
   if (folderFile) {
-    const openFolderFile = createEl("button", "", "開啟舊檔案");
+    const openFolderFile = createEl("button", "", versionState === "newer" ? "開啟較新檔案" : "開啟資料夾檔案");
     openFolderFile.type = "button";
     openFolderFile.addEventListener("click", (event) => {
       event.stopPropagation();
@@ -970,16 +1007,19 @@ function renderHomeVersions() {
     state: snapshot,
   };
   const hasCurrentFile = Boolean(currentFileName || currentFileHandle);
-  const currentFileKey = currentFileName ? sanitizeFileName(currentFileName) : "";
-  const folderLayouts = folderLayoutFiles.filter((item) => !currentFileKey || folderLayoutName(item) !== currentFileKey);
+  const folderLayouts = [...folderLayoutFiles];
+  const hasNewerSameNameFolder = hasCurrentFile && folderLayouts.some((folderLayout) => layoutVersionState(folderLayout, layout) === "newer");
   const visibleCount = folderLayouts.length + (hasCurrentFile ? 1 : 0);
   els.homeLayoutGrid.innerHTML = "";
   els.homeVersionCount.textContent = `${visibleCount} 個播放台檔案`;
   setFileStatusInputs();
   setFileInputs(currentFileName || els.homeLayoutName.value || els.layoutName.value);
   appendCreateStudioCard();
-  if (hasCurrentFile) appendHomeLayoutCard(layout, { current: true });
-  folderLayouts.forEach((folderLayout) => appendHomeLayoutCard(folderLayout, { folderFile: true }));
+  if (hasCurrentFile) appendHomeLayoutCard(layout, { current: true, versionState: hasNewerSameNameFolder ? "older" : "" });
+  folderLayouts.forEach((folderLayout) => appendHomeLayoutCard(folderLayout, {
+    folderFile: true,
+    versionState: layoutVersionState(folderLayout, layout),
+  }));
   if (!visibleCount) {
     els.homeLayoutGrid.appendChild(createEl("div", "home-empty", "選擇播放台資料夾後，這裡會出現可開啟的播放台。"));
   }

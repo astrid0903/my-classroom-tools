@@ -487,6 +487,45 @@ h3 {
   font-weight: 750;
 }
 
+.home-layout-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.home-layout-badge {
+  width: fit-content;
+  border: 1px solid rgba(143, 185, 213, 0.22);
+  border-radius: 999px;
+  padding: 3px 7px;
+  background: rgba(143, 185, 213, 0.1);
+  color: #bed2df;
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.home-layout-badge.current {
+  border-color: rgba(95, 212, 154, 0.32);
+  background: rgba(95, 212, 154, 0.12);
+  color: #7ddfb0;
+}
+
+.home-layout-badge.folder {
+  border-color: rgba(95, 168, 255, 0.32);
+  background: rgba(95, 168, 255, 0.12);
+  color: #8fc7ff;
+}
+
+.home-layout-badge.newer {
+  border-color: rgba(240, 184, 112, 0.42);
+  background: rgba(240, 184, 112, 0.14);
+  color: #f0b870;
+}
+
+.home-layout-badge.muted {
+  color: #8ba0ae;
+}
+
 .home-preview {
   min-height: 138px;
   border: 1px solid rgba(168, 197, 220, 0.14);
