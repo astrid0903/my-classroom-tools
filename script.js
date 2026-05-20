@@ -616,6 +616,28 @@ async function writePlaybackDirectoryHandle(handle) {
   });
 }
 
+async function clearPlaybackDirectoryHandle() {
+  if (!directoryAccessSupported()) return;
+  playbackDirectoryHandle = null;
+  try {
+    const db = await openPlaybackDirectoryDb();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(PLAYBACK_DIRECTORY_STORE_NAME, "readwrite");
+      tx.objectStore(PLAYBACK_DIRECTORY_STORE_NAME).delete(PLAYBACK_DIRECTORY_HANDLE_KEY);
+      tx.oncomplete = () => {
+        db.close();
+        resolve();
+      };
+      tx.onerror = () => {
+        db.close();
+        reject(tx.error || new Error("無法清除播放台資料夾授權。"));
+      };
+    });
+  } catch {
+    // If IndexedDB cleanup fails, still drop the in-memory handle for this session.
+  }
+}
+
 async function hasHandlePermission(handle, { request = false, mode = "readwrite" } = {}) {
   if (!handle) return false;
   const options = { mode };
@@ -672,8 +694,9 @@ async function scanPlaybackFolder({ silent = false } = {}) {
     return;
   }
   if (!(await hasHandlePermission(playbackDirectoryHandle, { mode: "read" }))) {
+    await clearPlaybackDirectoryHandle();
     folderLayoutFiles = [];
-    setFolderStatus("播放台資料夾權限已失效，請重新選擇資料夾。", true);
+    setFolderStatus("播放台資料夾權限已失效，請按「選擇資料夾」重新連結。", true);
     renderHomeVersions();
     return;
   }
@@ -960,6 +983,9 @@ function renderHomeVersions() {
   if (!visibleCount) {
     els.homeLayoutGrid.appendChild(createEl("div", "home-empty", "選擇播放台資料夾後，這裡會出現可開啟的播放台。"));
   }
+  if (visibleCount > 0 && /資料夾權限已失效/.test(els.homeVersionMessage?.textContent || "")) {
+    setVersionMessage("");
+  }
 }
 
 function currentLayoutSnapshotFromStorage() {
@@ -1040,7 +1066,10 @@ async function createBlankStudio() {
   if (playbackDirectoryHandle && directoryAccessSupported()) {
     try {
       if (!(await hasHandlePermission(playbackDirectoryHandle, { request: true }))) {
-        setVersionMessage("播放台資料夾權限已失效，請重新選擇資料夾。", true);
+        await clearPlaybackDirectoryHandle();
+        setFolderStatus("播放台資料夾權限已失效，請按「選擇資料夾」重新連結。", true);
+        setVersionMessage("已移除失效的資料夾授權；請重新選擇資料夾後再建立新播放台。", true);
+        renderHomeVersions();
         return;
       }
       const handle = await createUniquePlaybackFile(name);
