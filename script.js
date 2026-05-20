@@ -3050,7 +3050,7 @@ function closeImageViewer() {
 }
 
 function postsForSection(posts, sectionId) {
-  return posts.filter((post) => (post.sectionId || "section-a") === sectionId);
+  return sortPosts(posts.filter((post) => (post.sectionId || "section-a") === sectionId));
 }
 
 async function addPostSection() {
@@ -3283,10 +3283,46 @@ async function movePostToSection(postId, sectionId) {
       author: post.author || "匿名",
       content: post.content || "",
       sectionId,
+      order: Date.now(),
       updatedAt: api.serverTimestamp(),
     });
   } catch (error) {
     els.postBoardMessage.textContent = `移動貼文失敗：${error.message || "請確認權限。"}`;
+    els.postBoardMessage.classList.add("error");
+  }
+}
+
+async function reorderPostInSection(postId, sectionId, targetPostId = "", placeAfter = false) {
+  const page = activePage();
+  if (page.type !== "posts" || !page.boardId) return;
+  const moved = postBoardPosts.find((post) => post.id === postId);
+  if (!moved) return;
+
+  const nextPosts = postsForSection(postBoardPosts, sectionId).filter((post) => post.id !== postId);
+  const movedPost = { ...moved, sectionId };
+  const targetIndex = targetPostId ? nextPosts.findIndex((post) => post.id === targetPostId) : -1;
+  const insertIndex = targetIndex >= 0 ? targetIndex + (placeAfter ? 1 : 0) : nextPosts.length;
+  nextPosts.splice(Math.max(0, insertIndex), 0, movedPost);
+
+  postBoardPosts = postBoardPosts
+    .filter((post) => (post.sectionId || "section-a") !== sectionId && post.id !== postId)
+    .concat(nextPosts.map((post, index) => ({ ...post, sectionId, order: index * 1000 })));
+  renderPostBoard();
+
+  try {
+    const api = await loadFirebaseApi();
+    await requireFirebaseUser(api);
+    await Promise.all(nextPosts.map((post, index) => (
+      api.updateDoc(api.doc(api.db, POST_BOARDS_COLLECTION, page.boardId, "posts", post.id), {
+        author: post.author || "匿名",
+        content: post.content || "",
+        sectionId,
+        order: index * 1000,
+        updatedAt: api.serverTimestamp(),
+      })
+    )));
+  } catch (error) {
+    els.postBoardMessage.textContent = `排序貼文失敗：${error.message || "請確認權限。"}`;
     els.postBoardMessage.classList.add("error");
   }
 }
@@ -3311,7 +3347,7 @@ function exportPostBoardToObsidian() {
     });
   }
   if (sections.length === 0) {
-    appendPosts(postBoardPosts);
+    appendPosts(sortPosts(postBoardPosts));
   } else {
     sections.forEach((section) => {
       lines.push(`# ${section.name}`, ``);
@@ -3344,6 +3380,7 @@ function renderPostCards(container, posts, options = {}) {
 
   posts.forEach((post) => {
     const card = createEl("article", "post-card");
+    card.dataset.postId = post.id || "";
     if (options.canManage && options.draggable) {
       card.draggable = true;
       card.addEventListener("dragstart", (e) => {
@@ -3356,6 +3393,9 @@ function renderPostCards(container, posts, options = {}) {
       card.addEventListener("dragend", () => {
         dragPostId = null;
         card.classList.remove("dragging");
+        document.querySelectorAll(".post-card.drop-before, .post-card.drop-after").forEach((item) => {
+          item.classList.remove("drop-before", "drop-after");
+        });
       });
     }
     const meta = createEl("div", "post-meta");
@@ -3402,7 +3442,7 @@ function renderPostBoardColumns(page, sections) {
 
   if (sections.length === 0 && postBoardPosts.length > 0) {
     const body = createEl("div", "post-section-body");
-    renderPostCards(body, postBoardPosts, { canManage: true });
+    renderPostCards(body, sortPosts(postBoardPosts), { canManage: true });
     boardColumns.appendChild(body);
   }
 
@@ -3490,9 +3530,22 @@ function renderPostBoardColumns(page, sections) {
       e.stopPropagation();
       e.dataTransfer.dropEffect = "move";
       body.classList.add("drop-target");
+      body.querySelectorAll(".post-card.drop-before, .post-card.drop-after").forEach((card) => {
+        card.classList.remove("drop-before", "drop-after");
+      });
+      const targetCard = e.target.closest(".post-card[data-post-id]");
+      if (targetCard && body.contains(targetCard) && targetCard.dataset.postId !== dragPostId) {
+        const rect = targetCard.getBoundingClientRect();
+        targetCard.classList.add(e.clientY > rect.top + rect.height / 2 ? "drop-after" : "drop-before");
+      }
     });
     body.addEventListener("dragleave", (e) => {
-      if (!e.currentTarget.contains(e.relatedTarget)) body.classList.remove("drop-target");
+      if (!e.currentTarget.contains(e.relatedTarget)) {
+        body.classList.remove("drop-target");
+        body.querySelectorAll(".post-card.drop-before, .post-card.drop-after").forEach((card) => {
+          card.classList.remove("drop-before", "drop-after");
+        });
+      }
     });
     body.addEventListener("drop", (e) => {
       e.preventDefault();
@@ -3500,8 +3553,15 @@ function renderPostBoardColumns(page, sections) {
       body.classList.remove("drop-target");
       if (!dragPostId) return;
       const postId = dragPostId;
+      const targetCard = e.target.closest(".post-card[data-post-id]");
+      const targetPostId = targetCard && body.contains(targetCard) && targetCard.dataset.postId !== postId ? targetCard.dataset.postId : "";
+      const rect = targetCard?.getBoundingClientRect();
+      const placeAfter = Boolean(rect && e.clientY > rect.top + rect.height / 2);
       dragPostId = null;
-      movePostToSection(postId, section.id);
+      body.querySelectorAll(".post-card.drop-before, .post-card.drop-after").forEach((card) => {
+        card.classList.remove("drop-before", "drop-after");
+      });
+      reorderPostInSection(postId, section.id, targetPostId, placeAfter);
     });
     column.append(head, body);
     boardColumns.appendChild(column);
@@ -3629,7 +3689,7 @@ async function subscribeActivePostBoard() {
     postBoardUnsubscribe = api.onSnapshot(
       postsQuery,
       (snapshot) => {
-        postBoardPosts = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        postBoardPosts = sortPosts(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
         renderPostBoard();
       },
       (error) => {
@@ -3649,8 +3709,22 @@ function formatPostTime(value) {
   return date.toLocaleTimeString("zh-Hant", { hour: "2-digit", minute: "2-digit" });
 }
 
+function postTimestampMs(value) {
+  if (value?.toMillis) return value.toMillis();
+  const date = value?.toDate ? value.toDate() : value ? new Date(value) : null;
+  return date && !Number.isNaN(date.getTime()) ? date.getTime() : 0;
+}
+
 function sortPosts(posts) {
-  return [...posts].sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+  return [...posts].sort((a, b) => {
+    const aOrder = Number(a.order);
+    const bOrder = Number(b.order);
+    const aHasOrder = Number.isFinite(aOrder);
+    const bHasOrder = Number.isFinite(bOrder);
+    if (aHasOrder && bHasOrder && aOrder !== bOrder) return aOrder - bOrder;
+    if (aHasOrder !== bHasOrder) return aHasOrder ? -1 : 1;
+    return postTimestampMs(b.createdAt) - postTimestampMs(a.createdAt);
+  });
 }
 
 function isParticipantMode() {
@@ -3881,7 +3955,7 @@ function renderParticipantBoard(sections, posts) {
   els.participantOpenForm.classList.remove("hidden");
   if (sections.length === 0) {
     const body = createEl("div", "post-section-body");
-    renderParticipantPostCards(body, posts);
+    renderParticipantPostCards(body, sortPosts(posts));
     els.participantBoardBody.appendChild(body);
     return;
   }
@@ -4009,6 +4083,7 @@ async function submitParticipantPost(event) {
         content,
         imageDataUrl: imageDataUrls[0] || "",
         imageDataUrls,
+        order: -Date.now(),
         createdAt: api.serverTimestamp(),
         authorUid: participantUid || "",
       });
@@ -4069,7 +4144,7 @@ async function initParticipantMode() {
     participantUnsubscribe = api.onSnapshot(
       postsQuery,
       (snapshot) => {
-        participantBoardPosts = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        participantBoardPosts = sortPosts(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
         renderParticipantBoard(participantBoardSections, participantBoardPosts);
       },
       (error) => {

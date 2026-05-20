@@ -1242,6 +1242,31 @@ body.studio-mode .page-tabs {
   opacity: 0.4;
 }
 
+.post-card.drop-before,
+.post-card.drop-after {
+  outline: 2px solid #4a90d9;
+  outline-offset: 3px;
+}
+
+.post-card.drop-before::before,
+.post-card.drop-after::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  height: 3px;
+  border-radius: 999px;
+  background: #4a90d9;
+}
+
+.post-card.drop-before::before {
+  top: -10px;
+}
+
+.post-card.drop-after::after {
+  bottom: -10px;
+}
+
 .post-section-body.drop-target {
   outline: 2px dashed #4a90d9;
   outline-offset: 4px;
