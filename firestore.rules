@@ -10,6 +10,31 @@ service cloud.firestore {
       return value == null || (value is string && value.size() <= maxLength);
     }
 
+    function isPostImageAt(images, index) {
+      return images.size() <= index
+        || (images[index] is string && images[index].size() <= 180000);
+    }
+
+    function isPostImages(value) {
+      return value is list
+        && value.size() <= 5
+        && isPostImageAt(value, 0)
+        && isPostImageAt(value, 1)
+        && isPostImageAt(value, 2)
+        && isPostImageAt(value, 3)
+        && isPostImageAt(value, 4);
+    }
+
+    function isOptionalPostImages(value) {
+      return value == null || isPostImages(value);
+    }
+
+    function hasPostBody() {
+      return (request.resource.data.content is string && request.resource.data.content.size() > 0)
+        || (request.resource.data.imageDataUrl is string && request.resource.data.imageDataUrl.size() > 0)
+        || (request.resource.data.imageDataUrls is list && request.resource.data.imageDataUrls.size() > 0);
+    }
+
     function isPostBoardMetadata() {
       return request.auth != null
         && request.resource.data.keys().hasOnly(['title', 'adminUid', 'sections', 'note', 'bgColor', 'bgImage', 'bgOpacity', 'titleColor', 'updatedAt', 'kind', 'version'])
@@ -32,35 +57,32 @@ service cloud.firestore {
     }
 
     function isPost() {
-      return request.resource.data.keys().hasOnly(['author', 'sectionId', 'content', 'imageDataUrl', 'createdAt', 'authorUid'])
+      return request.resource.data.keys().hasOnly(['author', 'sectionId', 'content', 'imageDataUrl', 'imageDataUrls', 'createdAt', 'authorUid'])
         && isOptionalString(request.resource.data.author, 40)
         && request.resource.data.sectionId is string
         && request.resource.data.sectionId.size() > 0
         && request.resource.data.sectionId.size() <= 80
         && isOptionalString(request.resource.data.content, 600)
         && isOptionalString(request.resource.data.imageDataUrl, 950000)
+        && isOptionalPostImages(request.resource.data.imageDataUrls)
         && request.resource.data.createdAt == request.time
         && request.resource.data.authorUid == request.auth.uid
-        && (
-          (request.resource.data.content is string && request.resource.data.content.size() > 0)
-          || (request.resource.data.imageDataUrl is string && request.resource.data.imageDataUrl.size() > 0)
-        );
+        && hasPostBody();
     }
 
     function isPostEdit() {
-      return request.resource.data.keys().hasOnly(['author', 'sectionId', 'content', 'imageDataUrl', 'createdAt', 'updatedAt', 'authorUid'])
+      return request.resource.data.keys().hasOnly(['author', 'sectionId', 'content', 'imageDataUrl', 'imageDataUrls', 'createdAt', 'updatedAt', 'authorUid'])
         && isOptionalString(request.resource.data.author, 40)
         && request.resource.data.sectionId is string
         && request.resource.data.sectionId.size() > 0
         && request.resource.data.sectionId.size() <= 80
         && isOptionalString(request.resource.data.content, 600)
-        && request.resource.data.imageDataUrl == resource.data.imageDataUrl
+        && isOptionalString(request.resource.data.imageDataUrl, 950000)
+        && isOptionalPostImages(request.resource.data.imageDataUrls)
         && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.authorUid == resource.data.authorUid
         && request.resource.data.updatedAt == request.time
-        && (
-          (request.resource.data.content is string && request.resource.data.content.size() > 0)
-          || (request.resource.data.imageDataUrl is string && request.resource.data.imageDataUrl.size() > 0)
-        );
+        && hasPostBody();
     }
 
     function isOwnPostEdit() {
