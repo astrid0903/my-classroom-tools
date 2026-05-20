@@ -2919,7 +2919,7 @@ body[data-theme="dark"] .home-layout-meta span[data-tag-type="slides"] {
 /* ── 7. top-action-grid → pill 排列 ──────────────────────── */
 .top-action-grid {
   display: grid !important;
-  grid-template-columns: minmax(0, 1fr) 34px 34px 34px !important;
+  grid-template-columns: minmax(0, 1fr) !important;
   gap: 6px !important;
 }
 .top-action-grid button {
@@ -2929,30 +2929,12 @@ body[data-theme="dark"] .home-layout-meta span[data-tag-type="slides"] {
   border-radius: 999px !important;
   font-size: 12px !important;
   font-weight: 600 !important;
-  letter-spacing: -0.005em;
+  letter-spacing: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
   transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
-}
-/* icon-only 三顆中間鍵 */
-.top-action-grid button[data-action="arrange"],
-.top-action-grid button[data-action="hidden-list"],
-.top-action-grid button[data-action="hide-all"] {
-  width: 34px !important;
-  padding: 0 !important;
-  border-radius: 8px !important;
-  background: transparent !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  color: rgba(255, 255, 255, 0.62) !important;
-}
-.top-action-grid button[data-action="arrange"]:hover,
-.top-action-grid button[data-action="hidden-list"]:hover,
-.top-action-grid button[data-action="hide-all"]:hover {
-  background: rgba(255, 255, 255, 0.06) !important;
-  border-color: rgba(255, 255, 255, 0.18) !important;
-  color: #fff !important;
 }
 /* 全螢幕：冷藍 pill */
 .top-action-grid button[data-action="fullscreen"] {
@@ -2964,9 +2946,8 @@ body[data-theme="dark"] .home-layout-meta span[data-tag-type="slides"] {
   background: color-mix(in oklab, #5fa8ff 22%, transparent) !important;
   border-color: color-mix(in oklab, #5fa8ff 55%, transparent) !important;
 }
-/* 存檔：獨佔一行，warm pill */
+/* 存檔：warm pill */
 .top-action-grid button[data-action="save-version"] {
-  grid-column: 1 / -1;
   background: color-mix(in oklab, #f0b870 12%, transparent) !important;
   border: 1px solid color-mix(in oklab, #f0b870 35%, transparent) !important;
   color: #f0b870 !important;

@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Google Slides 教學播放台</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
-  <link rel="stylesheet" href="./styles.css?v=20260519m">
-  <link rel="stylesheet" href="./styles-dark.css?v=20260519m">
+  <link rel="stylesheet" href="./styles.css?v=20260519n">
+  <link rel="stylesheet" href="./styles-dark.css?v=20260519n">
 </head>
 <body data-theme="dark">
   <div id="session-bar" class="session-bar hidden" aria-label="Session 狀態">
@@ -34,9 +34,6 @@
       <nav id="top-page-list" class="top-page-list" aria-label="頁面切換"></nav>
       <div class="top-action-grid" aria-label="主要操作">
         <button type="button" data-action="fullscreen" aria-label="全螢幕播放"><span aria-hidden="true">▶</span>全螢幕</button>
-        <button type="button" data-action="arrange" aria-label="排列小工具"><span aria-hidden="true">⇆</span></button>
-        <button type="button" data-action="hidden-list" aria-label="隱藏小工具"><span aria-hidden="true">◌</span></button>
-        <button type="button" data-action="hide-all" aria-label="關閉所有小工具"><span aria-hidden="true">⊘</span></button>
         <button type="button" data-action="save-version" aria-label="檔案存檔"><span aria-hidden="true">⬇</span>存檔</button>
       </div>
     </div>
@@ -121,6 +118,15 @@
     <!-- Group 3: Arrange -->
     <button class="rail-btn" type="button" data-rail="arrange" aria-label="排列小工具" title="排列小工具">
       <svg viewBox="0 0 24 24" class="rail-icon"><path d="M4 6h16M4 12h10M4 18h16"/></svg>
+    </button>
+    <button class="rail-btn" type="button" data-rail-action="hidden-list" aria-label="隱藏小工具清單" title="隱藏小工具清單">
+      <svg viewBox="0 0 24 24" class="rail-icon"><path d="M4 7h16M4 12h16M4 17h10"/><circle cx="18" cy="17" r="2"/></svg>
+    </button>
+    <button class="rail-btn" type="button" data-rail-action="hide-all" aria-label="隱藏所有小工具" title="隱藏所有小工具">
+      <svg viewBox="0 0 24 24" class="rail-icon"><path d="M3 12s3.5-5 9-5 9 5 9 5-3.5 5-9 5-9-5-9-5z"/><path d="M4 4l16 16"/></svg>
+    </button>
+    <button class="rail-btn" type="button" data-rail-action="show-all-hidden" aria-label="顯示所有隱藏的小工具" title="顯示所有隱藏的小工具">
+      <svg viewBox="0 0 24 24" class="rail-icon"><path d="M3 12s3.5-5 9-5 9 5 9 5-3.5 5-9 5-9-5-9-5z"/><circle cx="12" cy="12" r="3"/></svg>
     </button>
 
     <div class="rail-spacer"></div>
@@ -619,10 +625,6 @@
         <span class="action-glyph" aria-hidden="true">▶</span><span>全螢幕播放</span>
       </button>
       <span class="action-sep" aria-hidden="true"></span>
-      <button class="action-btn" type="button" data-action="arrange" title="排列小工具" aria-label="排列小工具"><span aria-hidden="true">⇆</span></button>
-      <button class="action-btn" type="button" data-action="hidden-list" title="隱藏小工具" aria-label="隱藏小工具"><span aria-hidden="true">◌</span></button>
-      <button class="action-btn" type="button" data-action="hide-all" title="關閉所有小工具" aria-label="關閉所有小工具"><span aria-hidden="true">⊘</span></button>
-      <span class="action-sep" aria-hidden="true"></span>
       <button class="action-pill warm" type="button" data-action="save-version" aria-label="檔案存檔">
         <span class="action-glyph" aria-hidden="true">⬇</span><span>檔案存檔</span>
       </button>
@@ -740,7 +742,7 @@
   </div>
 
   <div id="settings-backdrop" class="settings-backdrop hidden"></div>
-  <script src="./script.js?v=20260519m"></script>
+  <script src="./script.js?v=20260519n"></script>
   <script>
     // IA Step 1: side-rail wiring — forwards to existing dock buttons.
     (function () {
@@ -754,6 +756,16 @@
       });
       // Map rail data-rail values to existing dock data-tool selectors.
       rail.addEventListener('click', function (e) {
+        var actionBtn = e.target.closest('[data-rail-action]');
+        if (actionBtn) {
+          var action = actionBtn.getAttribute('data-rail-action');
+          var clickById = function (id) { var el = document.getElementById(id); if (el) el.click(); };
+          if (action === 'hidden-list') clickById('hidden-widgets-button');
+          else if (action === 'hide-all') clickById('hide-widgets');
+          else if (action === 'show-all-hidden') clickById('show-all-created-widgets');
+          rail.querySelectorAll('.rail-btn.active').forEach(function (b) { b.classList.remove('active'); });
+          return;
+        }
         var btn = e.target.closest('[data-rail]');
         if (!btn) return;
         var key = btn.getAttribute('data-rail');
