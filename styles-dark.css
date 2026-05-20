@@ -3093,19 +3093,6 @@ body[data-theme="dark"] #stage-timer-reset:hover {
   color: var(--d-text);
 }
 
-/* 首頁動作鈕：玻璃藍（透明底＋cool 邊框） */
-body[data-theme="dark"] button.home-file-input {
-  background: color-mix(in oklab, var(--d-cool) 14%, rgba(15, 20, 28, 0.6));
-  border: 1px solid color-mix(in oklab, var(--d-cool) 38%, transparent);
-  color: var(--d-cool);
-  backdrop-filter: blur(8px);
-}
-body[data-theme="dark"] button.home-file-input:hover {
-  background: color-mix(in oklab, var(--d-cool) 22%, rgba(15, 20, 28, 0.6));
-  border-color: color-mix(in oklab, var(--d-cool) 55%, transparent);
-  color: #cfe6ff;
-}
-
 /* 主要確認鈕（submit / save / ok）：玻璃藍 */
 body[data-theme="dark"] #participant-submit,
 body[data-theme="dark"] #post-edit-save,

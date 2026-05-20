@@ -400,6 +400,15 @@ h3 {
   pointer-events: none;
 }
 
+.home-internal-controls {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .home-message {
   min-height: 22px;
   color: #9fb1bf;
