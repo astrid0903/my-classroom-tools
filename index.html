@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Google Slides 教學播放台</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
-  <link rel="stylesheet" href="./styles.css?v=20260520f">
-  <link rel="stylesheet" href="./styles-dark.css?v=20260520f">
+  <link rel="stylesheet" href="./styles.css?v=20260521a">
+  <link rel="stylesheet" href="./styles-dark.css?v=20260521a">
 </head>
 <body data-theme="dark">
   <div id="session-bar" class="session-bar hidden" aria-label="Session 狀態">
@@ -730,6 +730,9 @@
   <div id="image-viewer" class="image-viewer hidden" role="dialog" aria-modal="true" aria-label="貼文圖片預覽">
     <div class="image-viewer-bar">
       <a id="image-viewer-download" class="link-button" href="#" download="貼文圖片.jpg">下載圖片</a>
+      <button id="image-viewer-rotate-left" type="button" title="向左轉">↶ 左轉</button>
+      <button id="image-viewer-rotate-right" type="button" title="向右轉">↷ 右轉</button>
+      <button id="image-viewer-rotate-reset" type="button" title="重設方向">重設</button>
       <button id="image-viewer-close" type="button">關閉</button>
     </div>
     <div class="image-viewer-zoom-wrap">
@@ -743,7 +746,7 @@
   </div>
 
   <div id="settings-backdrop" class="settings-backdrop hidden"></div>
-  <script src="./script.js?v=20260520f"></script>
+  <script src="./script.js?v=20260521a"></script>
   <script>
     // IA Step 1: side-rail wiring — forwards to existing dock buttons.
     (function () {

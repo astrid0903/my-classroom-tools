@@ -242,6 +242,9 @@ const els = {
   imageViewerImg: document.querySelector("#image-viewer-img"),
   imageViewerDownload: document.querySelector("#image-viewer-download"),
   imageViewerClose: document.querySelector("#image-viewer-close"),
+  imageViewerRotateLeft: document.querySelector("#image-viewer-rotate-left"),
+  imageViewerRotateRight: document.querySelector("#image-viewer-rotate-right"),
+  imageViewerRotateReset: document.querySelector("#image-viewer-rotate-reset"),
   imageViewerZoom: document.querySelector("#image-viewer-zoom"),
   imageViewerZoomValue: document.querySelector("#image-viewer-zoom-value"),
 };
@@ -285,6 +288,7 @@ let participantBoardPosts = [];
 let participantUid = null;
 let participantEditingPostId = null;
 let participantImagePreviewUrls = [];
+let imageViewerRotation = 0;
 let currentFileHandle = null;
 let currentFileName = "";
 let currentFileSavedAt = "";
@@ -3056,6 +3060,15 @@ function setImageViewerZoom(value) {
   els.imageViewerZoomValue.textContent = `${value}%`;
 }
 
+function setImageViewerRotation(value) {
+  imageViewerRotation = ((value % 360) + 360) % 360;
+  els.imageViewerImg.style.transform = `rotate(${imageViewerRotation}deg)`;
+}
+
+function rotateImageViewer(delta) {
+  setImageViewerRotation(imageViewerRotation + delta);
+}
+
 function openImageViewer(imageDataUrl, filename) {
   if (!imageDataUrl) return;
   els.imageViewerImg.src = imageDataUrl;
@@ -3063,6 +3076,7 @@ function openImageViewer(imageDataUrl, filename) {
   els.imageViewerDownload.download = filename || "貼文圖片.jpg";
   els.imageViewerZoom.value = 100;
   setImageViewerZoom(100);
+  setImageViewerRotation(0);
   els.imageViewer.classList.remove("hidden");
 }
 
@@ -3115,6 +3129,7 @@ function createPostImageGallery(post, { actions = false, className = "" } = {}) 
 function closeImageViewer() {
   els.imageViewer.classList.add("hidden");
   els.imageViewerImg.removeAttribute("src");
+  setImageViewerRotation(0);
   els.imageViewerDownload.href = "#";
 }
 
@@ -5674,6 +5689,9 @@ els.distributeHorizontalWidgets.addEventListener("click", () => arrangeWidgets("
 els.distributeVerticalWidgets.addEventListener("click", () => arrangeWidgets("vertical"));
 els.clearWidgetSelection.addEventListener("click", clearWidgetSelection);
 els.imageViewerClose.addEventListener("click", closeImageViewer);
+els.imageViewerRotateLeft.addEventListener("click", () => rotateImageViewer(-90));
+els.imageViewerRotateRight.addEventListener("click", () => rotateImageViewer(90));
+els.imageViewerRotateReset.addEventListener("click", () => setImageViewerRotation(0));
 els.imageViewer.addEventListener("click", (event) => {
   if (event.target === els.imageViewer) closeImageViewer();
 });
