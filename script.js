@@ -84,6 +84,8 @@ const els = {
   pageBgStatus: document.querySelector("#page-bg-status"),
   postBoardControls: document.querySelector("#post-board-controls"),
   exportObsidian: document.querySelector("#export-obsidian"),
+  exportPdf: document.querySelector("#export-pdf"),
+  exportAllFiles: document.querySelector("#export-all-files"),
   postBoardJoinUrl: document.querySelector("#post-board-join-url"),
   copyPostBoardLink: document.querySelector("#copy-post-board-link"),
   openPostBoardLink: document.querySelector("#open-post-board-link"),
@@ -3902,47 +3904,233 @@ async function reorderPostInSection(postId, sectionId, targetPostId = "", placeA
   }
 }
 
-function exportPostBoardToObsidian() {
+function sanitizePostFilename(name) {
+  return (name || "未命名").replace(/[\\/:*?"<>|]/g, "-").trim() || "未命名";
+}
+
+function triggerDownload(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function loadJSZip() {
+  if (window.JSZip) return window.JSZip;
+  return new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js";
+    script.onload = () => resolve(window.JSZip);
+    script.onerror = () => reject(new Error("無法載入壓縮工具，請確認網路連線。"));
+    document.head.appendChild(script);
+  });
+}
+
+function buildPostBoardMdLines(posts, imageFolder) {
+  const lines = [];
+  if (posts.length === 0) { lines.push("_（尚無貼文）_", ""); return lines; }
+  posts.forEach((post) => {
+    lines.push(`**${post.author || "匿名"}**`);
+    if (post.content) lines.push(post.content);
+    postImageSources(post).forEach((source, i) => {
+      const filename = postImageFilename(post, i, source);
+      lines.push(`![[${imageFolder}/${filename}]]`);
+    });
+    lines.push("");
+  });
+  return lines;
+}
+
+async function exportPostBoardToObsidian() {
   const page = activePage();
   if (page.type !== "posts") return;
 
   const boardName = page.name || "貼文板";
   const sections = normalizePostSections(postBoardSections.length > 0 ? postBoardSections : page.sections);
   const date = new Date().toISOString().slice(0, 10);
+  const filename = sanitizePostFilename(boardName);
+
+  let JSZip;
+  try { JSZip = await loadJSZip(); } catch (e) { setVersionMessage(e.message, true); return; }
+  const zip = new JSZip();
+  const imageEntries = [];
 
   const lines = [`---`, `date: ${date}`, `board: ${boardName}`, `---`, ``];
-  function appendPosts(posts) {
-    if (posts.length === 0) { lines.push("_（尚無貼文）_", ``); return; }
-    posts.forEach((post) => {
-      const author = post.author || "匿名";
-      lines.push(`**${author}**`);
-      if (post.content) lines.push(post.content);
-      postImageSources(post).forEach((source) => lines.push(`![](${source})`));
-      lines.push(``);
+  function appendSection(label, posts) {
+    if (label) lines.push(`# ${label}`, ``);
+    buildPostBoardMdLines(posts, "attachments").forEach((l) => lines.push(l));
+    postBoardPosts.filter((p) => posts.includes(p)).forEach((post) => {
+      postImageSources(post).forEach((source, i) => {
+        imageEntries.push({ path: `attachments/${postImageFilename(post, i, source)}`, source });
+      });
     });
   }
+
   if (sections.length === 0) {
-    appendPosts(sortPosts(postBoardPosts));
+    const sorted = sortPosts(postBoardPosts);
+    lines.push(...buildPostBoardMdLines(sorted, "attachments"));
+    sorted.forEach((post) => {
+      postImageSources(post).forEach((source, i) => {
+        imageEntries.push({ path: `attachments/${postImageFilename(post, i, source)}`, source });
+      });
+    });
   } else {
     sections.forEach((section) => {
       lines.push(`# ${section.name}`, ``);
-      appendPosts(postsForSection(postBoardPosts, section.id));
+      const posts = sortPosts(postsForSection(postBoardPosts, section.id));
+      lines.push(...buildPostBoardMdLines(posts, "attachments"));
+      posts.forEach((post) => {
+        postImageSources(post).forEach((source, i) => {
+          imageEntries.push({ path: `attachments/${postImageFilename(post, i, source)}`, source });
+        });
+      });
     });
     const sectionIds = new Set(sections.map((s) => s.id));
-    const orphanPosts = postBoardPosts.filter((post) => !sectionIds.has(post.sectionId || "section-a"));
-    if (orphanPosts.length > 0) { lines.push(`# 未分類`, ``); appendPosts(orphanPosts); }
+    const orphans = sortPosts(postBoardPosts.filter((p) => !sectionIds.has(p.sectionId || "section-a")));
+    if (orphans.length > 0) {
+      lines.push(`# 未分類`, ``);
+      lines.push(...buildPostBoardMdLines(orphans, "attachments"));
+      orphans.forEach((post) => {
+        postImageSources(post).forEach((source, i) => {
+          imageEntries.push({ path: `attachments/${postImageFilename(post, i, source)}`, source });
+        });
+      });
+    }
   }
 
-  const md = lines.join("\n");
-  const filename = boardName.replace(/[\\/:*?"<>|]/g, "-");
+  zip.file(`${filename}.md`, lines.join("\n"));
+  imageEntries.forEach(({ path, source }) => {
+    zip.file(path, source.split(",")[1], { base64: true });
+  });
 
-  const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
-  const blobUrl = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = blobUrl;
-  a.download = `${filename}.md`;
-  a.click();
-  URL.revokeObjectURL(blobUrl);
+  const blob = await zip.generateAsync({ type: "blob" });
+  triggerDownload(blob, `${filename}.zip`);
+}
+
+function buildPostBoardPrintHtml(boardName, sections, allPosts) {
+  const date = new Date().toLocaleDateString("zh-TW", { year: "numeric", month: "2-digit", day: "2-digit" });
+  const escHtml = (s) => (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
+
+  function renderPosts(posts) {
+    if (posts.length === 0) return `<p style="color:#888;font-style:italic">（尚無貼文）</p>`;
+    return posts.map((post) => {
+      const sources = postImageSources(post);
+      const hasImage = sources.length > 0;
+      const leftHtml = `
+        <div class="post-left">
+          <div class="post-meta">${escHtml(post.author || "匿名")} &nbsp; ${escHtml(formatPostTime(post.createdAt))}</div>
+          <div class="post-author">${escHtml(post.author || "匿名")}</div>
+          ${post.content ? `<div class="post-content">${escHtml(post.content)}</div>` : ""}
+        </div>`;
+      const rightHtml = hasImage ? `<div class="post-images">${sources.map((src) => `<img src="${src}" class="post-img" alt="">`).join("")}</div>` : "";
+      return `<div class="post">${leftHtml}${rightHtml}</div>`;
+    }).join("");
+  }
+
+  let body = "";
+  if (sections.length === 0) {
+    body += renderPosts(sortPosts(allPosts));
+  } else {
+    sections.forEach((section, idx) => {
+      body += `<h2>${idx + 1}.${escHtml(section.name)}</h2>`;
+      body += renderPosts(sortPosts(postsForSection(allPosts, section.id)));
+    });
+    const sectionIds = new Set(sections.map((s) => s.id));
+    const orphans = sortPosts(allPosts.filter((p) => !sectionIds.has(p.sectionId || "section-a")));
+    if (orphans.length > 0) {
+      body += `<h2>未分類</h2>${renderPosts(orphans)}`;
+    }
+  }
+
+  const css = `
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: "Noto Sans TC", "Microsoft JhengHei", sans-serif; font-size: 13px; color: #111; background: #fff; padding: 32px 40px; }
+    .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; font-size: 11px; color: #555; }
+    .page-brand { font-weight: 700; letter-spacing: 0.05em; font-size: 13px; color: #222; }
+    h1 { font-size: 2em; font-weight: 900; margin: 8px 0 24px; }
+    h2 { font-size: 1.1em; font-weight: 700; margin: 28px 0 0; padding-bottom: 6px; border-bottom: 1.5px solid #222; }
+    .post { display: flex; gap: 20px; padding: 16px 0; border-bottom: 1px solid #ddd; align-items: flex-start; }
+    .post-left { flex: 1; min-width: 0; }
+    .post-meta { font-size: 10px; color: #777; margin-bottom: 4px; }
+    .post-author { font-weight: 700; font-size: 1.05em; margin-bottom: 6px; }
+    .post-content { white-space: pre-wrap; line-height: 1.6; }
+    .post-images { flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; }
+    .post-img { max-width: 300px; max-height: 300px; object-fit: contain; border-radius: 4px; }
+    @media print {
+      body { padding: 16px 20px; }
+      .post-img { max-width: 260px; max-height: 260px; }
+      h2 { page-break-before: auto; }
+      .post { page-break-inside: avoid; }
+    }
+  `;
+
+  return `<!DOCTYPE html><html lang="zh-TW"><head><meta charset="utf-8">
+    <title>${escHtml(boardName)}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>${css}</style></head><body>
+    <div class="page-header"><span>${date}</span><span class="page-brand">我的班級工具</span></div>
+    <h1>${escHtml(boardName)}</h1>
+    ${body}
+    <script>window.onload=function(){window.print();}<\/script>
+    </body></html>`;
+}
+
+function exportPostBoardToPdf() {
+  const page = activePage();
+  if (page.type !== "posts") return;
+  const boardName = page.name || "貼文板";
+  const sections = normalizePostSections(postBoardSections.length > 0 ? postBoardSections : page.sections);
+  const html = buildPostBoardPrintHtml(boardName, sections, postBoardPosts);
+  const win = window.open("", "_blank");
+  if (!win) { setVersionMessage("瀏覽器封鎖了彈出視窗，請允許後再試。", true); return; }
+  win.document.write(html);
+  win.document.close();
+}
+
+async function exportPostBoardAllFiles() {
+  const page = activePage();
+  if (page.type !== "posts") return;
+  const boardName = page.name || "貼文板";
+  const sections = normalizePostSections(postBoardSections.length > 0 ? postBoardSections : page.sections);
+  const boardFolder = sanitizePostFilename(boardName);
+  const date = new Date().toISOString().slice(0, 10);
+
+  let JSZip;
+  try { JSZip = await loadJSZip(); } catch (e) { setVersionMessage(e.message, true); return; }
+  const zip = new JSZip();
+
+  function addSectionToZip(folderPath, sectionLabel, posts) {
+    const folder = zip.folder(folderPath);
+    const imagesFolder = folder.folder("images");
+    const lines = [`---`, `date: ${date}`, `section: ${sectionLabel}`, `board: ${boardName}`, `---`, ``];
+    lines.push(...buildPostBoardMdLines(posts, "images"));
+    folder.file(`${sanitizePostFilename(sectionLabel)}.md`, lines.join("\n"));
+    posts.forEach((post) => {
+      postImageSources(post).forEach((source, i) => {
+        imagesFolder.file(postImageFilename(post, i, source), source.split(",")[1], { base64: true });
+      });
+    });
+  }
+
+  if (sections.length === 0) {
+    addSectionToZip(boardFolder, boardName, sortPosts(postBoardPosts));
+  } else {
+    sections.forEach((section) => {
+      const posts = sortPosts(postsForSection(postBoardPosts, section.id));
+      addSectionToZip(`${boardFolder}/${sanitizePostFilename(section.name)}`, section.name, posts);
+    });
+    const sectionIds = new Set(sections.map((s) => s.id));
+    const orphans = sortPosts(postBoardPosts.filter((p) => !sectionIds.has(p.sectionId || "section-a")));
+    if (orphans.length > 0) addSectionToZip(`${boardFolder}/未分類`, "未分類", orphans);
+  }
+
+  setVersionMessage("正在壓縮檔案…");
+  const blob = await zip.generateAsync({ type: "blob" });
+  triggerDownload(blob, `${boardFolder}.zip`);
+  setVersionMessage(`已下載「${boardFolder}.zip」。`);
 }
 
 function renderPostCards(container, posts, options = {}) {
@@ -6071,6 +6259,8 @@ els.copyPostBoardLink.addEventListener("click", async () => {
   }
 });
 els.exportObsidian.addEventListener("click", exportPostBoardToObsidian);
+els.exportPdf.addEventListener("click", exportPostBoardToPdf);
+els.exportAllFiles.addEventListener("click", exportPostBoardAllFiles);
 els.retrySlides.addEventListener("click", () => {
   if (currentPlayerUrl) loadPlayerUrl(currentPlayerUrl);
 });
