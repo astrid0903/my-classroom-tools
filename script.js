@@ -2594,6 +2594,49 @@ async function imageFileToJpegDataUrl(file, options = {}) {
   return result;
 }
 
+function canvasToCompressedJpegDataUrl(canvas, options = {}) {
+  const maxBytes = options.maxBytes || Infinity;
+  const qualities = options.qualities || [0.82, 0.74, 0.66, 0.58, 0.5, 0.42];
+  let workingCanvas = canvas;
+  let result = workingCanvas.toDataURL("image/jpeg", qualities[0]);
+
+  for (let pass = 0; pass < 4; pass += 1) {
+    for (const quality of qualities) {
+      result = workingCanvas.toDataURL("image/jpeg", quality);
+      if (result.length <= maxBytes) return result;
+    }
+    if (result.length <= maxBytes) return result;
+    const nextCanvas = document.createElement("canvas");
+    nextCanvas.width = Math.max(1, Math.round(workingCanvas.width * 0.82));
+    nextCanvas.height = Math.max(1, Math.round(workingCanvas.height * 0.82));
+    const nextContext = nextCanvas.getContext("2d");
+    nextContext.drawImage(workingCanvas, 0, 0, nextCanvas.width, nextCanvas.height);
+    workingCanvas = nextCanvas;
+  }
+
+  return result;
+}
+
+async function compressPostImageDataUrl(source) {
+  if (!source || source.length <= POST_IMAGE_MAX_ITEM_LENGTH) return source;
+  const image = await loadImageElement(source);
+  const maxSide = 960;
+  const scale = Math.min(1, maxSide / Math.max(image.naturalWidth || image.width || 1, image.naturalHeight || image.height || 1));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round((image.naturalWidth || image.width || 1) * scale));
+  canvas.height = Math.max(1, Math.round((image.naturalHeight || image.height || 1) * scale));
+  const context = canvas.getContext("2d");
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  const dataUrl = canvasToCompressedJpegDataUrl(canvas, {
+    maxBytes: POST_IMAGE_MAX_ITEM_LENGTH,
+    qualities: [0.76, 0.68, 0.6, 0.52, 0.44, 0.36, 0.3],
+  });
+  if (dataUrl.length > POST_IMAGE_MAX_ITEM_LENGTH) {
+    throw new Error("有圖片壓縮後仍太大，請換一張較小的圖片。");
+  }
+  return dataUrl;
+}
+
 function alignmentSelect(value = "center") {
   const select = document.createElement("select");
   [
@@ -3530,29 +3573,35 @@ async function saveImageViewerRotation() {
   const page = activePage();
   if (page.type !== "posts" || !page.boardId) return;
 
-  const img = new Image();
-  img.src = source;
-  await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; });
-
-  const radians = (imageViewerRotation * Math.PI) / 180;
-  const sin = Math.abs(Math.sin(radians));
-  const cos = Math.abs(Math.cos(radians));
-  const newW = Math.round(img.width * cos + img.height * sin);
-  const newH = Math.round(img.width * sin + img.height * cos);
-  const canvas = document.createElement("canvas");
-  canvas.width = newW;
-  canvas.height = newH;
-  const ctx = canvas.getContext("2d");
-  ctx.translate(newW / 2, newH / 2);
-  ctx.rotate(radians);
-  ctx.drawImage(img, -img.width / 2, -img.height / 2);
-  const newDataUrl = canvas.toDataURL("image/jpeg", 0.92);
-
-  const newSources = [...sources];
-  newSources[imageViewerIndex] = newDataUrl;
-
   els.imageViewerSaveRotation.disabled = true;
   try {
+    const img = new Image();
+    img.src = source;
+    await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; });
+
+    const radians = (imageViewerRotation * Math.PI) / 180;
+    const sin = Math.abs(Math.sin(radians));
+    const cos = Math.abs(Math.cos(radians));
+    const newW = Math.round(img.width * cos + img.height * sin);
+    const newH = Math.round(img.width * sin + img.height * cos);
+    const canvas = document.createElement("canvas");
+    canvas.width = newW;
+    canvas.height = newH;
+    const ctx = canvas.getContext("2d");
+    ctx.translate(newW / 2, newH / 2);
+    ctx.rotate(radians);
+    ctx.drawImage(img, -img.width / 2, -img.height / 2);
+    const newDataUrl = canvasToCompressedJpegDataUrl(canvas, {
+      maxBytes: POST_IMAGE_MAX_ITEM_LENGTH,
+      qualities: [0.76, 0.68, 0.6, 0.52, 0.44, 0.36, 0.3],
+    });
+    if (newDataUrl.length > POST_IMAGE_MAX_ITEM_LENGTH) {
+      throw new Error("旋轉後圖片仍太大，請換一張較小的圖片。");
+    }
+
+    const newSources = await Promise.all(sources.map((item, index) => (
+      index === imageViewerIndex ? newDataUrl : compressPostImageDataUrl(item)
+    )));
     const api = await loadFirebaseApi();
     await requireFirebaseUser(api);
     await api.updateDoc(api.doc(api.db, POST_BOARDS_COLLECTION, page.boardId, "posts", imageViewerPost.id), {
