@@ -26,6 +26,8 @@ const GOOGLE_DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
 const GOOGLE_DRIVE_DISCOVERY_SRC = "https://accounts.google.com/gsi/client";
 const GOOGLE_DRIVE_UPLOAD_URL = "https://www.googleapis.com/upload/drive/v3/files";
 const GOOGLE_DRIVE_FILE_URL = "https://www.googleapis.com/drive/v3/files";
+const GOOGLE_DRIVE_STUDIO_FOLDER_ID = "1u1aXfQ1ESmXTW0OAXiTvkzFNGExr4AuK";
+const GOOGLE_DRIVE_STUDIO_FOLDER_NAME = "固定播放台資料夾";
 
 const els = {
   homeView: document.querySelector("#home-view"),
@@ -695,37 +697,13 @@ async function driveFetch(url, options = {}) {
 
 async function getDriveFileMetadata(fileId) {
   const fields = "id,name,mimeType,modifiedTime,version,webViewLink";
-  const response = await driveFetch(`${GOOGLE_DRIVE_FILE_URL}/${fileId}?fields=${encodeURIComponent(fields)}`);
+  const params = new URLSearchParams({ fields, supportsAllDrives: "true" });
+  const response = await driveFetch(`${GOOGLE_DRIVE_FILE_URL}/${fileId}?${params}`);
   return response.json();
 }
 
 function escapeDriveQueryText(value) {
   return String(value || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-}
-
-async function listDriveFolders(parentId = "root", searchText = "") {
-  const clauses = [
-    "trashed = false",
-    "mimeType = 'application/vnd.google-apps.folder'",
-    `'${escapeDriveQueryText(parentId || "root")}' in parents`,
-  ];
-  const search = escapeDriveQueryText(searchText.trim());
-  if (search) clauses.push(`name contains '${search}'`);
-  const params = new URLSearchParams({
-    pageSize: "100",
-    orderBy: "name",
-    fields: "nextPageToken,files(id,name,mimeType,modifiedTime)",
-    q: clauses.join(" and "),
-  });
-  const folders = [];
-  do {
-    const response = await driveFetch(`${GOOGLE_DRIVE_FILE_URL}?${params}`);
-    const data = await response.json();
-    folders.push(...(Array.isArray(data.files) ? data.files : []));
-    if (!data.nextPageToken) break;
-    params.set("pageToken", data.nextPageToken);
-  } while (true);
-  return folders;
 }
 
 async function listDriveStudioFiles(folderId = "root", searchText = "") {
@@ -740,6 +718,8 @@ async function listDriveStudioFiles(folderId = "root", searchText = "") {
     pageSize: "100",
     orderBy: "modifiedTime desc",
     fields: "nextPageToken,files(id,name,mimeType,modifiedTime,webViewLink)",
+    includeItemsFromAllDrives: "true",
+    supportsAllDrives: "true",
     q: clauses.join(" and "),
   });
   const files = [];
@@ -753,10 +733,48 @@ async function listDriveStudioFiles(folderId = "root", searchText = "") {
   return files;
 }
 
+async function driveLayoutFromFileMeta(file) {
+  const { metadata, payload, state } = await readDriveStudioFile(file.id);
+  return {
+    name: metadata.name || file.name || "未命名播放台",
+    fileName: metadata.name || file.name || "",
+    savedAt: payload.savedAt || metadata.modifiedTime || file.modifiedTime || "",
+    modifiedTime: metadata.modifiedTime || file.modifiedTime || "",
+    state,
+    driveFileId: metadata.id || file.id,
+    driveMeta: metadata,
+    source: "drive",
+  };
+}
+
+async function scanDriveStudioFolder({ silent = false } = {}) {
+  try {
+    setFolderStatus(`正在讀取 Google Drive「${GOOGLE_DRIVE_STUDIO_FOLDER_NAME}」...`);
+    const files = await listDriveStudioFiles(GOOGLE_DRIVE_STUDIO_FOLDER_ID);
+    const layouts = [];
+    for (const file of files) {
+      try {
+        layouts.push(await driveLayoutFromFileMeta(file));
+      } catch {
+        // Ignore JSON files that are not playback files.
+      }
+    }
+    layouts.sort((a, b) => String(b.modifiedTime || b.savedAt || "").localeCompare(String(a.modifiedTime || a.savedAt || "")));
+    folderLayoutFiles = layouts;
+    setFolderStatus(`已連結 Google Drive「${GOOGLE_DRIVE_STUDIO_FOLDER_NAME}」｜${layouts.length} 個播放台檔案`);
+    renderHomeVersions();
+    if (!silent) setVersionMessage(`已更新 Drive 預覽：${layouts.length} 個檔案。`);
+  } catch (error) {
+    folderLayoutFiles = [];
+    setFolderStatus(`讀取 Google Drive 資料夾失敗：${googleDriveErrorMessage(error)}`, true);
+    renderHomeVersions();
+  }
+}
+
 async function readDriveStudioFile(fileId) {
   const [metadata, contentResponse] = await Promise.all([
     getDriveFileMetadata(fileId),
-    driveFetch(`${GOOGLE_DRIVE_FILE_URL}/${fileId}?alt=media`),
+    driveFetch(`${GOOGLE_DRIVE_FILE_URL}/${fileId}?${new URLSearchParams({ alt: "media", supportsAllDrives: "true" })}`),
   ]);
   const payload = JSON.parse(await contentResponse.text());
   const state = normalizeStudioFilePayload(payload);
@@ -785,8 +803,9 @@ async function createDriveStudioFile(payload, name) {
   const { boundary, body } = driveMultipartBody({
     name: sanitizeFileName(name),
     mimeType: "application/json",
+    parents: [GOOGLE_DRIVE_STUDIO_FOLDER_ID],
   }, payload);
-  const response = await driveFetch(`${GOOGLE_DRIVE_UPLOAD_URL}?uploadType=multipart&fields=id,name,modifiedTime,version,webViewLink`, {
+  const response = await driveFetch(`${GOOGLE_DRIVE_UPLOAD_URL}?uploadType=multipart&supportsAllDrives=true&fields=id,name,modifiedTime,version,webViewLink`, {
     method: "POST",
     headers: { "Content-Type": `multipart/related; boundary=${boundary}` },
     body,
@@ -799,7 +818,7 @@ async function updateDriveStudioFile(fileId, payload, name = currentFileName) {
     name: sanitizeFileName(name),
     mimeType: "application/json",
   }, payload);
-  const response = await driveFetch(`${GOOGLE_DRIVE_UPLOAD_URL}/${fileId}?uploadType=multipart&fields=id,name,modifiedTime,version,webViewLink`, {
+  const response = await driveFetch(`${GOOGLE_DRIVE_UPLOAD_URL}/${fileId}?uploadType=multipart&supportsAllDrives=true&fields=id,name,modifiedTime,version,webViewLink`, {
     method: "PATCH",
     headers: { "Content-Type": `multipart/related; boundary=${boundary}` },
     body,
@@ -1110,6 +1129,9 @@ function appendLayoutPreview(container, layout) {
 }
 
 function openHomeLayout(layout, { folderFile = false } = {}) {
+  if (folderFile && layout.driveFileId) {
+    return openDriveStudioFile(layout.driveFileId);
+  }
   if (folderFile && layout.handle) {
     return layout.handle
       .getFile()
@@ -1161,6 +1183,7 @@ function appendCreateStudioCard() {
 
 function appendHomeLayoutCard(layout, { current = false, folderFile = false, versionState = "" } = {}) {
   const card = createEl("article", `home-layout-card${folderFile ? " folder-layout-card" : ""}`);
+  const sourceLabel = layout.source === "drive" ? "Drive 檔案" : "本機檔案";
   if (versionState) card.dataset.versionState = versionState;
   card.tabIndex = 0;
   card.setAttribute("role", "button");
@@ -1175,12 +1198,12 @@ function appendHomeLayoutCard(layout, { current = false, folderFile = false, ver
   const savedText = layout.savedAt ? `最近存檔 ${formatSavedAt(layout.savedAt)}` : "尚未存成檔案";
   const badges = createEl("div", "home-layout-badges");
   if (current) badges.appendChild(createEl("span", "home-layout-badge current", "目前開啟中"));
-  if (folderFile) badges.appendChild(createEl("span", "home-layout-badge folder", "資料夾版本"));
+  if (folderFile) badges.appendChild(createEl("span", "home-layout-badge folder", layout.source === "drive" ? "Drive 資料夾" : "資料夾版本"));
   if (versionState === "newer") badges.appendChild(createEl("span", "home-layout-badge newer", "較新版本"));
   else if (versionState === "older") badges.appendChild(createEl("span", "home-layout-badge muted", "較舊版本"));
   else if (versionState === "same-name") badges.appendChild(createEl("span", "home-layout-badge muted", "同名檔案"));
   else if (versionState === "same") badges.appendChild(createEl("span", "home-layout-badge muted", "同一檔案"));
-  title.append(createEl("h3", "", layout.name), createEl("span", "", folderFile ? `本機檔案｜${savedText}` : savedText));
+  title.append(createEl("h3", "", layout.name), createEl("span", "", folderFile ? `${sourceLabel}｜${savedText}` : savedText));
   if (badges.childElementCount > 0) title.appendChild(badges);
 
   const preview = createEl("div", "home-preview");
@@ -1199,7 +1222,7 @@ function appendHomeLayoutCard(layout, { current = false, folderFile = false, ver
 
   const actions = createEl("div", "home-layout-actions");
   if (folderFile) {
-    const openFolderFile = createEl("button", "", versionState === "newer" ? "開啟較新檔案" : "開啟資料夾檔案");
+    const openFolderFile = createEl("button", "", versionState === "newer" ? "開啟較新檔案" : `開啟${layout.source === "drive" ? "Drive" : "資料夾"}檔案`);
     openFolderFile.type = "button";
     openFolderFile.addEventListener("click", (event) => {
       event.stopPropagation();
@@ -1309,7 +1332,7 @@ function showHome() {
   document.body.classList.add("home-mode");
   document.body.classList.remove("studio-mode");
   renderHomeVersions();
-  if (playbackDirectoryHandle) scanPlaybackFolder({ silent: true });
+  if (!folderLayoutFiles.length) setFolderStatus(`按「載入 Drive 預覽」讀取 Google Drive「${GOOGLE_DRIVE_STUDIO_FOLDER_NAME}」。`);
   window.scrollTo({ top: 0, behavior: "instant" });
 }
 
@@ -1393,7 +1416,7 @@ function initHomeMode() {
   document.body.classList.remove("studio-mode");
   renderSavedLayouts();
   renderHomeVersions();
-  restorePlaybackFolder();
+  setFolderStatus(`按「載入 Drive 預覽」讀取 Google Drive「${GOOGLE_DRIVE_STUDIO_FOLDER_NAME}」。`);
 }
 
 function normalizePages(value) {
@@ -1968,194 +1991,8 @@ async function openDriveStudioFile(fileIdInput = "") {
   }
 }
 
-function showDriveFolderChooser(initialFolders = []) {
-  return new Promise((resolve) => {
-    const overlay = createEl("div", "drive-file-modal");
-    const dialog = createEl("div", "drive-file-dialog");
-    const head = createEl("div", "drive-file-head");
-    const title = createEl("div", "drive-file-title");
-    const close = createEl("button", "secondary drive-file-close", "取消");
-    const controls = createEl("div", "drive-file-controls");
-    const search = createEl("input", "drive-file-search");
-    const searchButton = createEl("button", "secondary", "搜尋");
-    const back = createEl("button", "secondary", "上一層");
-    const select = createEl("button", "", "選擇此資料夾");
-    const list = createEl("div", "drive-file-list");
-    const path = [{ id: "root", name: "我的雲端硬碟" }];
-    let folders = initialFolders;
-
-    search.type = "search";
-    search.placeholder = "搜尋目前資料夾內的子資料夾";
-    controls.append(search, searchButton, back, select);
-    head.append(title, close);
-    dialog.append(head, controls, list);
-    overlay.appendChild(dialog);
-
-    const currentFolder = () => path[path.length - 1];
-    const finish = (folder = null) => {
-      overlay.remove();
-      resolve(folder);
-    };
-    const render = () => {
-      const folder = currentFolder();
-      title.replaceChildren(
-        createEl("strong", "", "選擇 Google Drive 資料夾"),
-        createEl("span", "", path.map((item) => item.name).join(" / "))
-      );
-      back.disabled = path.length <= 1;
-      select.textContent = folder.id === "root" ? "選擇我的雲端硬碟" : "選擇此資料夾";
-      list.innerHTML = "";
-      if (!folders.length) {
-        list.appendChild(createEl("div", "drive-file-empty", "這層沒有子資料夾。可以直接選擇目前資料夾。"));
-        return;
-      }
-      folders.forEach((item) => {
-        const row = createEl("button", "drive-file-row drive-folder-row");
-        const meta = createEl("span", "drive-file-row-meta");
-        meta.append(
-          createEl("strong", "", item.name || "未命名資料夾"),
-          createEl("span", "", "Google Drive 資料夾")
-        );
-        row.append(meta, createEl("span", "drive-file-row-action", "進入"));
-        row.addEventListener("click", async () => {
-          path.push({ id: item.id, name: item.name || "未命名資料夾" });
-          search.value = "";
-          await reload();
-        });
-        list.appendChild(row);
-      });
-    };
-    const reload = async () => {
-      const folder = currentFolder();
-      select.disabled = true;
-      back.disabled = true;
-      searchButton.disabled = true;
-      try {
-        folders = await listDriveFolders(folder.id, search.value || "");
-        render();
-      } catch (error) {
-        list.innerHTML = "";
-        list.appendChild(createEl("div", "drive-file-empty error", `讀取資料夾失敗：${googleDriveErrorMessage(error)}`));
-      } finally {
-        select.disabled = false;
-        back.disabled = path.length <= 1;
-        searchButton.disabled = false;
-      }
-    };
-
-    close.addEventListener("click", () => finish(null));
-    overlay.addEventListener("click", (event) => {
-      if (event.target === overlay) finish(null);
-    });
-    search.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") reload();
-      if (event.key === "Escape") finish(null);
-    });
-    searchButton.addEventListener("click", reload);
-    back.addEventListener("click", async () => {
-      if (path.length <= 1) return;
-      path.pop();
-      search.value = "";
-      await reload();
-    });
-    select.addEventListener("click", () => finish(currentFolder()));
-    document.body.appendChild(overlay);
-    render();
-    setTimeout(() => search.focus(), 0);
-  });
-}
-
-function showDriveStudioFileChooser(initialFiles = [], folder = { id: "root", name: "我的雲端硬碟" }) {
-  return new Promise((resolve) => {
-    const overlay = createEl("div", "drive-file-modal");
-    const dialog = createEl("div", "drive-file-dialog");
-    const head = createEl("div", "drive-file-head");
-    const title = createEl("div", "drive-file-title");
-    const close = createEl("button", "secondary drive-file-close", "取消");
-    const controls = createEl("div", "drive-file-controls");
-    const search = createEl("input", "drive-file-search");
-    const refresh = createEl("button", "secondary", "搜尋");
-    const list = createEl("div", "drive-file-list");
-    let files = initialFiles;
-    title.append(createEl("strong", "", "選擇 Google Drive 播放台"), createEl("span", "", `${folder.name || "已選資料夾"} 內的 JSON 檔案`));
-    search.type = "search";
-    search.placeholder = "搜尋檔名";
-    controls.append(search, refresh);
-    head.append(title, close);
-    dialog.append(head, controls, list);
-    overlay.appendChild(dialog);
-
-    const finish = (fileId = "") => {
-      overlay.remove();
-      resolve(fileId);
-    };
-    const render = () => {
-      list.innerHTML = "";
-      if (!files.length) {
-        list.appendChild(createEl("div", "drive-file-empty", "沒有找到 JSON 播放台檔案。"));
-        return;
-      }
-      files.forEach((file) => {
-        const row = createEl("button", "drive-file-row");
-        const meta = createEl("span", "drive-file-row-meta");
-        meta.append(
-          createEl("strong", "", file.name || "未命名檔案"),
-          createEl("span", "", `最近修改 ${formatSavedAt(file.modifiedTime) || "未知時間"}`)
-        );
-        row.append(meta, createEl("span", "drive-file-row-action", "開啟"));
-        row.addEventListener("click", () => finish(file.id || ""));
-        list.appendChild(row);
-      });
-    };
-    const reload = async () => {
-      refresh.disabled = true;
-      refresh.textContent = "搜尋中";
-      try {
-        files = await listDriveStudioFiles(folder.id || "root", search.value || "");
-        render();
-      } catch (error) {
-        list.innerHTML = "";
-        list.appendChild(createEl("div", "drive-file-empty error", `搜尋失敗：${googleDriveErrorMessage(error)}`));
-      } finally {
-        refresh.disabled = false;
-        refresh.textContent = "搜尋";
-      }
-    };
-    close.addEventListener("click", () => finish(""));
-    overlay.addEventListener("click", (event) => {
-      if (event.target === overlay) finish("");
-    });
-    search.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") reload();
-      if (event.key === "Escape") finish("");
-    });
-    refresh.addEventListener("click", reload);
-    document.body.appendChild(overlay);
-    render();
-    setTimeout(() => search.focus(), 0);
-  });
-}
-
 async function openDriveStudioFilePicker() {
-  try {
-    setVersionMessage("正在讀取 Google Drive 資料夾...");
-    const folders = await listDriveFolders("root");
-    const folder = await showDriveFolderChooser(folders);
-    if (!folder) {
-      setVersionMessage("已取消 Google Drive 資料夾選擇。");
-      return;
-    }
-    setVersionMessage(`正在讀取「${folder.name}」內的播放台檔案...`);
-    const files = await listDriveStudioFiles(folder.id);
-    const fileId = await showDriveStudioFileChooser(files, folder);
-    if (!fileId) {
-      setVersionMessage("已取消 Google Drive 檔案選擇。");
-      return;
-    }
-    await openDriveStudioFile(fileId);
-  } catch (error) {
-    setVersionMessage(`Drive 選擇器開啟失敗：${googleDriveErrorMessage(error)}`, true);
-  }
+  await scanDriveStudioFolder();
 }
 
 async function createDriveBlankStudio() {
@@ -5978,7 +5815,7 @@ els.homeDriveOpen.addEventListener("click", openDriveStudioFilePicker);
 els.homeDriveNew.addEventListener("click", createDriveBlankStudio);
 els.homeFolderImport.addEventListener("change", () => importPlaybackFolderFiles(els.homeFolderImport.files));
 els.homeChooseFolder.addEventListener("click", choosePlaybackFolder);
-els.homeRefreshFolder.addEventListener("click", () => scanPlaybackFolder());
+els.homeRefreshFolder.addEventListener("click", () => scanDriveStudioFolder());
 els.clearSlides.addEventListener("click", clearSlides);
 els.addSlidesWidget.addEventListener("click", addSlidesWidgetFromInput);
 els.switchSlidesMode.addEventListener("click", switchSlidesMode);
