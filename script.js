@@ -2224,6 +2224,8 @@ async function saveCurrentDriveFile({ silent = false } = {}) {
     });
     setFileInputs(currentFileName);
     setFileStatusInputs();
+    const folderItem = folderLayoutFiles.find((item) => item.driveFileId === fileId);
+    if (folderItem) { folderItem.savedAt = payload.savedAt; folderItem.modifiedTime = updated.modifiedTime || folderItem.modifiedTime; }
     renderHomeVersions();
     renderSavedLayouts();
     if (!silent) setVersionMessage(`已儲存到 Google Drive「${currentFileName}」。`);
