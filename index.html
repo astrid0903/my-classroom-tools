@@ -608,21 +608,6 @@
     </nav>
     <button id="expand-dock" class="dock-mini hidden" type="button" aria-label="展開工具列">工具</button>
 
-    <!-- Direction B: ⌘K Command Palette -->
-    <div id="cmdk-backdrop" class="cmdk-backdrop hidden" aria-hidden="true"></div>
-    <div id="cmdk-modal" class="cmdk-modal hidden" role="dialog" aria-modal="true" aria-label="指令面板">
-      <div class="cmdk-search">
-        <span class="cmdk-search-icon" aria-hidden="true">⌕</span>
-        <input id="cmdk-input" type="text" placeholder="輸入動作或工具名稱…" autocomplete="off" spellcheck="false">
-        <span class="cmdk-hint">ESC 關閉</span>
-      </div>
-      <div id="cmdk-list" class="cmdk-list" role="listbox"></div>
-      <div class="cmdk-footer">
-        <span><kbd>↑</kbd><kbd>↓</kbd> 移動</span>
-        <span><kbd>↵</kbd> 執行</span>
-        <span><kbd>esc</kbd> 關閉</span>
-      </div>
-    </div>
 
     <!-- Direction B: floating glass action bar (bottom-center) -->
     <div id="studio-action-bar" class="studio-action-bar hidden" aria-label="主要操作">
@@ -754,6 +739,23 @@
   </div>
 
   <div id="settings-backdrop" class="settings-backdrop hidden"></div>
+
+  <!-- ⌘K Command Palette — must live outside main.studio so it works from all views -->
+  <div id="cmdk-backdrop" class="cmdk-backdrop hidden" aria-hidden="true"></div>
+  <div id="cmdk-modal" class="cmdk-modal hidden" role="dialog" aria-modal="true" aria-label="指令面板">
+    <div class="cmdk-search">
+      <span class="cmdk-search-icon" aria-hidden="true">⌕</span>
+      <input id="cmdk-input" type="text" placeholder="輸入動作或工具名稱…" autocomplete="off" spellcheck="false">
+      <span class="cmdk-hint">ESC 關閉</span>
+    </div>
+    <div id="cmdk-list" class="cmdk-list" role="listbox"></div>
+    <div class="cmdk-footer">
+      <span><kbd>↑</kbd><kbd>↓</kbd> 移動</span>
+      <span><kbd>↵</kbd> 執行</span>
+      <span><kbd>esc</kbd> 關閉</span>
+    </div>
+  </div>
+
   <script src="./script.js?v=20260522g"></script>
   <script>
     // IA Step 1: side-rail wiring — forwards to existing dock buttons.
@@ -1053,5 +1055,6 @@
       });
     })();
   </script>
+
 </body>
 </html>
