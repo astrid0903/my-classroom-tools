@@ -826,6 +826,15 @@ async function updateDriveStudioFile(fileId, payload, name = currentFileName) {
   return response.json();
 }
 
+async function renameDriveStudioFile(fileId, name) {
+  const response = await driveFetch(`${GOOGLE_DRIVE_FILE_URL}/${fileId}?supportsAllDrives=true&fields=id,name,modifiedTime,version,webViewLink`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json; charset=UTF-8" },
+    body: JSON.stringify({ name }),
+  });
+  return response.json();
+}
+
 function folderLayoutName(layout) {
   return sanitizeFileName(layout.fileName || layout.name || "");
 }
@@ -1157,6 +1166,7 @@ function sameLayoutName(a, b) {
 }
 
 function sameLayoutHandle(layout) {
+  if (layout?.driveFileId && currentDriveFileId) return layout.driveFileId === currentDriveFileId;
   return Boolean(layout?.handle && currentFileHandle && layout.handle === currentFileHandle);
 }
 
@@ -1181,9 +1191,53 @@ function appendCreateStudioCard() {
   els.homeLayoutGrid.appendChild(card);
 }
 
+function normalizeDriveStudioFileName(value, fallback = preferredFileName()) {
+  const name = sanitizeFileName(value || fallback || preferredFileName());
+  return /\.json$/i.test(name) ? name : `${name}.json`;
+}
+
+async function renameHomeLayout(layout, nextValue) {
+  const nextName = normalizeDriveStudioFileName(nextValue, layout.name);
+  const oldName = sanitizeFileName(layout.name || "");
+  if (!nextName || nextName === oldName) return;
+  const fileId = layout.driveFileId || (layout.current ? currentDriveFileId : "");
+  if (!fileId) {
+    setVersionMessage("目前只有 Google Drive 檔案可以直接在預覽區改檔名。", true);
+    renderHomeVersions();
+    return;
+  }
+  try {
+    setVersionMessage(`正在將「${oldName || layout.name}」改名為「${nextName}」...`);
+    const updated = await renameDriveStudioFile(fileId, nextName);
+    const updatedName = sanitizeFileName(updated.name || nextName);
+    if (currentDriveFileId === fileId) {
+      writeFileMeta({
+        name: updatedName,
+        driveFileId: updated.id || fileId,
+        driveModifiedTime: updated.modifiedTime || currentDriveModifiedTime,
+      });
+      setFileInputs(updatedName);
+      setFileStatusInputs();
+    }
+    const folderItem = folderLayoutFiles.find((item) => item.driveFileId === fileId);
+    if (folderItem) {
+      folderItem.name = updatedName;
+      folderItem.fileName = updatedName;
+      folderItem.modifiedTime = updated.modifiedTime || folderItem.modifiedTime;
+      folderItem.driveMeta = { ...(folderItem.driveMeta || {}), ...updated };
+    }
+    renderHomeVersions();
+    setVersionMessage(`已改名為「${updatedName}」。`);
+  } catch (error) {
+    setVersionMessage(`Drive 改名失敗：${googleDriveErrorMessage(error)}`, true);
+    renderHomeVersions();
+  }
+}
+
 function appendHomeLayoutCard(layout, { current = false, folderFile = false, versionState = "" } = {}) {
   const card = createEl("article", `home-layout-card${folderFile ? " folder-layout-card" : ""}`);
   const sourceLabel = layout.source === "drive" ? "Drive 檔案" : "本機檔案";
+  layout.current = current;
   if (versionState) card.dataset.versionState = versionState;
   card.tabIndex = 0;
   card.setAttribute("role", "button");
@@ -1195,15 +1249,39 @@ function appendHomeLayoutCard(layout, { current = false, folderFile = false, ver
     openHomeLayout(layout, { folderFile });
   });
   const title = createEl("div", "home-layout-title");
+  const titleRow = createEl("div", "home-layout-title-row");
+  const nameInput = createEl("input", "home-layout-name-edit");
+  const renameButton = createEl("button", "secondary home-layout-rename", "改名");
+  nameInput.type = "text";
+  nameInput.value = layout.name || "";
+  nameInput.setAttribute("aria-label", `檔名：${layout.name || ""}`);
+  renameButton.type = "button";
+  const canRename = Boolean(layout.driveFileId || (current && currentDriveFileId));
+  nameInput.disabled = !canRename;
+  renameButton.disabled = !canRename;
+  [nameInput, renameButton].forEach((element) => {
+    element.addEventListener("click", (event) => event.stopPropagation());
+    element.addEventListener("keydown", (event) => event.stopPropagation());
+  });
+  nameInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      renameHomeLayout(layout, nameInput.value);
+    }
+  });
+  nameInput.addEventListener("change", () => renameHomeLayout(layout, nameInput.value));
+  renameButton.addEventListener("click", () => renameHomeLayout(layout, nameInput.value));
+  titleRow.append(nameInput, renameButton);
   const savedText = layout.savedAt ? `最近存檔 ${formatSavedAt(layout.savedAt)}` : "尚未存成檔案";
   const badges = createEl("div", "home-layout-badges");
+  if (current) title.appendChild(createEl("div", "home-current-label", "正在編輯"));
   if (current) badges.appendChild(createEl("span", "home-layout-badge current", "目前開啟中"));
   if (folderFile) badges.appendChild(createEl("span", "home-layout-badge folder", layout.source === "drive" ? "Drive 資料夾" : "資料夾版本"));
   if (versionState === "newer") badges.appendChild(createEl("span", "home-layout-badge newer", "較新版本"));
   else if (versionState === "older") badges.appendChild(createEl("span", "home-layout-badge muted", "較舊版本"));
   else if (versionState === "same-name") badges.appendChild(createEl("span", "home-layout-badge muted", "同名檔案"));
   else if (versionState === "same") badges.appendChild(createEl("span", "home-layout-badge muted", "同一檔案"));
-  title.append(createEl("h3", "", layout.name), createEl("span", "", folderFile ? `${sourceLabel}｜${savedText}` : savedText));
+  title.append(titleRow, createEl("span", "", folderFile ? `${sourceLabel}｜${savedText}` : savedText));
   if (badges.childElementCount > 0) title.appendChild(badges);
 
   const preview = createEl("div", "home-preview");
@@ -1254,8 +1332,11 @@ function renderHomeVersions() {
   const snapshot = currentFileSnapshotFromStorage();
   const layout = {
     name: currentFileName || "尚未命名的播放台檔案",
+    fileName: currentFileName || "",
     savedAt: currentFileSavedAt || readFileMeta().savedAt || "",
     state: snapshot,
+    driveFileId: currentDriveFileId,
+    source: currentDriveFileId ? "drive" : "",
   };
   const hasCurrentFile = Boolean(currentFileName || currentFileHandle || currentDriveFileId);
   const folderLayouts = [...folderLayoutFiles];
