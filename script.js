@@ -24,9 +24,6 @@ const POST_IMAGE_MAX_ITEM_LENGTH = 180000;
 const GOOGLE_DRIVE_CLIENT_ID = "229213858169-5tp9f6rjp8a45irarko8432h39uagt5a.apps.googleusercontent.com";
 const GOOGLE_DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
 const GOOGLE_DRIVE_DISCOVERY_SRC = "https://accounts.google.com/gsi/client";
-const GOOGLE_DRIVE_PICKER_SRC = "https://apis.google.com/js/api.js";
-const GOOGLE_DRIVE_PICKER_DEVELOPER_KEY = FIREBASE_CONFIG.apiKey;
-const GOOGLE_DRIVE_PICKER_APP_ID = FIREBASE_CONFIG.messagingSenderId;
 const GOOGLE_DRIVE_UPLOAD_URL = "https://www.googleapis.com/upload/drive/v3/files";
 const GOOGLE_DRIVE_FILE_URL = "https://www.googleapis.com/drive/v3/files";
 
@@ -308,8 +305,6 @@ let currentDriveModifiedTime = "";
 let googleDriveAccessToken = "";
 let googleDriveTokenClient = null;
 let googleDriveScriptPromise = null;
-let googleDrivePickerScriptPromise = null;
-let googleDrivePickerLoadPromise = null;
 let fileSaveTimerId = null;
 let fileSaveInProgress = false;
 let fileSaveQueued = false;
@@ -629,45 +624,6 @@ function loadGoogleDriveScript() {
   return googleDriveScriptPromise;
 }
 
-function loadGoogleDrivePickerScript() {
-  if (window.gapi?.load) return Promise.resolve();
-  if (!googleDrivePickerScriptPromise) {
-    googleDrivePickerScriptPromise = new Promise((resolve, reject) => {
-      const existing = document.querySelector(`script[src="${GOOGLE_DRIVE_PICKER_SRC}"]`);
-      if (existing) {
-        existing.addEventListener("load", resolve, { once: true });
-        existing.addEventListener("error", reject, { once: true });
-        return;
-      }
-      const script = document.createElement("script");
-      script.src = GOOGLE_DRIVE_PICKER_SRC;
-      script.async = true;
-      script.defer = true;
-      script.onload = resolve;
-      script.onerror = () => reject(new Error("Google Drive 檔案選擇器載入失敗。"));
-      document.head.appendChild(script);
-    });
-  }
-  return googleDrivePickerScriptPromise;
-}
-
-async function loadGoogleDrivePickerApi() {
-  if (window.google?.picker) return;
-  await loadGoogleDrivePickerScript();
-  if (window.google?.picker) return;
-  if (!googleDrivePickerLoadPromise) {
-    googleDrivePickerLoadPromise = new Promise((resolve, reject) => {
-      window.gapi.load("picker", {
-        callback: resolve,
-        onerror: () => reject(new Error("Google Drive 檔案選擇器載入失敗。")),
-        ontimeout: () => reject(new Error("Google Drive 檔案選擇器載入逾時。")),
-        timeout: 10000,
-      });
-    });
-  }
-  return googleDrivePickerLoadPromise;
-}
-
 function googleDriveErrorMessage(error) {
   const text = String(error?.message || error?.error || "");
   if (text.includes("popup")) return "Google Drive 登入視窗被瀏覽器阻擋，請允許彈出視窗後再試。";
@@ -697,41 +653,6 @@ async function requestGoogleDriveToken() {
       error_callback: (error) => reject(error),
     });
     googleDriveTokenClient.requestAccessToken({ prompt: googleDriveAccessToken ? "" : "consent" });
-  });
-}
-
-function googleDrivePickerOrigin() {
-  return `${window.location.protocol}//${window.location.host}`;
-}
-
-async function chooseDriveStudioFile() {
-  const [token] = await Promise.all([requestGoogleDriveToken(), loadGoogleDrivePickerApi()]);
-  return new Promise((resolve, reject) => {
-    const picker = new window.google.picker.PickerBuilder()
-      .setOAuthToken(token)
-      .setDeveloperKey(GOOGLE_DRIVE_PICKER_DEVELOPER_KEY)
-      .setAppId(GOOGLE_DRIVE_PICKER_APP_ID)
-      .setOrigin(googleDrivePickerOrigin())
-      .setLocale("zh-TW")
-      .setTitle("選擇 Google Drive 播放台 JSON 檔")
-      .setMaxItems(1)
-      .addView(window.google.picker.ViewId.DOCS)
-      .setCallback((data) => {
-        const action = data?.[window.google.picker.Response.ACTION];
-        if (action === window.google.picker.Action.PICKED) {
-          const docs = data?.[window.google.picker.Response.DOCUMENTS] || [];
-          const fileId = docs[0]?.[window.google.picker.Document.ID] || docs[0]?.id || "";
-          if (!fileId) {
-            reject(new Error("沒有取得 Google Drive 檔案 ID。"));
-            return;
-          }
-          resolve(fileId);
-          return;
-        }
-        if (action === window.google.picker.Action.CANCEL) resolve("");
-      })
-      .build();
-    picker.setVisible(true);
   });
 }
 
@@ -776,6 +697,28 @@ async function getDriveFileMetadata(fileId) {
   const fields = "id,name,mimeType,modifiedTime,version,webViewLink";
   const response = await driveFetch(`${GOOGLE_DRIVE_FILE_URL}/${fileId}?fields=${encodeURIComponent(fields)}`);
   return response.json();
+}
+
+function escapeDriveQueryText(value) {
+  return String(value || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+}
+
+async function listDriveStudioFiles(searchText = "") {
+  const clauses = [
+    "trashed = false",
+    "(mimeType = 'application/json' or name contains '.json')",
+  ];
+  const search = escapeDriveQueryText(searchText.trim());
+  if (search) clauses.push(`name contains '${search}'`);
+  const params = new URLSearchParams({
+    pageSize: "50",
+    orderBy: "modifiedTime desc",
+    fields: "files(id,name,mimeType,modifiedTime,webViewLink)",
+    q: clauses.join(" and "),
+  });
+  const response = await driveFetch(`${GOOGLE_DRIVE_FILE_URL}?${params}`);
+  const data = await response.json();
+  return Array.isArray(data.files) ? data.files : [];
 }
 
 async function readDriveStudioFile(fileId) {
@@ -1993,10 +1936,82 @@ async function openDriveStudioFile(fileIdInput = "") {
   }
 }
 
+function showDriveStudioFileChooser(initialFiles = []) {
+  return new Promise((resolve) => {
+    const overlay = createEl("div", "drive-file-modal");
+    const dialog = createEl("div", "drive-file-dialog");
+    const head = createEl("div", "drive-file-head");
+    const title = createEl("div", "drive-file-title");
+    const close = createEl("button", "secondary drive-file-close", "取消");
+    const controls = createEl("div", "drive-file-controls");
+    const search = createEl("input", "drive-file-search");
+    const refresh = createEl("button", "secondary", "搜尋");
+    const list = createEl("div", "drive-file-list");
+    let files = initialFiles;
+    title.append(createEl("strong", "", "選擇 Google Drive 播放台"), createEl("span", "", "顯示最近修改的 JSON 檔案"));
+    search.type = "search";
+    search.placeholder = "搜尋檔名";
+    controls.append(search, refresh);
+    head.append(title, close);
+    dialog.append(head, controls, list);
+    overlay.appendChild(dialog);
+
+    const finish = (fileId = "") => {
+      overlay.remove();
+      resolve(fileId);
+    };
+    const render = () => {
+      list.innerHTML = "";
+      if (!files.length) {
+        list.appendChild(createEl("div", "drive-file-empty", "沒有找到 JSON 播放台檔案。"));
+        return;
+      }
+      files.forEach((file) => {
+        const row = createEl("button", "drive-file-row");
+        const meta = createEl("span", "drive-file-row-meta");
+        meta.append(
+          createEl("strong", "", file.name || "未命名檔案"),
+          createEl("span", "", `最近修改 ${formatSavedAt(file.modifiedTime) || "未知時間"}`)
+        );
+        row.append(meta, createEl("span", "drive-file-row-action", "開啟"));
+        row.addEventListener("click", () => finish(file.id || ""));
+        list.appendChild(row);
+      });
+    };
+    const reload = async () => {
+      refresh.disabled = true;
+      refresh.textContent = "搜尋中";
+      try {
+        files = await listDriveStudioFiles(search.value || "");
+        render();
+      } catch (error) {
+        list.innerHTML = "";
+        list.appendChild(createEl("div", "drive-file-empty error", `搜尋失敗：${googleDriveErrorMessage(error)}`));
+      } finally {
+        refresh.disabled = false;
+        refresh.textContent = "搜尋";
+      }
+    };
+    close.addEventListener("click", () => finish(""));
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay) finish("");
+    });
+    search.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") reload();
+      if (event.key === "Escape") finish("");
+    });
+    refresh.addEventListener("click", reload);
+    document.body.appendChild(overlay);
+    render();
+    setTimeout(() => search.focus(), 0);
+  });
+}
+
 async function openDriveStudioFilePicker() {
   try {
-    setVersionMessage("正在開啟 Google Drive 檔案選擇器...");
-    const fileId = await chooseDriveStudioFile();
+    setVersionMessage("正在讀取 Google Drive 播放台檔案...");
+    const files = await listDriveStudioFiles();
+    const fileId = await showDriveStudioFileChooser(files);
     if (!fileId) {
       setVersionMessage("已取消 Google Drive 檔案選擇。");
       return;
