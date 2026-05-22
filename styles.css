@@ -131,6 +131,10 @@ button:disabled,
   transform: translate(-50%, 0);
 }
 
+body.cmdk-open .ui-tooltip {
+  display: none !important;
+}
+
 .studio-file-status {
   width: 100%;
   min-height: 36px;
@@ -2943,6 +2947,22 @@ body.studio-mode .page-tabs {
 .post-edit-dialog textarea {
   resize: vertical;
   min-height: 100px;
+}
+
+.post-edit-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.post-edit-image-thumb {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  cursor: default;
 }
 
 .post-simple-dialog {

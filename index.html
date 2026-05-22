@@ -678,6 +678,7 @@
       <input id="post-edit-author" type="text" maxlength="40">
       <label for="post-edit-content">內容</label>
       <textarea id="post-edit-content" maxlength="600" rows="5"></textarea>
+      <div id="post-edit-images" class="post-edit-images hidden"></div>
       <div class="button-row">
         <button id="post-edit-save" type="button">儲存</button>
         <button id="post-edit-cancel" class="secondary" type="button">取消</button>
@@ -756,7 +757,7 @@
     </div>
   </div>
 
-  <script src="./script.js?v=20260522g"></script>
+  <script src="./script.js?v=20260522h"></script>
   <script>
     // IA Step 1: side-rail wiring — forwards to existing dock buttons.
     (function () {
@@ -1012,8 +1013,12 @@
       }
 
       function open() {
+        // Hide any visible tooltip before opening palette
+        var tt = document.getElementById('ui-tooltip');
+        if (tt) tt.classList.remove('visible');
         modal.classList.remove('hidden');
         backdrop.classList.remove('hidden');
+        document.body.classList.add('cmdk-open');
         input.value = '';
         selected = 0;
         render();
@@ -1022,6 +1027,7 @@
       function close() {
         modal.classList.add('hidden');
         backdrop.classList.add('hidden');
+        document.body.classList.remove('cmdk-open');
       }
       function runSelected() {
         var c = filtered[selected];

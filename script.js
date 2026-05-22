@@ -237,6 +237,7 @@ const els = {
   postEditSectionLabel: document.querySelector("#post-edit-section-label"),
   postEditAuthor: document.querySelector("#post-edit-author"),
   postEditContent: document.querySelector("#post-edit-content"),
+  postEditImages: document.querySelector("#post-edit-images"),
   postEditSave: document.querySelector("#post-edit-save"),
   postEditCancel: document.querySelector("#post-edit-cancel"),
   postEditMessage: document.querySelector("#post-edit-message"),
@@ -3792,6 +3793,25 @@ function editPost(post) {
   els.postEditAuthor.value = post.author || "";
   els.postEditContent.value = post.content || "";
   els.postEditMessage.textContent = "";
+
+  // Render existing images (read-only preview)
+  const editSources = postImageSources(post);
+  if (els.postEditImages) {
+    els.postEditImages.innerHTML = "";
+    if (editSources.length > 0) {
+      editSources.forEach((src) => {
+        const img = document.createElement("img");
+        img.src = src;
+        img.className = "post-edit-image-thumb";
+        img.alt = "已上傳圖片";
+        els.postEditImages.appendChild(img);
+      });
+      els.postEditImages.classList.remove("hidden");
+    } else {
+      els.postEditImages.classList.add("hidden");
+    }
+  }
+
   els.postEditModal.classList.remove("hidden");
   els.postEditContent.focus();
 
