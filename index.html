@@ -867,7 +867,7 @@
         else if (action === 'arrange') clickTool('arrange');
         else if (action === 'hidden-list') clickById('hidden-widgets-button');
         else if (action === 'hide-all') clickById('hide-widgets');
-        else if (action === 'save-version') clickTool('layouts');
+        else if (action === 'save-version') { saveCurrentFile(); }
         setCollapsed(true);
       });
       document.addEventListener('mousedown', function (e) {
@@ -894,7 +894,7 @@
         else if (action === 'arrange') clickTool('arrange');
         else if (action === 'hidden-list') clickById('hidden-widgets-button');
         else if (action === 'hide-all') clickById('hide-widgets');
-        else if (action === 'save-version') clickTool('layouts');
+        else if (action === 'save-version') { saveCurrentFile(); }
       });
       function syncBar() {
         bar.classList.toggle('hidden', studio.classList.contains('hidden'));
