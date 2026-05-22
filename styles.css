@@ -2730,6 +2730,30 @@ body.studio-mode .page-tabs {
   margin: 0;
 }
 
+.participant-image-del-btn {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(17, 24, 32, 0.72);
+  color: #fff;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background 0.12s;
+  z-index: 1;
+}
+.participant-image-del-btn:hover {
+  background: rgba(210, 50, 50, 0.85);
+}
+
 .participant-image-preview-item img {
   display: block;
   width: 100%;

@@ -4502,77 +4502,85 @@ function setParticipantMessage(text, isError = false) {
   els.participantMessage.classList.toggle("error", isError);
 }
 
-function clearParticipantImagePreview({ clearInput = false, clearExisting = false } = {}) {
-  participantImagePreviewUrls.forEach((url) => URL.revokeObjectURL(url));
-  participantImagePreviewUrls = [];
-  if (clearExisting) { participantEditingExistingImages = []; resetImagePreviewLabel(); }
-  if (clearInput && els.participantImage) els.participantImage.value = "";
-  if (els.participantImagePreviewImg) els.participantImagePreviewImg.innerHTML = "";
-  if (els.participantImagePreview) els.participantImagePreview.classList.add("hidden");
-}
-
-function showExistingImagesInPreview(urls) {
-  if (!urls || urls.length === 0) return;
-  if (els.participantImagePreviewImg) els.participantImagePreviewImg.innerHTML = "";
-  urls.forEach((src, index) => {
+function renderParticipantImagePending() {
+  if (!els.participantImagePreviewImg || !els.participantImagePreview) return;
+  els.participantImagePreviewImg.innerHTML = "";
+  if (participantEditingExistingImages.length === 0) {
+    els.participantImagePreview.classList.add("hidden");
+    const label = els.participantImagePreview.querySelector(".participant-image-preview-head span");
+    if (label) label.textContent = "圖片預覽";
+    return;
+  }
+  participantEditingExistingImages.forEach((src, index) => {
     const item = createEl("figure", "participant-image-preview-item");
     const img = document.createElement("img");
     img.src = src;
-    img.alt = `現有圖片 ${index + 1}`;
-    const cap = createEl("figcaption", "", `${index + 1}/${urls.length}`);
-    item.append(img, cap);
+    img.alt = `圖片 ${index + 1}`;
+    const delBtn = document.createElement("button");
+    delBtn.type = "button";
+    delBtn.className = "participant-image-del-btn";
+    delBtn.setAttribute("aria-label", `刪除第 ${index + 1} 張圖片`);
+    delBtn.textContent = "×";
+    delBtn.addEventListener("click", () => {
+      participantEditingExistingImages.splice(index, 1);
+      renderParticipantImagePending();
+    });
+    const cap = createEl("figcaption", "", `${index + 1} / ${participantEditingExistingImages.length}`);
+    item.append(img, delBtn, cap);
     els.participantImagePreviewImg.appendChild(item);
   });
-  if (els.participantImagePreview) {
-    els.participantImagePreview.classList.remove("hidden");
-    els.participantImagePreview.dataset.existingImages = "true";
-    const label = els.participantImagePreview.querySelector(".participant-image-preview-head span");
-    if (label) label.textContent = "現有圖片（可移除或選新圖片取代）";
-  }
-}
-
-function resetImagePreviewLabel() {
-  if (!els.participantImagePreview) return;
-  delete els.participantImagePreview.dataset.existingImages;
   const label = els.participantImagePreview.querySelector(".participant-image-preview-head span");
-  if (label) label.textContent = "圖片預覽";
+  if (label) label.textContent = `圖片（${participantEditingExistingImages.length} / ${POST_IMAGE_MAX_COUNT} 張）`;
+  els.participantImagePreview.classList.remove("hidden");
 }
 
-function updateParticipantImagePreview(files) {
-  // Selecting new files replaces existing images
-  participantEditingExistingImages = [];
-  if (els.participantImagePreview) delete els.participantImagePreview.dataset.existingImages;
-  clearParticipantImagePreview();
-  const imageFiles = Array.from(files || []).slice(0, POST_IMAGE_MAX_COUNT);
-  if (imageFiles.length === 0) return;
-  if (imageFiles.some((file) => !file.type.startsWith("image/"))) {
-    clearParticipantImagePreview({ clearInput: true });
-    setParticipantMessage("請選擇圖片檔，最多 5 張。", true);
+async function appendParticipantImages(files) {
+  const fileArr = Array.from(files || []).filter((f) => f.type.startsWith("image/"));
+  if (els.participantImage) els.participantImage.value = "";
+  if (fileArr.length === 0) {
+    setParticipantMessage("請選擇圖片檔。", true);
     return;
   }
-  if ((files?.length || 0) > POST_IMAGE_MAX_COUNT) {
-    setParticipantMessage(`最多可上傳 ${POST_IMAGE_MAX_COUNT} 張圖片，已先預覽前 ${POST_IMAGE_MAX_COUNT} 張。`);
+  const remaining = POST_IMAGE_MAX_COUNT - participantEditingExistingImages.length;
+  if (remaining <= 0) {
+    setParticipantMessage(`已達上限 ${POST_IMAGE_MAX_COUNT} 張。如需替換，請先刪除舊圖片。`, true);
+    return;
+  }
+  const toAdd = fileArr.slice(0, remaining);
+  if (fileArr.length > remaining) {
+    setParticipantMessage(`最多共 ${POST_IMAGE_MAX_COUNT} 張，已加入前 ${remaining} 張。`);
   } else {
     els.participantMessage.textContent = "";
     els.participantMessage.classList.remove("error");
   }
-  imageFiles.forEach((file, index) => {
-    const url = URL.createObjectURL(file);
-    participantImagePreviewUrls.push(url);
-    const item = createEl("figure", "participant-image-preview-item");
-    const img = document.createElement("img");
-    img.src = url;
-    img.alt = `待上傳圖片預覽 ${index + 1}`;
-    item.append(img, createEl("figcaption", "", `${index + 1}/${imageFiles.length}`));
-    els.participantImagePreviewImg.appendChild(item);
-  });
-  els.participantImagePreview.classList.remove("hidden");
+  for (const file of toAdd) {
+    try {
+      const dataUrl = await imageFileToPostDataUrl(file);
+      if (dataUrl.length > POST_IMAGE_MAX_ITEM_LENGTH) {
+        setParticipantMessage("有圖片太大，請換一張較小的圖片。", true);
+        break;
+      }
+      participantEditingExistingImages.push(dataUrl);
+    } catch (e) {
+      setParticipantMessage(e.message || "圖片處理失敗。", true);
+      break;
+    }
+  }
+  renderParticipantImagePending();
+}
+
+function clearParticipantImagePreview({ clearInput = false } = {}) {
+  participantImagePreviewUrls.forEach((url) => URL.revokeObjectURL(url));
+  participantImagePreviewUrls = [];
+  participantEditingExistingImages = [];
+  if (clearInput && els.participantImage) els.participantImage.value = "";
+  renderParticipantImagePending();
 }
 
 function showParticipantBoard() {
   participantEditingPostId = null;
   els.participantFormTitle.textContent = "新增貼文";
-  clearParticipantImagePreview({ clearInput: true, clearExisting: true });
+  clearParticipantImagePreview({ clearInput: true });
   els.participantBoardScreen.classList.remove("hidden");
   els.participantFormScreen.classList.add("hidden");
 }
@@ -4581,7 +4589,7 @@ function showParticipantForm(sectionId) {
   if (sectionId) els.participantSection.value = sectionId;
   els.participantMessage.textContent = "";
   els.participantMessage.classList.remove("error");
-  clearParticipantImagePreview({ clearInput: true, clearExisting: true });
+  clearParticipantImagePreview({ clearInput: true });
   els.participantBoardScreen.classList.add("hidden");
   els.participantFormScreen.classList.remove("hidden");
   els.participantContent.focus();
@@ -4595,15 +4603,15 @@ function showParticipantEditForm(post) {
   if (els.participantSection && post.sectionId) els.participantSection.value = post.sectionId;
   els.participantMessage.textContent = "";
   els.participantMessage.classList.remove("error");
-  clearParticipantImagePreview({ clearInput: true, clearExisting: true });
-  // Load existing images into preview so user can see them
+  // Load existing images as the pending list
   const existingUrls = post.imageDataUrls?.length
     ? post.imageDataUrls
     : post.imageDataUrl
     ? [post.imageDataUrl]
     : [];
-  participantEditingExistingImages = existingUrls;
-  if (existingUrls.length > 0) showExistingImagesInPreview(existingUrls);
+  participantEditingExistingImages = [...existingUrls];
+  if (els.participantImage) els.participantImage.value = "";
+  renderParticipantImagePending();
   els.participantBoardScreen.classList.add("hidden");
   els.participantFormScreen.classList.remove("hidden");
   els.participantContent.focus();
@@ -4842,9 +4850,8 @@ async function submitParticipantPost(event) {
   const author = els.participantName.value.trim().slice(0, 40);
   const sectionId = els.participantSection.value || params.get("section") || "section-a";
   const content = els.participantContent.value.trim().slice(0, 600);
-  const files = Array.from(els.participantImage.files || []).slice(0, POST_IMAGE_MAX_COUNT);
   if (!boardId) return;
-  if (!content && files.length === 0 && participantEditingExistingImages.length === 0) {
+  if (!content && participantEditingExistingImages.length === 0) {
     setParticipantMessage("請先輸入內容或選擇圖片。", true);
     return;
   }
@@ -4852,15 +4859,8 @@ async function submitParticipantPost(event) {
   try {
     els.participantSubmit.disabled = true;
     setParticipantMessage("正在送出...");
-    const imageDataUrls = [];
-    for (const file of files) {
-      const imageDataUrl = await imageFileToPostDataUrl(file);
-      if (imageDataUrl.length > POST_IMAGE_MAX_ITEM_LENGTH) {
-        throw new Error("有圖片太大，請換一張較小的圖片。");
-      }
-      imageDataUrls.push(imageDataUrl);
-    }
-    const totalImageLength = imageDataUrls.reduce((sum, source) => sum + source.length, 0);
+    const imageDataUrls = [...participantEditingExistingImages];
+    const totalImageLength = imageDataUrls.reduce((sum, src) => sum + src.length, 0);
     if (totalImageLength > POST_IMAGE_MAX_TOTAL_LENGTH) {
       throw new Error("圖片總容量太大，請減少張數或換較小的圖片。");
     }
@@ -4869,17 +4869,14 @@ async function submitParticipantPost(event) {
     participantUid = user.uid;
     if (participantEditingPostId) {
       const ref = api.doc(postBoardPostsRef(api, boardId), participantEditingPostId);
-      const updatePayload = {
+      await api.updateDoc(ref, {
         author,
         sectionId,
         content,
+        imageDataUrls,
+        imageDataUrl: imageDataUrls[0] || "",
         updatedAt: api.serverTimestamp(),
-      };
-      if (imageDataUrls.length > 0) {
-        updatePayload.imageDataUrls = imageDataUrls;
-        updatePayload.imageDataUrl = imageDataUrls[0];
-      }
-      await api.updateDoc(ref, updatePayload);
+      });
       participantEditingPostId = null;
     } else {
       await api.addDoc(postBoardPostsRef(api, boardId), {
@@ -4894,9 +4891,7 @@ async function submitParticipantPost(event) {
       });
     }
     els.participantContent.value = "";
-    els.participantImage.value = "";
-    participantEditingExistingImages = [];
-    clearParticipantImagePreview();
+    clearParticipantImagePreview({ clearInput: true });
     els.participantFormTitle.textContent = "新增貼文";
     showParticipantBoard();
   } catch (error) {
@@ -6431,8 +6426,8 @@ els.participantPostModalClose.addEventListener("click", closeParticipantPostModa
 els.participantPostModal.addEventListener("click", (event) => {
   if (event.target === els.participantPostModal) closeParticipantPostModal();
 });
-els.participantImage.addEventListener("change", () => updateParticipantImagePreview(els.participantImage.files || []));
-els.participantImageClear.addEventListener("click", () => clearParticipantImagePreview({ clearInput: true, clearExisting: true }));
+els.participantImage.addEventListener("change", () => appendParticipantImages(els.participantImage.files));
+els.participantImageClear.addEventListener("click", () => clearParticipantImagePreview({ clearInput: true }));
 els.postBoardQrToggle.addEventListener("click", () => {
   els.postBoardJoinCard.classList.toggle("expanded");
 });
