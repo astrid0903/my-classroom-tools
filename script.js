@@ -24,6 +24,9 @@ const POST_IMAGE_MAX_ITEM_LENGTH = 180000;
 const GOOGLE_DRIVE_CLIENT_ID = "229213858169-5tp9f6rjp8a45irarko8432h39uagt5a.apps.googleusercontent.com";
 const GOOGLE_DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
 const GOOGLE_DRIVE_DISCOVERY_SRC = "https://accounts.google.com/gsi/client";
+const GOOGLE_DRIVE_PICKER_SRC = "https://apis.google.com/js/api.js";
+const GOOGLE_DRIVE_PICKER_DEVELOPER_KEY = FIREBASE_CONFIG.apiKey;
+const GOOGLE_DRIVE_PICKER_APP_ID = FIREBASE_CONFIG.messagingSenderId;
 const GOOGLE_DRIVE_UPLOAD_URL = "https://www.googleapis.com/upload/drive/v3/files";
 const GOOGLE_DRIVE_FILE_URL = "https://www.googleapis.com/drive/v3/files";
 
@@ -305,6 +308,8 @@ let currentDriveModifiedTime = "";
 let googleDriveAccessToken = "";
 let googleDriveTokenClient = null;
 let googleDriveScriptPromise = null;
+let googleDrivePickerScriptPromise = null;
+let googleDrivePickerLoadPromise = null;
 let fileSaveTimerId = null;
 let fileSaveInProgress = false;
 let fileSaveQueued = false;
@@ -624,6 +629,45 @@ function loadGoogleDriveScript() {
   return googleDriveScriptPromise;
 }
 
+function loadGoogleDrivePickerScript() {
+  if (window.gapi?.load) return Promise.resolve();
+  if (!googleDrivePickerScriptPromise) {
+    googleDrivePickerScriptPromise = new Promise((resolve, reject) => {
+      const existing = document.querySelector(`script[src="${GOOGLE_DRIVE_PICKER_SRC}"]`);
+      if (existing) {
+        existing.addEventListener("load", resolve, { once: true });
+        existing.addEventListener("error", reject, { once: true });
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = GOOGLE_DRIVE_PICKER_SRC;
+      script.async = true;
+      script.defer = true;
+      script.onload = resolve;
+      script.onerror = () => reject(new Error("Google Drive 檔案選擇器載入失敗。"));
+      document.head.appendChild(script);
+    });
+  }
+  return googleDrivePickerScriptPromise;
+}
+
+async function loadGoogleDrivePickerApi() {
+  if (window.google?.picker) return;
+  await loadGoogleDrivePickerScript();
+  if (window.google?.picker) return;
+  if (!googleDrivePickerLoadPromise) {
+    googleDrivePickerLoadPromise = new Promise((resolve, reject) => {
+      window.gapi.load("picker", {
+        callback: resolve,
+        onerror: () => reject(new Error("Google Drive 檔案選擇器載入失敗。")),
+        ontimeout: () => reject(new Error("Google Drive 檔案選擇器載入逾時。")),
+        timeout: 10000,
+      });
+    });
+  }
+  return googleDrivePickerLoadPromise;
+}
+
 function googleDriveErrorMessage(error) {
   const text = String(error?.message || error?.error || "");
   if (text.includes("popup")) return "Google Drive 登入視窗被瀏覽器阻擋，請允許彈出視窗後再試。";
@@ -653,6 +697,41 @@ async function requestGoogleDriveToken() {
       error_callback: (error) => reject(error),
     });
     googleDriveTokenClient.requestAccessToken({ prompt: googleDriveAccessToken ? "" : "consent" });
+  });
+}
+
+function googleDrivePickerOrigin() {
+  return `${window.location.protocol}//${window.location.host}`;
+}
+
+async function chooseDriveStudioFile() {
+  const [token] = await Promise.all([requestGoogleDriveToken(), loadGoogleDrivePickerApi()]);
+  return new Promise((resolve, reject) => {
+    const picker = new window.google.picker.PickerBuilder()
+      .setOAuthToken(token)
+      .setDeveloperKey(GOOGLE_DRIVE_PICKER_DEVELOPER_KEY)
+      .setAppId(GOOGLE_DRIVE_PICKER_APP_ID)
+      .setOrigin(googleDrivePickerOrigin())
+      .setLocale("zh-TW")
+      .setTitle("選擇 Google Drive 播放台 JSON 檔")
+      .setMaxItems(1)
+      .addView(window.google.picker.ViewId.DOCS)
+      .setCallback((data) => {
+        const action = data?.[window.google.picker.Response.ACTION];
+        if (action === window.google.picker.Action.PICKED) {
+          const docs = data?.[window.google.picker.Response.DOCUMENTS] || [];
+          const fileId = docs[0]?.[window.google.picker.Document.ID] || docs[0]?.id || "";
+          if (!fileId) {
+            reject(new Error("沒有取得 Google Drive 檔案 ID。"));
+            return;
+          }
+          resolve(fileId);
+          return;
+        }
+        if (action === window.google.picker.Action.CANCEL) resolve("");
+      })
+      .build();
+    picker.setVisible(true);
   });
 }
 
@@ -1911,6 +1990,20 @@ async function openDriveStudioFile(fileIdInput = "") {
     applyStudioFileState(state, metadata.name || currentFileName, null, payload.savedAt || metadata.modifiedTime || "", metadata);
   } catch (error) {
     setVersionMessage(`Drive 開啟失敗：${googleDriveErrorMessage(error)}`, true);
+  }
+}
+
+async function openDriveStudioFilePicker() {
+  try {
+    setVersionMessage("正在開啟 Google Drive 檔案選擇器...");
+    const fileId = await chooseDriveStudioFile();
+    if (!fileId) {
+      setVersionMessage("已取消 Google Drive 檔案選擇。");
+      return;
+    }
+    await openDriveStudioFile(fileId);
+  } catch (error) {
+    setVersionMessage(`Drive 選擇器開啟失敗：${googleDriveErrorMessage(error)}`, true);
   }
 }
 
@@ -5730,7 +5823,7 @@ els.homeSyncLayouts.addEventListener("click", saveCurrentFile);
 els.homeLoadCloudLayouts.addEventListener("click", openStudioFile);
 els.homeExportLayouts.addEventListener("click", exportLayouts);
 els.homeImportLayouts.addEventListener("change", () => importLayoutsFromFile(els.homeImportLayouts.files?.[0]));
-els.homeDriveOpen.addEventListener("click", () => openDriveStudioFile());
+els.homeDriveOpen.addEventListener("click", openDriveStudioFilePicker);
 els.homeDriveNew.addEventListener("click", createDriveBlankStudio);
 els.homeFolderImport.addEventListener("change", () => importPlaybackFolderFiles(els.homeFolderImport.files));
 els.homeChooseFolder.addEventListener("click", choosePlaybackFolder);
