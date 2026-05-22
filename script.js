@@ -309,6 +309,7 @@ let imageViewerRotation = 0;
 let imageViewerPost = null;
 let imageViewerIndex = 0;
 let imageViewerCanSaveRotation = false;
+let imageViewerBoardId = "";
 let currentFileHandle = null;
 let currentFileName = "";
 let currentFileSavedAt = "";
@@ -3532,11 +3533,18 @@ function rotateImageViewer(delta) {
   setImageViewerRotation(imageViewerRotation + delta);
 }
 
-function openImageViewer(imageDataUrl, filename, { post = null, index = 0, canSaveRotation = false } = {}) {
+function currentPostBoardId() {
+  const page = activePage();
+  if (page.type === "posts" && page.boardId) return page.boardId;
+  return new URLSearchParams(window.location.search).get("board") || "";
+}
+
+function openImageViewer(imageDataUrl, filename, { post = null, index = 0, canSaveRotation = false, boardId = "" } = {}) {
   if (!imageDataUrl) return;
   imageViewerPost = post;
   imageViewerIndex = index;
   imageViewerCanSaveRotation = canSaveRotation;
+  imageViewerBoardId = boardId || currentPostBoardId();
   els.imageViewerImg.src = imageDataUrl;
   els.imageViewerDownload.href = imageDataUrl;
   els.imageViewerDownload.download = filename || "貼文圖片.jpg";
@@ -3562,6 +3570,7 @@ function navigateImageViewer(delta) {
     post: imageViewerPost,
     index: imageViewerIndex,
     canSaveRotation: imageViewerCanSaveRotation,
+    boardId: imageViewerBoardId,
   });
 }
 
@@ -3570,10 +3579,15 @@ async function saveImageViewerRotation() {
   const sources = postImageSources(imageViewerPost);
   const source = sources[imageViewerIndex];
   if (!source) return;
-  const page = activePage();
-  if (page.type !== "posts" || !page.boardId) return;
+  const boardId = imageViewerBoardId || currentPostBoardId();
+  if (!boardId) {
+    setVersionMessage("儲存圖片失敗：找不到貼文板，請重新開啟圖片後再試。", true);
+    return;
+  }
 
   els.imageViewerSaveRotation.disabled = true;
+  const originalLabel = els.imageViewerSaveRotation.textContent;
+  els.imageViewerSaveRotation.textContent = "儲存中…";
   try {
     const img = new Image();
     img.src = source;
@@ -3604,7 +3618,7 @@ async function saveImageViewerRotation() {
     )));
     const api = await loadFirebaseApi();
     await requireFirebaseUser(api);
-    await api.updateDoc(api.doc(api.db, POST_BOARDS_COLLECTION, page.boardId, "posts", imageViewerPost.id), {
+    await api.updateDoc(api.doc(api.db, POST_BOARDS_COLLECTION, boardId, "posts", imageViewerPost.id), {
       imageDataUrls: newSources,
       imageDataUrl: newSources[0],
       updatedAt: api.serverTimestamp(),
@@ -3614,12 +3628,20 @@ async function saveImageViewerRotation() {
       post: imageViewerPost,
       index: imageViewerIndex,
       canSaveRotation: imageViewerCanSaveRotation,
+      boardId,
     });
+    els.imageViewerSaveRotation.textContent = "已儲存";
     setVersionMessage("已儲存旋轉後的圖片。");
   } catch (error) {
+    els.imageViewerSaveRotation.textContent = originalLabel;
     setVersionMessage(`儲存圖片失敗：${error.message || "請確認網路與權限。"}`, true);
   } finally {
     els.imageViewerSaveRotation.disabled = false;
+    window.setTimeout(() => {
+      if (els.imageViewerSaveRotation.textContent === "已儲存") {
+        els.imageViewerSaveRotation.textContent = originalLabel;
+      }
+    }, 1200);
   }
 }
 
@@ -3674,9 +3696,11 @@ function closeImageViewer() {
   els.imageViewerImg.removeAttribute("src");
   setImageViewerRotation(0);
   els.imageViewerDownload.href = "#";
+  els.imageViewerSaveRotation.textContent = "儲存旋轉";
   imageViewerPost = null;
   imageViewerIndex = 0;
   imageViewerCanSaveRotation = false;
+  imageViewerBoardId = "";
 }
 
 function postsForSection(posts, sectionId) {
