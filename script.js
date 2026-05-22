@@ -17,6 +17,7 @@ const FIREBASE_CONFIG = {
 };
 const FIREBASE_COLLECTION = "classroomToolLayouts";
 const POST_BOARDS_COLLECTION = "classroomPostBoards";
+const POST_BOARD_ADMINS_COLLECTION = "classroomPostBoardAdmins";
 const POST_BOARD_BACKGROUND_IMAGE_LIMIT = 850000;
 const POST_IMAGE_MAX_COUNT = 5;
 const POST_IMAGE_MAX_TOTAL_LENGTH = 950000;
@@ -1507,6 +1508,7 @@ function normalizePages(value) {
       };
       if (type === "posts") {
         normalizedPage.boardId = String(page?.boardId || page?.id || makeBoardId()).trim();
+        normalizedPage.adminKey = String(page?.adminKey || makeBoardAdminKey()).trim();
         normalizedPage.sections = normalizePostSections(page?.sections);
         normalizedPage.noteHtml = String(page?.noteHtml || "");
       }
@@ -1536,6 +1538,15 @@ function makePageId() {
 function makeBoardId() {
   const random = Math.random().toString(36).slice(2, 8);
   return `board-${Date.now().toString(36)}-${random}`;
+}
+
+function makeBoardAdminKey() {
+  if (window.crypto?.getRandomValues) {
+    const bytes = new Uint8Array(16);
+    window.crypto.getRandomValues(bytes);
+    return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  }
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`;
 }
 
 function isPermissionError(error) {
@@ -3400,6 +3411,10 @@ function postBoardDocRef(api, boardId) {
   return api.doc(api.db, POST_BOARDS_COLLECTION, boardId);
 }
 
+function postBoardAdminDocRef(api, boardId) {
+  return api.doc(api.db, POST_BOARD_ADMINS_COLLECTION, boardId);
+}
+
 function postBoardPostsRef(api, boardId) {
   return api.collection(api.db, POST_BOARDS_COLLECTION, boardId, "posts");
 }
@@ -3436,12 +3451,38 @@ function postBoardMetadataPayload(api, page, user, sections = normalizePostSecti
   };
 }
 
+function postBoardAdminPayload(api, page, user) {
+  return {
+    adminUid: user.uid,
+    adminKey: page.adminKey || makeBoardAdminKey(),
+    updatedAt: api.serverTimestamp(),
+    kind: "postBoardAdmin",
+    version: 1,
+  };
+}
+
+async function ensurePostBoardAdmin(api, page, user) {
+  if (!page?.boardId || !page.adminKey) return;
+  await api.setDoc(
+    postBoardAdminDocRef(api, page.boardId),
+    postBoardAdminPayload(api, page, user),
+    { merge: true },
+  );
+}
+
+async function ensureBoardAdminForBoardId(api, boardId, user) {
+  const page = pages.find((item) => item.type === "posts" && item.boardId === boardId);
+  if (!page) return;
+  await ensurePostBoardAdmin(api, page, user);
+}
+
 async function syncActivePostBoardMetadata() {
   const page = activePage();
   if (page.type !== "posts" || !page.boardId) return;
   try {
     const api = await loadFirebaseApi();
     const user = await requireFirebaseUser(api);
+    await ensurePostBoardAdmin(api, page, user);
     await api.setDoc(
       postBoardDocRef(api, page.boardId),
       postBoardMetadataPayload(api, page, user),
@@ -3458,6 +3499,7 @@ async function ensurePostBoardDoc(page) {
   try {
     const api = await loadFirebaseApi();
     const user = await requireFirebaseUser(api);
+    await ensurePostBoardAdmin(api, page, user);
     await api.setDoc(
       postBoardDocRef(api, page.boardId),
       postBoardMetadataPayload(api, page, user),
@@ -3477,12 +3519,14 @@ async function ensurePostBoardDoc(page) {
 async function recreatePostBoardDoc(api, page, nextSections, noteHtml = "") {
   const user = await requireFirebaseUser(api);
   const nextBoardId = makeBoardId();
+  const nextAdminKey = makeBoardAdminKey();
   pages = pages.map((item) => (
     item.id === page.id
-      ? { ...item, boardId: nextBoardId, sections: nextSections, noteHtml }
+      ? { ...item, boardId: nextBoardId, adminKey: nextAdminKey, sections: nextSections, noteHtml }
       : item
   ));
   const nextPage = pages.find((item) => item.id === page.id);
+  await ensurePostBoardAdmin(api, nextPage, user);
   await api.setDoc(
     postBoardDocRef(api, nextBoardId),
     postBoardMetadataPayload(api, nextPage, user, nextSections, noteHtml),
@@ -3638,7 +3682,8 @@ async function saveImageViewerRotation() {
       index === imageViewerIndex ? newDataUrl : compressPostImageDataUrl(item)
     )));
     const api = await loadFirebaseApi();
-    await requireFirebaseUser(api);
+    const user = await requireFirebaseUser(api);
+    await ensureBoardAdminForBoardId(api, boardId, user);
     await api.updateDoc(api.doc(api.db, POST_BOARDS_COLLECTION, boardId, "posts", imageViewerPost.id), {
       imageDataUrls: newSources,
       imageDataUrl: newSources[0],
@@ -3793,6 +3838,7 @@ async function savePostSections(sections) {
   try {
     const api = await loadFirebaseApi();
     const user = await requireFirebaseUser(api);
+    await ensurePostBoardAdmin(api, page, user);
     await api.setDoc(
       postBoardDocRef(api, page.boardId),
       postBoardMetadataPayload(api, page, user, nextSections),
@@ -3984,7 +4030,8 @@ function editPost(post) {
         throw new Error("圖片總容量太大，請減少張數或換較小的圖片。");
       }
       const api = await loadFirebaseApi();
-      await requireFirebaseUser(api);
+      const user = await requireFirebaseUser(api);
+      await ensurePostBoardAdmin(api, page, user);
       await api.updateDoc(api.doc(api.db, POST_BOARDS_COLLECTION, page.boardId, "posts", post.id), {
         author: nextAuthor || "匿名",
         content: nextContent,
@@ -4015,7 +4062,8 @@ async function deletePost(post) {
 
   try {
     const api = await loadFirebaseApi();
-    await requireFirebaseUser(api);
+    const user = await requireFirebaseUser(api);
+    await ensurePostBoardAdmin(api, page, user);
     await api.deleteDoc(api.doc(api.db, POST_BOARDS_COLLECTION, page.boardId, "posts", post.id));
   } catch (error) {
     els.postBoardMessage.textContent = `貼文刪除失敗：${error.message || "請確認權限。"}`;
@@ -4030,7 +4078,8 @@ async function movePostToSection(postId, sectionId) {
   if (!post || post.sectionId === sectionId) return;
   try {
     const api = await loadFirebaseApi();
-    await requireFirebaseUser(api);
+    const user = await requireFirebaseUser(api);
+    await ensurePostBoardAdmin(api, page, user);
     await api.updateDoc(api.doc(api.db, POST_BOARDS_COLLECTION, page.boardId, "posts", postId), {
       author: post.author || "匿名",
       content: post.content || "",
@@ -4063,7 +4112,8 @@ async function reorderPostInSection(postId, sectionId, targetPostId = "", placeA
 
   try {
     const api = await loadFirebaseApi();
-    await requireFirebaseUser(api);
+    const user = await requireFirebaseUser(api);
+    await ensurePostBoardAdmin(api, page, user);
     await Promise.all(nextPosts.map((post, index) => (
       api.updateDoc(api.doc(api.db, POST_BOARDS_COLLECTION, page.boardId, "posts", post.id), {
         author: post.author || "匿名",
@@ -4615,7 +4665,8 @@ async function subscribeActivePostBoard() {
   await ensurePostBoardDoc(page);
   try {
     const api = await loadFirebaseApi();
-    await requireFirebaseUser(api);
+    const user = await requireFirebaseUser(api);
+    await ensurePostBoardAdmin(api, page, user);
     postBoardMetadataUnsubscribe = api.onSnapshot(postBoardDocRef(api, page.boardId), (snapshot) => {
       const nextSections = normalizePostSections(snapshot.data()?.sections || page.sections);
       postBoardSections = nextSections;
