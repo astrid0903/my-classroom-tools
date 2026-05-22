@@ -2737,9 +2737,9 @@ body.studio-mode .page-tabs {
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  border: none;
-  background: rgba(17, 24, 32, 0.72);
-  color: #fff;
+  border: 1.5px solid rgba(255, 255, 255, 0.55);
+  background: rgba(10, 15, 22, 0.78) !important;
+  color: #fff !important;
   font-size: 14px;
   line-height: 1;
   cursor: pointer;
@@ -2747,11 +2747,12 @@ body.studio-mode .page-tabs {
   align-items: center;
   justify-content: center;
   padding: 0;
-  transition: background 0.12s;
+  transition: background 0.12s, border-color 0.12s;
   z-index: 1;
 }
 .participant-image-del-btn:hover {
-  background: rgba(210, 50, 50, 0.85);
+  background: rgba(200, 40, 40, 0.88) !important;
+  border-color: rgba(255, 255, 255, 0.75);
 }
 
 .participant-image-preview-item img {
