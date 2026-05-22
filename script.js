@@ -2000,6 +2000,7 @@ function applyStudioFileState(state, name = "", handle = null, savedAt = "", dri
     setVersionMessage("檔案內容不是可用的播放台設定。", true);
     return;
   }
+  clearTimeout(fileSaveTimerId);
   suppressFileAutoSave = true;
   try {
     currentFileHandle = driveMeta ? null : handle;
@@ -2182,16 +2183,19 @@ async function saveCurrentFileAs() {
 }
 
 async function saveCurrentDriveFile({ silent = false } = {}) {
-  if (!currentDriveFileId) return false;
+  const fileId = currentDriveFileId;
+  if (!fileId) return false;
   const payload = buildStudioFilePayload(layoutSnapshot());
   try {
-    const metadata = await getDriveFileMetadata(currentDriveFileId);
+    const metadata = await getDriveFileMetadata(fileId);
+    if (currentDriveFileId !== fileId) return false;
     if (
       currentDriveModifiedTime
       && metadata.modifiedTime
       && savedAtTime(metadata.modifiedTime) > savedAtTime(currentDriveModifiedTime)
     ) {
       const overwrite = await showConfirmModal("Google Drive 上已有較新的版本。要用目前畫面覆蓋雲端版本嗎？\n取消後請重新開啟雲端版本。");
+      if (currentDriveFileId !== fileId) return false;
       if (!overwrite) {
         currentFileAutoSave = false;
         writeFileMeta({ autoSave: false });
@@ -2200,12 +2204,13 @@ async function saveCurrentDriveFile({ silent = false } = {}) {
         return true;
       }
     }
-    const updated = await updateDriveStudioFile(currentDriveFileId, payload, currentFileName || metadata.name);
+    const updated = await updateDriveStudioFile(fileId, payload, currentFileName || metadata.name);
+    if (currentDriveFileId !== fileId) return false;
     writeFileMeta({
       name: sanitizeFileName(updated.name || currentFileName),
       savedAt: payload.savedAt,
       autoSave: true,
-      driveFileId: updated.id || currentDriveFileId,
+      driveFileId: updated.id || fileId,
       driveModifiedTime: updated.modifiedTime || metadata.modifiedTime || "",
     });
     setFileInputs(currentFileName);
@@ -2215,6 +2220,7 @@ async function saveCurrentDriveFile({ silent = false } = {}) {
     if (!silent) setVersionMessage(`已儲存到 Google Drive「${currentFileName}」。`);
     return true;
   } catch (error) {
+    if (currentDriveFileId !== fileId) return false;
     currentFileAutoSave = false;
     writeFileMeta({ autoSave: false });
     setFileStatusInputs();
@@ -2272,7 +2278,8 @@ function scheduleFileAutoSave() {
 }
 
 async function autoSaveCurrentFile() {
-  if ((!currentFileHandle && !currentDriveFileId) || !currentFileAutoSave) return;
+  const handle = currentFileHandle;
+  if ((!handle && !currentDriveFileId) || !currentFileAutoSave) return;
   if (fileSaveInProgress) {
     fileSaveQueued = true;
     return;
@@ -2285,11 +2292,13 @@ async function autoSaveCurrentFile() {
       return;
     }
     const payload = buildStudioFilePayload(currentFileSnapshotFromStorage());
-    await writePayloadToHandle(currentFileHandle, payload);
-    writeFileMeta({ name: sanitizeFileName(currentFileHandle.name || currentFileName), savedAt: payload.savedAt, autoSave: true, driveFileId: "", driveModifiedTime: "" });
+    await writePayloadToHandle(handle, payload);
+    if (currentFileHandle !== handle) return;
+    writeFileMeta({ name: sanitizeFileName(handle.name || currentFileName), savedAt: payload.savedAt, autoSave: true, driveFileId: "", driveModifiedTime: "" });
     setFileStatusInputs();
     setVersionMessage(`已自動存檔到「${currentFileName}」。`);
   } catch (error) {
+    if (currentFileHandle !== handle) return;
     currentFileAutoSave = false;
     writeFileMeta({ autoSave: false });
     setFileStatusInputs();
