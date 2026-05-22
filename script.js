@@ -3960,30 +3960,30 @@ async function exportPostBoardToObsidian() {
   const lines = [`---`, `date: ${date}`, `board: ${boardName}`, `---`, ``];
   function appendSection(label, posts) {
     if (label) lines.push(`# ${label}`, ``);
-    buildPostBoardMdLines(posts, "attachments").forEach((l) => lines.push(l));
+    buildPostBoardMdLines(posts, filename).forEach((l) => lines.push(l));
     postBoardPosts.filter((p) => posts.includes(p)).forEach((post) => {
       postImageSources(post).forEach((source, i) => {
-        imageEntries.push({ path: `attachments/${postImageFilename(post, i, source)}`, source });
+        imageEntries.push({ path: `${filename}/${postImageFilename(post, i, source)}`, source });
       });
     });
   }
 
   if (sections.length === 0) {
     const sorted = sortPosts(postBoardPosts);
-    lines.push(...buildPostBoardMdLines(sorted, "attachments"));
+    lines.push(...buildPostBoardMdLines(sorted, filename));
     sorted.forEach((post) => {
       postImageSources(post).forEach((source, i) => {
-        imageEntries.push({ path: `attachments/${postImageFilename(post, i, source)}`, source });
+        imageEntries.push({ path: `${filename}/${postImageFilename(post, i, source)}`, source });
       });
     });
   } else {
     sections.forEach((section) => {
       lines.push(`# ${section.name}`, ``);
       const posts = sortPosts(postsForSection(postBoardPosts, section.id));
-      lines.push(...buildPostBoardMdLines(posts, "attachments"));
+      lines.push(...buildPostBoardMdLines(posts, filename));
       posts.forEach((post) => {
         postImageSources(post).forEach((source, i) => {
-          imageEntries.push({ path: `attachments/${postImageFilename(post, i, source)}`, source });
+          imageEntries.push({ path: `${filename}/${postImageFilename(post, i, source)}`, source });
         });
       });
     });
@@ -3991,10 +3991,10 @@ async function exportPostBoardToObsidian() {
     const orphans = sortPosts(postBoardPosts.filter((p) => !sectionIds.has(p.sectionId || "section-a")));
     if (orphans.length > 0) {
       lines.push(`# 未分類`, ``);
-      lines.push(...buildPostBoardMdLines(orphans, "attachments"));
+      lines.push(...buildPostBoardMdLines(orphans, filename));
       orphans.forEach((post) => {
         postImageSources(post).forEach((source, i) => {
-          imageEntries.push({ path: `attachments/${postImageFilename(post, i, source)}`, source });
+          imageEntries.push({ path: `${filename}/${postImageFilename(post, i, source)}`, source });
         });
       });
     }
