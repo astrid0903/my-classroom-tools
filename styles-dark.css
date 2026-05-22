@@ -74,11 +74,12 @@ body[data-theme="dark"] select:focus {
 
 /* ── Buttons ─────────────────────────────── */
 body[data-theme="dark"] button {
-  background: var(--d-cool);
-  color: #06090d;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.82);
 }
 body[data-theme="dark"] button:hover {
-  background: color-mix(in oklab, var(--d-cool) 84%, white);
+  background: rgba(255, 255, 255, 0.10);
+  color: #fff;
 }
 body[data-theme="dark"] button.secondary,
 body[data-theme="dark"] .link-button.secondary {
@@ -280,11 +281,6 @@ body[data-theme="dark"] .post-board-qr-modal-inner {
   border: 1px solid var(--d-border);
 }
 body[data-theme="dark"] .post-board-qr-modal-title { color: var(--d-text); }
-body[data-theme="dark"] .post-board-qr-modal-close {
-  background: var(--d-cool);
-  color: #06090d;
-}
-
 /* note editor */
 body[data-theme="dark"] .post-board-note-toolbar {
   background: var(--d-surface);
@@ -696,11 +692,6 @@ body[data-theme="dark"] .participant-back-btn {
   background: var(--d-surface);
   color: var(--d-text);
   border-color: var(--d-border);
-}
-body[data-theme="dark"] .participant-fab {
-  background: var(--d-cool);
-  color: #06090d;
-  box-shadow: 0 8px 28px rgba(95, 168, 255, 0.36);
 }
 body[data-theme="dark"] .participant-post-dialog {
   background: rgba(15, 20, 28, 0.96);
