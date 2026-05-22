@@ -3004,7 +3004,7 @@ body.studio-mode .page-tabs {
   inset: 0;
   z-index: 9300;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto minmax(0, 1fr);
   gap: 10px;
   padding: 18px;
   background: rgba(5, 9, 14, 0.92);
@@ -3061,12 +3061,20 @@ body.studio-mode .page-tabs {
 }
 
 .image-viewer-zoom-wrap {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
+  min-height: 36px;
+  padding: 4px 0 8px;
   color: #ccc;
   font-size: 0.85em;
+  background: linear-gradient(180deg, rgba(5, 9, 14, 0.96), rgba(5, 9, 14, 0.74));
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 #image-viewer-zoom {
@@ -3081,6 +3089,7 @@ body.studio-mode .page-tabs {
 }
 
 .image-viewer-scroll {
+  position: relative;
   overflow: auto;
   display: flex;
   justify-content: center;
