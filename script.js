@@ -21,6 +21,11 @@ const POST_BOARD_BACKGROUND_IMAGE_LIMIT = 850000;
 const POST_IMAGE_MAX_COUNT = 5;
 const POST_IMAGE_MAX_TOTAL_LENGTH = 950000;
 const POST_IMAGE_MAX_ITEM_LENGTH = 180000;
+const GOOGLE_DRIVE_CLIENT_ID = "229213858169-5tp9f6rjp8a45irarko8432h39uagt5a.apps.googleusercontent.com";
+const GOOGLE_DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
+const GOOGLE_DRIVE_DISCOVERY_SRC = "https://accounts.google.com/gsi/client";
+const GOOGLE_DRIVE_UPLOAD_URL = "https://www.googleapis.com/upload/drive/v3/files";
+const GOOGLE_DRIVE_FILE_URL = "https://www.googleapis.com/drive/v3/files";
 
 const els = {
   homeView: document.querySelector("#home-view"),
@@ -33,6 +38,8 @@ const els = {
   homeLoadCloudLayouts: document.querySelector("#home-load-cloud-layouts"),
   homeExportLayouts: document.querySelector("#home-export-layouts"),
   homeImportLayouts: document.querySelector("#home-import-layouts"),
+  homeDriveOpen: document.querySelector("#home-drive-open"),
+  homeDriveNew: document.querySelector("#home-drive-new"),
   homeChooseFolder: document.querySelector("#home-choose-folder"),
   homeRefreshFolder: document.querySelector("#home-refresh-folder"),
   homeFolderStatus: document.querySelector("#home-folder-status"),
@@ -293,6 +300,11 @@ let currentFileHandle = null;
 let currentFileName = "";
 let currentFileSavedAt = "";
 let currentFileAutoSave = false;
+let currentDriveFileId = "";
+let currentDriveModifiedTime = "";
+let googleDriveAccessToken = "";
+let googleDriveTokenClient = null;
+let googleDriveScriptPromise = null;
 let fileSaveTimerId = null;
 let fileSaveInProgress = false;
 let fileSaveQueued = false;
@@ -340,6 +352,8 @@ function writeFileMeta(extra = {}) {
   currentFileName = next.name || "";
   currentFileSavedAt = next.savedAt || "";
   currentFileAutoSave = Boolean(next.autoSave);
+  currentDriveFileId = next.driveFileId || "";
+  currentDriveModifiedTime = next.driveModifiedTime || "";
 }
 
 function clearFileMeta() {
@@ -348,6 +362,8 @@ function clearFileMeta() {
   currentFileSavedAt = "";
   currentFileAutoSave = false;
   currentFileHandle = null;
+  currentDriveFileId = "";
+  currentDriveModifiedTime = "";
 }
 
 function buildState(extra = {}) {
@@ -491,6 +507,9 @@ function formatFileSavedAt(value) {
 function currentFileStatusText() {
   const savedText = formatFileSavedAt(currentFileSavedAt);
   const suffix = savedText ? `｜最新存檔：${savedText}` : "｜最新存檔：尚未存檔";
+  if (currentDriveFileId && currentFileName) {
+    return `${currentFileAutoSave ? "Google Drive 自動存檔中" : "Google Drive 已載入（自動存檔暫停）"}｜檔名：${currentFileName}${suffix}`;
+  }
   if (currentFileHandle && currentFileName) return `本機自動存檔中｜檔名：${currentFileName}${suffix}`;
   if (currentFileName) return `已載入檔案（需手動另存）｜檔名：${currentFileName}${suffix}`;
   return `尚未連結檔案｜檔名：未命名${suffix}`;
@@ -581,6 +600,157 @@ async function runNativePicker(actionName, picker, reportBusy = setVersionMessag
     nativePickerInProgress = false;
     setNativePickerControlsDisabled(false);
   }
+}
+
+function loadGoogleDriveScript() {
+  if (window.google?.accounts?.oauth2) return Promise.resolve();
+  if (!googleDriveScriptPromise) {
+    googleDriveScriptPromise = new Promise((resolve, reject) => {
+      const existing = document.querySelector(`script[src="${GOOGLE_DRIVE_DISCOVERY_SRC}"]`);
+      if (existing) {
+        existing.addEventListener("load", resolve, { once: true });
+        existing.addEventListener("error", reject, { once: true });
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = GOOGLE_DRIVE_DISCOVERY_SRC;
+      script.async = true;
+      script.defer = true;
+      script.onload = resolve;
+      script.onerror = () => reject(new Error("Google Drive 登入元件載入失敗。"));
+      document.head.appendChild(script);
+    });
+  }
+  return googleDriveScriptPromise;
+}
+
+function googleDriveErrorMessage(error) {
+  const text = String(error?.message || error?.error || "");
+  if (text.includes("popup")) return "Google Drive 登入視窗被瀏覽器阻擋，請允許彈出視窗後再試。";
+  if (text.includes("origin") || text.includes("unauthorized")) return "目前網址尚未加入 Google OAuth 授權來源，請改用正式網址或更新 OAuth 設定。";
+  return text || "Google Drive 操作失敗。";
+}
+
+async function requestGoogleDriveToken() {
+  if (googleDriveAccessToken) return googleDriveAccessToken;
+  await loadGoogleDriveScript();
+  return new Promise((resolve, reject) => {
+    googleDriveTokenClient = window.google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_DRIVE_CLIENT_ID,
+      scope: GOOGLE_DRIVE_SCOPE,
+      callback: (response) => {
+        if (response?.error) {
+          reject(new Error(response.error));
+          return;
+        }
+        googleDriveAccessToken = response?.access_token || "";
+        if (!googleDriveAccessToken) {
+          reject(new Error("沒有取得 Google Drive 授權。"));
+          return;
+        }
+        resolve(googleDriveAccessToken);
+      },
+      error_callback: (error) => reject(error),
+    });
+    googleDriveTokenClient.requestAccessToken({ prompt: googleDriveAccessToken ? "" : "consent" });
+  });
+}
+
+function extractDriveFileId(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  const match = text.match(/\/file\/d\/([^/]+)/) || text.match(/[?&]id=([^&]+)/);
+  return decodeURIComponent(match?.[1] || text).replace(/[^a-zA-Z0-9_-]/g, "");
+}
+
+async function driveFetch(url, options = {}) {
+  const token = await requestGoogleDriveToken();
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      ...(options.headers || {}),
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (response.status === 401) {
+    googleDriveAccessToken = "";
+    const retryToken = await requestGoogleDriveToken();
+    const retry = await fetch(url, {
+      ...options,
+      headers: {
+        ...(options.headers || {}),
+        Authorization: `Bearer ${retryToken}`,
+      },
+    });
+    if (retry.ok) return retry;
+    const retryDetail = await retry.text().catch(() => "");
+    throw new Error(retryDetail || `Google Drive 回應錯誤：${retry.status}`);
+  }
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new Error(detail || `Google Drive 回應錯誤：${response.status}`);
+  }
+  return response;
+}
+
+async function getDriveFileMetadata(fileId) {
+  const fields = "id,name,mimeType,modifiedTime,version,webViewLink";
+  const response = await driveFetch(`${GOOGLE_DRIVE_FILE_URL}/${fileId}?fields=${encodeURIComponent(fields)}`);
+  return response.json();
+}
+
+async function readDriveStudioFile(fileId) {
+  const [metadata, contentResponse] = await Promise.all([
+    getDriveFileMetadata(fileId),
+    driveFetch(`${GOOGLE_DRIVE_FILE_URL}/${fileId}?alt=media`),
+  ]);
+  const payload = JSON.parse(await contentResponse.text());
+  const state = normalizeStudioFilePayload(payload);
+  if (!state) throw new Error("Drive 檔案內容不是可用的播放台 JSON。");
+  return { metadata, payload, state };
+}
+
+function driveMultipartBody(metadata, payload) {
+  const boundary = `classroom_studio_${Date.now()}`;
+  const body = [
+    `--${boundary}`,
+    "Content-Type: application/json; charset=UTF-8",
+    "",
+    JSON.stringify(metadata),
+    `--${boundary}`,
+    "Content-Type: application/json; charset=UTF-8",
+    "",
+    JSON.stringify(payload, null, 2),
+    `--${boundary}--`,
+    "",
+  ].join("\r\n");
+  return { boundary, body };
+}
+
+async function createDriveStudioFile(payload, name) {
+  const { boundary, body } = driveMultipartBody({
+    name: sanitizeFileName(name),
+    mimeType: "application/json",
+  }, payload);
+  const response = await driveFetch(`${GOOGLE_DRIVE_UPLOAD_URL}?uploadType=multipart&fields=id,name,modifiedTime,version,webViewLink`, {
+    method: "POST",
+    headers: { "Content-Type": `multipart/related; boundary=${boundary}` },
+    body,
+  });
+  return response.json();
+}
+
+async function updateDriveStudioFile(fileId, payload, name = currentFileName) {
+  const { boundary, body } = driveMultipartBody({
+    name: sanitizeFileName(name),
+    mimeType: "application/json",
+  }, payload);
+  const response = await driveFetch(`${GOOGLE_DRIVE_UPLOAD_URL}/${fileId}?uploadType=multipart&fields=id,name,modifiedTime,version,webViewLink`, {
+    method: "PATCH",
+    headers: { "Content-Type": `multipart/related; boundary=${boundary}` },
+    body,
+  });
+  return response.json();
 }
 
 function folderLayoutName(layout) {
@@ -927,10 +1097,10 @@ function layoutVersionState(layout, currentLayout) {
 function appendCreateStudioCard() {
   const card = createEl("button", "home-layout-card home-create-card");
   card.type = "button";
-  card.addEventListener("click", createBlankStudio);
+  card.addEventListener("click", createDriveBlankStudio);
   const plus = createEl("span", "home-create-plus", "+");
   const text = createEl("span", "home-create-text", "建立新的播放台");
-  const hint = createEl("span", "home-create-hint", "先建立 JSON 檔，再開始編輯");
+  const hint = createEl("span", "home-create-hint", "建立 Google Drive JSON 後自動存檔");
   card.append(plus, text, hint);
   els.homeLayoutGrid.appendChild(card);
 }
@@ -989,7 +1159,7 @@ function appendHomeLayoutCard(layout, { current = false, folderFile = false, ver
       event.stopPropagation();
       showStudio();
     });
-    const save = createEl("button", "secondary", currentFileHandle ? "立即存檔" : "另存檔案");
+    const save = createEl("button", "secondary", (currentFileHandle || currentDriveFileId) ? "立即存檔" : "另存檔案");
     save.type = "button";
     save.addEventListener("click", (event) => {
       event.stopPropagation();
@@ -1010,7 +1180,7 @@ function renderHomeVersions() {
     savedAt: currentFileSavedAt || readFileMeta().savedAt || "",
     state: snapshot,
   };
-  const hasCurrentFile = Boolean(currentFileName || currentFileHandle);
+  const hasCurrentFile = Boolean(currentFileName || currentFileHandle || currentDriveFileId);
   const folderLayouts = [...folderLayoutFiles];
   const hasNewerSameNameFolder = hasCurrentFile && folderLayouts.some((folderLayout) => layoutVersionState(folderLayout, layout) === "newer");
   const visibleCount = folderLayouts.length + (hasCurrentFile ? 1 : 0);
@@ -1160,6 +1330,8 @@ function initHomeMode() {
   currentFileName = meta.name || "";
   currentFileSavedAt = meta.savedAt || "";
   currentFileAutoSave = Boolean(meta.autoSave);
+  currentDriveFileId = meta.driveFileId || "";
+  currentDriveModifiedTime = meta.driveModifiedTime || "";
   els.homeView.classList.remove("hidden");
   els.studio.classList.add("hidden");
   els.studioFileStatus.classList.add("hidden");
@@ -1684,26 +1856,30 @@ function normalizeStudioFilePayload(payload) {
   return null;
 }
 
-function applyStudioFileState(state, name = "", handle = null, savedAt = "") {
+function applyStudioFileState(state, name = "", handle = null, savedAt = "", driveMeta = null) {
   if (!state || typeof state !== "object") {
     setVersionMessage("檔案內容不是可用的播放台設定。", true);
     return;
   }
   suppressFileAutoSave = true;
   try {
-    currentFileHandle = handle;
+    currentFileHandle = driveMeta ? null : handle;
     const nextName = sanitizeFileName(name || currentFileName || preferredFileName());
     const nextSavedAt = savedAt || new Date().toISOString();
     writeFileMeta({
       name: nextName,
       savedAt: nextSavedAt,
-      autoSave: Boolean(handle),
+      autoSave: Boolean(handle || driveMeta?.id),
+      driveFileId: driveMeta?.id || "",
+      driveModifiedTime: driveMeta?.modifiedTime || "",
     });
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...state, activeTool: "", moreToolsOpen: false, hiddenWidgetsOpen: false }));
     setFileInputs(nextName);
     setFileStatusInputs();
     showStudio();
-    if (handle) {
+    if (driveMeta?.id) {
+      setVersionMessage(`已從 Google Drive 開啟「${nextName}」，之後編輯會自動存檔。`);
+    } else if (handle) {
       setVersionMessage(`已開啟「${nextName}」，之後編輯會自動存檔。`);
     } else {
       setVersionMessage(`已匯入「${nextName}」。若要自動存檔，請按「另存檔案」。`);
@@ -1722,6 +1898,33 @@ async function readStudioFile(file, handle = null) {
     applyStudioFileState(state, file.name || currentFileName, handle, payload.savedAt || "");
   } catch {
     setVersionMessage("開啟失敗，請確認選到的是播放台 JSON 檔。", true);
+  }
+}
+
+async function openDriveStudioFile(fileIdInput = "") {
+  const raw = fileIdInput || window.prompt("貼上 Google Drive 播放台 JSON 檔案連結或檔案 ID");
+  const fileId = extractDriveFileId(raw);
+  if (!fileId) return;
+  try {
+    setVersionMessage("正在從 Google Drive 開啟播放台...");
+    const { metadata, payload, state } = await readDriveStudioFile(fileId);
+    applyStudioFileState(state, metadata.name || currentFileName, null, payload.savedAt || metadata.modifiedTime || "", metadata);
+  } catch (error) {
+    setVersionMessage(`Drive 開啟失敗：${googleDriveErrorMessage(error)}`, true);
+  }
+}
+
+async function createDriveBlankStudio() {
+  const rawName = window.prompt("新的 Google Drive 播放台檔名", preferredFileName());
+  if (rawName === null) return;
+  const state = blankStudioState();
+  const payload = buildStudioFilePayload(state);
+  try {
+    setVersionMessage("正在 Google Drive 建立播放台...");
+    const metadata = await createDriveStudioFile(payload, sanitizeFileName(rawName || preferredFileName()));
+    applyStudioFileState(state, metadata.name || rawName, null, payload.savedAt || metadata.modifiedTime || "", metadata);
+  } catch (error) {
+    setVersionMessage(`Drive 新建失敗：${googleDriveErrorMessage(error)}`, true);
   }
 }
 
@@ -1799,7 +2002,7 @@ async function saveCurrentFileAs() {
   if (!fileSystemAccessSupported()) {
     downloadStudioFile(payload, name);
     currentFileHandle = null;
-    writeFileMeta({ name, savedAt: payload.savedAt, autoSave: false });
+    writeFileMeta({ name, savedAt: payload.savedAt, autoSave: false, driveFileId: "", driveModifiedTime: "" });
     setFileInputs(name);
     setFileStatusInputs();
     renderHomeVersions();
@@ -1822,7 +2025,7 @@ async function saveCurrentFileAs() {
     if (!handle) return;
     await writePayloadToHandle(handle, payload);
     currentFileHandle = handle;
-    writeFileMeta({ name: sanitizeFileName(handle.name || name), savedAt: payload.savedAt, autoSave: true });
+    writeFileMeta({ name: sanitizeFileName(handle.name || name), savedAt: payload.savedAt, autoSave: true, driveFileId: "", driveModifiedTime: "" });
     setFileInputs(currentFileName);
     setFileStatusInputs();
     renderHomeVersions();
@@ -1834,7 +2037,53 @@ async function saveCurrentFileAs() {
   }
 }
 
+async function saveCurrentDriveFile({ silent = false } = {}) {
+  if (!currentDriveFileId) return false;
+  const payload = buildStudioFilePayload(layoutSnapshot());
+  try {
+    const metadata = await getDriveFileMetadata(currentDriveFileId);
+    if (
+      currentDriveModifiedTime
+      && metadata.modifiedTime
+      && savedAtTime(metadata.modifiedTime) > savedAtTime(currentDriveModifiedTime)
+    ) {
+      const overwrite = await showConfirmModal("Google Drive 上已有較新的版本。要用目前畫面覆蓋雲端版本嗎？\n取消後請重新開啟雲端版本。");
+      if (!overwrite) {
+        currentFileAutoSave = false;
+        writeFileMeta({ autoSave: false });
+        setFileStatusInputs();
+        setVersionMessage("已取消存檔；請重新開啟 Google Drive 版本以取得最新內容。", true);
+        return true;
+      }
+    }
+    const updated = await updateDriveStudioFile(currentDriveFileId, payload, currentFileName || metadata.name);
+    writeFileMeta({
+      name: sanitizeFileName(updated.name || currentFileName),
+      savedAt: payload.savedAt,
+      autoSave: true,
+      driveFileId: updated.id || currentDriveFileId,
+      driveModifiedTime: updated.modifiedTime || metadata.modifiedTime || "",
+    });
+    setFileInputs(currentFileName);
+    setFileStatusInputs();
+    renderHomeVersions();
+    renderSavedLayouts();
+    if (!silent) setVersionMessage(`已儲存到 Google Drive「${currentFileName}」。`);
+    return true;
+  } catch (error) {
+    currentFileAutoSave = false;
+    writeFileMeta({ autoSave: false });
+    setFileStatusInputs();
+    setVersionMessage(`Drive 存檔失敗：${googleDriveErrorMessage(error)}`, true);
+    return true;
+  }
+}
+
 async function saveCurrentFile() {
+  if (currentDriveFileId) {
+    await saveCurrentDriveFile();
+    return;
+  }
   if (!currentFileHandle) {
     await saveCurrentFileAs();
     return;
@@ -1842,7 +2091,7 @@ async function saveCurrentFile() {
   const payload = buildStudioFilePayload(layoutSnapshot());
   try {
     await writePayloadToHandle(currentFileHandle, payload);
-    writeFileMeta({ name: sanitizeFileName(currentFileHandle.name || currentFileName), savedAt: payload.savedAt, autoSave: true });
+    writeFileMeta({ name: sanitizeFileName(currentFileHandle.name || currentFileName), savedAt: payload.savedAt, autoSave: true, driveFileId: "", driveModifiedTime: "" });
     setFileInputs(currentFileName);
     setFileStatusInputs();
     renderHomeVersions();
@@ -1873,22 +2122,27 @@ function disconnectCurrentFile() {
 }
 
 function scheduleFileAutoSave() {
-  if (suppressFileAutoSave || !currentFileHandle || !currentFileAutoSave) return;
+  if (suppressFileAutoSave || (!currentFileHandle && !currentDriveFileId) || !currentFileAutoSave) return;
   clearTimeout(fileSaveTimerId);
   fileSaveTimerId = setTimeout(autoSaveCurrentFile, 900);
 }
 
 async function autoSaveCurrentFile() {
-  if (!currentFileHandle || !currentFileAutoSave) return;
+  if ((!currentFileHandle && !currentDriveFileId) || !currentFileAutoSave) return;
   if (fileSaveInProgress) {
     fileSaveQueued = true;
     return;
   }
   fileSaveInProgress = true;
   try {
+    if (currentDriveFileId) {
+      await saveCurrentDriveFile({ silent: true });
+      if (currentFileAutoSave) setVersionMessage(`已自動存檔到 Google Drive「${currentFileName}」。`);
+      return;
+    }
     const payload = buildStudioFilePayload(currentFileSnapshotFromStorage());
     await writePayloadToHandle(currentFileHandle, payload);
-    writeFileMeta({ name: sanitizeFileName(currentFileHandle.name || currentFileName), savedAt: payload.savedAt, autoSave: true });
+    writeFileMeta({ name: sanitizeFileName(currentFileHandle.name || currentFileName), savedAt: payload.savedAt, autoSave: true, driveFileId: "", driveModifiedTime: "" });
     setFileStatusInputs();
     setVersionMessage(`已自動存檔到「${currentFileName}」。`);
   } catch (error) {
@@ -1913,7 +2167,7 @@ function renderSavedLayouts(selectedName = "") {
   els.savedLayouts.appendChild(option);
   els.savedLayouts.value = option.value;
   els.loadLayout.disabled = false;
-  els.deleteLayout.disabled = !currentFileHandle && !currentFileName;
+  els.deleteLayout.disabled = !currentFileHandle && !currentDriveFileId && !currentFileName;
   els.exportLayouts.disabled = false;
   els.homeExportLayouts.disabled = false;
   els.syncLayouts.disabled = false;
@@ -5476,6 +5730,8 @@ els.homeSyncLayouts.addEventListener("click", saveCurrentFile);
 els.homeLoadCloudLayouts.addEventListener("click", openStudioFile);
 els.homeExportLayouts.addEventListener("click", exportLayouts);
 els.homeImportLayouts.addEventListener("change", () => importLayoutsFromFile(els.homeImportLayouts.files?.[0]));
+els.homeDriveOpen.addEventListener("click", () => openDriveStudioFile());
+els.homeDriveNew.addEventListener("click", createDriveBlankStudio);
 els.homeFolderImport.addEventListener("change", () => importPlaybackFolderFiles(els.homeFolderImport.files));
 els.homeChooseFolder.addEventListener("click", choosePlaybackFolder);
 els.homeRefreshFolder.addEventListener("click", () => scanPlaybackFolder());
