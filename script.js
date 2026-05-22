@@ -302,6 +302,7 @@ let participantBoardSections = [];
 let participantBoardPosts = [];
 let participantUid = null;
 let participantEditingPostId = null;
+let participantEditingExistingImages = [];
 let participantImagePreviewUrls = [];
 let imageViewerRotation = 0;
 let imageViewerPost = null;
@@ -4501,15 +4502,46 @@ function setParticipantMessage(text, isError = false) {
   els.participantMessage.classList.toggle("error", isError);
 }
 
-function clearParticipantImagePreview({ clearInput = false } = {}) {
+function clearParticipantImagePreview({ clearInput = false, clearExisting = false } = {}) {
   participantImagePreviewUrls.forEach((url) => URL.revokeObjectURL(url));
   participantImagePreviewUrls = [];
+  if (clearExisting) { participantEditingExistingImages = []; resetImagePreviewLabel(); }
   if (clearInput && els.participantImage) els.participantImage.value = "";
   if (els.participantImagePreviewImg) els.participantImagePreviewImg.innerHTML = "";
   if (els.participantImagePreview) els.participantImagePreview.classList.add("hidden");
 }
 
+function showExistingImagesInPreview(urls) {
+  if (!urls || urls.length === 0) return;
+  if (els.participantImagePreviewImg) els.participantImagePreviewImg.innerHTML = "";
+  urls.forEach((src, index) => {
+    const item = createEl("figure", "participant-image-preview-item");
+    const img = document.createElement("img");
+    img.src = src;
+    img.alt = `現有圖片 ${index + 1}`;
+    const cap = createEl("figcaption", "", `${index + 1}/${urls.length}`);
+    item.append(img, cap);
+    els.participantImagePreviewImg.appendChild(item);
+  });
+  if (els.participantImagePreview) {
+    els.participantImagePreview.classList.remove("hidden");
+    els.participantImagePreview.dataset.existingImages = "true";
+    const label = els.participantImagePreview.querySelector(".participant-image-preview-head span");
+    if (label) label.textContent = "現有圖片（可移除或選新圖片取代）";
+  }
+}
+
+function resetImagePreviewLabel() {
+  if (!els.participantImagePreview) return;
+  delete els.participantImagePreview.dataset.existingImages;
+  const label = els.participantImagePreview.querySelector(".participant-image-preview-head span");
+  if (label) label.textContent = "圖片預覽";
+}
+
 function updateParticipantImagePreview(files) {
+  // Selecting new files replaces existing images
+  participantEditingExistingImages = [];
+  if (els.participantImagePreview) delete els.participantImagePreview.dataset.existingImages;
   clearParticipantImagePreview();
   const imageFiles = Array.from(files || []).slice(0, POST_IMAGE_MAX_COUNT);
   if (imageFiles.length === 0) return;
@@ -4540,7 +4572,7 @@ function updateParticipantImagePreview(files) {
 function showParticipantBoard() {
   participantEditingPostId = null;
   els.participantFormTitle.textContent = "新增貼文";
-  clearParticipantImagePreview({ clearInput: true });
+  clearParticipantImagePreview({ clearInput: true, clearExisting: true });
   els.participantBoardScreen.classList.remove("hidden");
   els.participantFormScreen.classList.add("hidden");
 }
@@ -4549,7 +4581,7 @@ function showParticipantForm(sectionId) {
   if (sectionId) els.participantSection.value = sectionId;
   els.participantMessage.textContent = "";
   els.participantMessage.classList.remove("error");
-  clearParticipantImagePreview({ clearInput: true });
+  clearParticipantImagePreview({ clearInput: true, clearExisting: true });
   els.participantBoardScreen.classList.add("hidden");
   els.participantFormScreen.classList.remove("hidden");
   els.participantContent.focus();
@@ -4563,7 +4595,15 @@ function showParticipantEditForm(post) {
   if (els.participantSection && post.sectionId) els.participantSection.value = post.sectionId;
   els.participantMessage.textContent = "";
   els.participantMessage.classList.remove("error");
-  clearParticipantImagePreview({ clearInput: true });
+  clearParticipantImagePreview({ clearInput: true, clearExisting: true });
+  // Load existing images into preview so user can see them
+  const existingUrls = post.imageDataUrls?.length
+    ? post.imageDataUrls
+    : post.imageDataUrl
+    ? [post.imageDataUrl]
+    : [];
+  participantEditingExistingImages = existingUrls;
+  if (existingUrls.length > 0) showExistingImagesInPreview(existingUrls);
   els.participantBoardScreen.classList.add("hidden");
   els.participantFormScreen.classList.remove("hidden");
   els.participantContent.focus();
@@ -4804,7 +4844,7 @@ async function submitParticipantPost(event) {
   const content = els.participantContent.value.trim().slice(0, 600);
   const files = Array.from(els.participantImage.files || []).slice(0, POST_IMAGE_MAX_COUNT);
   if (!boardId) return;
-  if (!content && files.length === 0) {
+  if (!content && files.length === 0 && participantEditingExistingImages.length === 0) {
     setParticipantMessage("請先輸入內容或選擇圖片。", true);
     return;
   }
@@ -4855,6 +4895,7 @@ async function submitParticipantPost(event) {
     }
     els.participantContent.value = "";
     els.participantImage.value = "";
+    participantEditingExistingImages = [];
     clearParticipantImagePreview();
     els.participantFormTitle.textContent = "新增貼文";
     showParticipantBoard();
@@ -6391,7 +6432,7 @@ els.participantPostModal.addEventListener("click", (event) => {
   if (event.target === els.participantPostModal) closeParticipantPostModal();
 });
 els.participantImage.addEventListener("change", () => updateParticipantImagePreview(els.participantImage.files || []));
-els.participantImageClear.addEventListener("click", () => clearParticipantImagePreview({ clearInput: true }));
+els.participantImageClear.addEventListener("click", () => clearParticipantImagePreview({ clearInput: true, clearExisting: true }));
 els.postBoardQrToggle.addEventListener("click", () => {
   els.postBoardJoinCard.classList.toggle("expanded");
 });
