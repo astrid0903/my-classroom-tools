@@ -515,6 +515,7 @@ h3 {
 .home-layout-name-edit {
   width: 100%;
   min-width: 0;
+  height: 36px;
   min-height: 36px;
   border: 1px solid rgba(168, 197, 220, 0.2);
   border-radius: 6px;
@@ -532,6 +533,7 @@ h3 {
 }
 
 .home-layout-rename {
+  height: 36px;
   min-height: 36px;
   padding-inline: 12px;
 }

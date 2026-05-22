@@ -3134,4 +3134,23 @@ body[data-theme="dark"].studio-mode .slide-stage > .page-tabs {
   display: none !important;
 }
 
+/* ── 卡片標題列「改名」按鈕：對齊 action 按鈕的 36px pill 規格 ── */
+body[data-theme="dark"] .home-layout-rename {
+  height: 36px;
+  min-height: 36px;
+  padding-inline: 14px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── 單一 action 按鈕時取消 auto 欄，讓按鈕真正滿寬 ────────── */
+body[data-theme="dark"] .home-layout-actions:has(> button:only-child) {
+  grid-template-columns: 1fr;
+}
+
 /* === 結束 patch === */
