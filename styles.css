@@ -2952,13 +2952,39 @@ body.studio-mode .page-tabs {
   margin-top: 4px;
 }
 
+.post-edit-image-item {
+  position: relative;
+  margin: 0;
+}
+
 .post-edit-image-thumb {
   width: 80px;
   height: 80px;
   object-fit: cover;
   border-radius: 6px;
   border: 1px solid rgba(0, 0, 0, 0.12);
-  cursor: default;
+  display: block;
+}
+
+.post-edit-image-del {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-height: 24px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(120, 22, 22, 0.24);
+  background: rgba(255, 255, 255, 0.92);
+  color: #8f1d1d;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.post-edit-image-item figcaption {
+  margin-top: 3px;
+  font-size: 0.72rem;
+  color: #6b7280;
+  text-align: center;
 }
 
 .post-simple-dialog {
@@ -2989,6 +3015,18 @@ body.studio-mode .page-tabs {
   align-items: center;
   justify-content: flex-end;
   gap: 10px;
+}
+
+.image-viewer-message {
+  min-height: 24px;
+  margin: 0;
+  color: #8ff0bf;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.image-viewer-message.error {
+  color: #ffb4aa;
 }
 
 .image-viewer-bar button,

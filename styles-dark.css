@@ -621,6 +621,14 @@ body[data-theme="dark"] .post-edit-dialog {
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.7);
 }
 body[data-theme="dark"] .post-edit-dialog h3 { color: var(--d-text); }
+body[data-theme="dark"] .post-edit-image-del {
+  background: rgba(31, 38, 46, 0.92);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #ffb4aa;
+}
+body[data-theme="dark"] .post-edit-image-item figcaption {
+  color: var(--d-text-3);
+}
 
 /* ── Participant view ────────────────────── */
 body[data-theme="dark"] .participant-view {

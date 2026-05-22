@@ -91,6 +91,21 @@ service cloud.firestore {
         && hasPostBody();
     }
 
+    function isAdminPostEdit() {
+      return request.auth != null
+        && request.resource.data.keys().hasOnly(['author', 'sectionId', 'content', 'imageDataUrl', 'imageDataUrls', 'order', 'createdAt', 'updatedAt', 'authorUid'])
+        && isOptionalString(request.resource.data.author, 40)
+        && request.resource.data.sectionId is string
+        && request.resource.data.sectionId.size() > 0
+        && request.resource.data.sectionId.size() <= 80
+        && isOptionalString(request.resource.data.content, 600)
+        && isOptionalString(request.resource.data.imageDataUrl, 950000)
+        && isOptionalPostImages(request.resource.data.imageDataUrls)
+        && isOptionalPostOrder(request.resource.data.order)
+        && request.resource.data.updatedAt == request.time
+        && hasPostBody();
+    }
+
     function isOwnPostEdit() {
       return request.auth != null
         && resource.data.authorUid == request.auth.uid
@@ -132,8 +147,10 @@ service cloud.firestore {
         allow read: if isShortId(boardId);
         allow create: if isShortId(boardId) && isPost();
         allow update: if isShortId(boardId)
-          && (isBoardAdmin(boardId) || isOwnPostEdit())
-          && isPostEdit();
+          && (
+            (isBoardAdmin(boardId) && isAdminPostEdit())
+            || isOwnPostEdit()
+          );
         allow delete: if isShortId(boardId)
           && (isBoardAdmin(boardId) || isOwnPost());
       }

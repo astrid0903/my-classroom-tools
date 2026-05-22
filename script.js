@@ -238,6 +238,7 @@ const els = {
   postEditAuthor: document.querySelector("#post-edit-author"),
   postEditContent: document.querySelector("#post-edit-content"),
   postEditImages: document.querySelector("#post-edit-images"),
+  postEditImageInput: document.querySelector("#post-edit-image-input"),
   postEditSave: document.querySelector("#post-edit-save"),
   postEditCancel: document.querySelector("#post-edit-cancel"),
   postEditMessage: document.querySelector("#post-edit-message"),
@@ -261,6 +262,7 @@ const els = {
   imageViewerRotateRight: document.querySelector("#image-viewer-rotate-right"),
   imageViewerRotateReset: document.querySelector("#image-viewer-rotate-reset"),
   imageViewerSaveRotation: document.querySelector("#image-viewer-save-rotation"),
+  imageViewerMessage: document.querySelector("#image-viewer-message"),
   imageViewerZoom: document.querySelector("#image-viewer-zoom"),
   imageViewerZoomValue: document.querySelector("#image-viewer-zoom-value"),
 };
@@ -3533,6 +3535,12 @@ function rotateImageViewer(delta) {
   setImageViewerRotation(imageViewerRotation + delta);
 }
 
+function setImageViewerMessage(text = "", isError = false) {
+  if (!els.imageViewerMessage) return;
+  els.imageViewerMessage.textContent = text;
+  els.imageViewerMessage.classList.toggle("error", Boolean(isError));
+}
+
 function currentPostBoardId() {
   const page = activePage();
   if (page.type === "posts" && page.boardId) return page.boardId;
@@ -3548,6 +3556,7 @@ function openImageViewer(imageDataUrl, filename, { post = null, index = 0, canSa
   els.imageViewerImg.src = imageDataUrl;
   els.imageViewerDownload.href = imageDataUrl;
   els.imageViewerDownload.download = filename || "貼文圖片.jpg";
+  setImageViewerMessage("");
   els.imageViewerZoom.value = 100;
   setImageViewerZoom(100);
   setImageViewerRotation(0);
@@ -3575,12 +3584,23 @@ function navigateImageViewer(delta) {
 }
 
 async function saveImageViewerRotation() {
-  if (!imageViewerPost?.id || imageViewerRotation === 0) return;
+  if (!imageViewerPost?.id) {
+    setImageViewerMessage("儲存失敗：找不到這則貼文，請關閉圖片後重新開啟。", true);
+    return;
+  }
+  if (imageViewerRotation === 0) {
+    setImageViewerMessage("圖片尚未旋轉，不需要儲存。");
+    return;
+  }
   const sources = postImageSources(imageViewerPost);
   const source = sources[imageViewerIndex];
-  if (!source) return;
+  if (!source) {
+    setImageViewerMessage("儲存失敗：找不到目前圖片，請重新開啟圖片後再試。", true);
+    return;
+  }
   const boardId = imageViewerBoardId || currentPostBoardId();
   if (!boardId) {
+    setImageViewerMessage("儲存失敗：找不到貼文板，請重新開啟圖片後再試。", true);
     setVersionMessage("儲存圖片失敗：找不到貼文板，請重新開啟圖片後再試。", true);
     return;
   }
@@ -3588,6 +3608,7 @@ async function saveImageViewerRotation() {
   els.imageViewerSaveRotation.disabled = true;
   const originalLabel = els.imageViewerSaveRotation.textContent;
   els.imageViewerSaveRotation.textContent = "儲存中…";
+  setImageViewerMessage("正在儲存旋轉後的圖片…");
   try {
     const img = new Image();
     img.src = source;
@@ -3631,9 +3652,11 @@ async function saveImageViewerRotation() {
       boardId,
     });
     els.imageViewerSaveRotation.textContent = "已儲存";
+    setImageViewerMessage("已儲存旋轉後的圖片。");
     setVersionMessage("已儲存旋轉後的圖片。");
   } catch (error) {
     els.imageViewerSaveRotation.textContent = originalLabel;
+    setImageViewerMessage(`儲存失敗：${error.message || "請確認網路與權限。"}`, true);
     setVersionMessage(`儲存圖片失敗：${error.message || "請確認網路與權限。"}`, true);
   } finally {
     els.imageViewerSaveRotation.disabled = false;
@@ -3697,6 +3720,7 @@ function closeImageViewer() {
   setImageViewerRotation(0);
   els.imageViewerDownload.href = "#";
   els.imageViewerSaveRotation.textContent = "儲存旋轉";
+  setImageViewerMessage("");
   imageViewerPost = null;
   imageViewerIndex = 0;
   imageViewerCanSaveRotation = false;
@@ -3842,6 +3866,61 @@ function showConfirmModal(message) {
   });
 }
 
+function renderPostEditImages(images) {
+  if (!els.postEditImages) return;
+  els.postEditImages.innerHTML = "";
+  if (images.length === 0) {
+    els.postEditImages.classList.add("hidden");
+    return;
+  }
+  images.forEach((src, index) => {
+    const item = createEl("figure", "post-edit-image-item");
+    const img = document.createElement("img");
+    img.src = src;
+    img.className = "post-edit-image-thumb";
+    img.alt = `貼文圖片 ${index + 1}`;
+    const delBtn = createEl("button", "post-edit-image-del", "移除");
+    delBtn.type = "button";
+    delBtn.addEventListener("click", () => {
+      images.splice(index, 1);
+      renderPostEditImages(images);
+    });
+    const caption = createEl("figcaption", "", `${index + 1} / ${images.length}`);
+    item.append(img, delBtn, caption);
+    els.postEditImages.appendChild(item);
+  });
+  els.postEditImages.classList.remove("hidden");
+}
+
+async function appendPostEditImages(images, files) {
+  const fileArr = Array.from(files || []).filter((file) => file.type.startsWith("image/"));
+  if (els.postEditImageInput) els.postEditImageInput.value = "";
+  if (fileArr.length === 0) {
+    els.postEditMessage.textContent = "請選擇圖片檔。";
+    els.postEditMessage.classList.add("error");
+    return;
+  }
+  const remaining = POST_IMAGE_MAX_COUNT - images.length;
+  if (remaining <= 0) {
+    els.postEditMessage.textContent = `已達上限 ${POST_IMAGE_MAX_COUNT} 張。如需替換，請先移除舊圖片。`;
+    els.postEditMessage.classList.add("error");
+    return;
+  }
+  const toAdd = fileArr.slice(0, remaining);
+  els.postEditMessage.textContent = fileArr.length > remaining ? `最多共 ${POST_IMAGE_MAX_COUNT} 張，已加入前 ${remaining} 張。` : "";
+  els.postEditMessage.classList.remove("error");
+  for (const file of toAdd) {
+    try {
+      images.push(await imageFileToPostDataUrl(file));
+    } catch (error) {
+      els.postEditMessage.textContent = error.message || "圖片處理失敗。";
+      els.postEditMessage.classList.add("error");
+      break;
+    }
+  }
+  renderPostEditImages(images);
+}
+
 function editPost(post) {
   const page = activePage();
   if (page.type !== "posts" || !page.boardId || !post?.id) return;
@@ -3866,24 +3945,11 @@ function editPost(post) {
   els.postEditAuthor.value = post.author || "";
   els.postEditContent.value = post.content || "";
   els.postEditMessage.textContent = "";
+  els.postEditMessage.classList.remove("error");
+  if (els.postEditImageInput) els.postEditImageInput.value = "";
 
-  // Render existing images (read-only preview)
-  const editSources = postImageSources(post);
-  if (els.postEditImages) {
-    els.postEditImages.innerHTML = "";
-    if (editSources.length > 0) {
-      editSources.forEach((src) => {
-        const img = document.createElement("img");
-        img.src = src;
-        img.className = "post-edit-image-thumb";
-        img.alt = "已上傳圖片";
-        els.postEditImages.appendChild(img);
-      });
-      els.postEditImages.classList.remove("hidden");
-    } else {
-      els.postEditImages.classList.add("hidden");
-    }
-  }
+  const editSources = [...postImageSources(post)];
+  renderPostEditImages(editSources);
 
   els.postEditModal.classList.remove("hidden");
   els.postEditContent.focus();
@@ -3892,33 +3958,45 @@ function editPost(post) {
     els.postEditModal.classList.add("hidden");
     els.postEditSave.removeEventListener("click", onSave);
     els.postEditCancel.removeEventListener("click", onCancel);
+    els.postEditImageInput.removeEventListener("change", onImageChange);
     els.postEditModal.removeEventListener("click", onBackdrop);
   };
 
   const onCancel = () => cleanup();
   const onBackdrop = (e) => { if (e.target === els.postEditModal) cleanup(); };
+  const onImageChange = () => appendPostEditImages(editSources, els.postEditImageInput.files);
 
   const onSave = async () => {
     const nextAuthor = els.postEditAuthor.value.trim().slice(0, 40);
     const nextContent = els.postEditContent.value.trim().slice(0, 600);
-    if (!nextContent && postImageSources(post).length === 0) {
+    if (!nextContent && editSources.length === 0) {
       els.postEditMessage.textContent = "內容不能為空。";
+      els.postEditMessage.classList.add("error");
       return;
     }
     els.postEditSave.disabled = true;
     els.postEditMessage.textContent = "儲存中…";
+    els.postEditMessage.classList.remove("error");
     try {
+      const imageDataUrls = await Promise.all(editSources.map((src) => compressPostImageDataUrl(src)));
+      const totalImageLength = imageDataUrls.reduce((sum, src) => sum + src.length, 0);
+      if (totalImageLength > POST_IMAGE_MAX_TOTAL_LENGTH) {
+        throw new Error("圖片總容量太大，請減少張數或換較小的圖片。");
+      }
       const api = await loadFirebaseApi();
       await requireFirebaseUser(api);
       await api.updateDoc(api.doc(api.db, POST_BOARDS_COLLECTION, page.boardId, "posts", post.id), {
         author: nextAuthor || "匿名",
         content: nextContent,
         sectionId: (hasSections ? els.postEditSection.value : null) || post.sectionId || "section-a",
+        imageDataUrl: imageDataUrls[0] || "",
+        imageDataUrls,
         updatedAt: api.serverTimestamp(),
       });
       cleanup();
     } catch (error) {
       els.postEditMessage.textContent = `儲存失敗：${error.message || "請確認網路與權限。"}`;
+      els.postEditMessage.classList.add("error");
     } finally {
       els.postEditSave.disabled = false;
     }
@@ -3926,6 +4004,7 @@ function editPost(post) {
 
   els.postEditSave.addEventListener("click", onSave);
   els.postEditCancel.addEventListener("click", onCancel);
+  els.postEditImageInput.addEventListener("change", onImageChange);
   els.postEditModal.addEventListener("click", onBackdrop);
 }
 

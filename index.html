@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Google Slides 教學播放台</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
-  <link rel="stylesheet" href="./styles.css?v=20260522m">
-  <link rel="stylesheet" href="./styles-dark.css?v=20260522m">
+  <link rel="stylesheet" href="./styles.css?v=20260522o">
+  <link rel="stylesheet" href="./styles-dark.css?v=20260522o">
 </head>
 <body data-theme="dark">
   <div id="session-bar" class="session-bar hidden" aria-label="Session 狀態">
@@ -678,7 +678,9 @@
       <input id="post-edit-author" type="text" maxlength="40">
       <label for="post-edit-content">內容</label>
       <textarea id="post-edit-content" maxlength="600" rows="5"></textarea>
+      <label for="post-edit-image-input">圖片</label>
       <div id="post-edit-images" class="post-edit-images hidden"></div>
+      <input id="post-edit-image-input" type="file" accept="image/*" multiple>
       <div class="button-row">
         <button id="post-edit-save" type="button">儲存</button>
         <button id="post-edit-cancel" class="secondary" type="button">取消</button>
@@ -729,6 +731,7 @@
       <button id="image-viewer-save-rotation" type="button" class="hidden" title="儲存旋轉後的圖片">儲存旋轉</button>
       <button id="image-viewer-close" type="button">關閉</button>
     </div>
+    <p id="image-viewer-message" class="image-viewer-message" aria-live="polite"></p>
     <div class="image-viewer-zoom-wrap">
       <span class="image-viewer-zoom-label">縮放</span>
       <input id="image-viewer-zoom" type="range" min="25" max="300" step="5" value="100">
@@ -741,7 +744,7 @@
 
   <div id="settings-backdrop" class="settings-backdrop hidden"></div>
 
-  <script src="./script.js?v=20260522m"></script>
+  <script src="./script.js?v=20260522o"></script>
   <script>
     // IA Step 1: side-rail wiring — forwards to existing dock buttons.
     (function () {
