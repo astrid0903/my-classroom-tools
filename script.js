@@ -5006,7 +5006,7 @@ function setDockCollapsed(isCollapsed) {
 }
 
 function hideAllWidgets() {
-  clearDynamicWidgets();
+  setAllDynamicWidgetsHidden(true);
   clearWidgetSelection();
   els.showTimer.checked = false;
   els.showClock.checked = false;
