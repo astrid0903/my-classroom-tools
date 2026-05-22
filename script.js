@@ -1180,17 +1180,6 @@ function layoutVersionState(layout, currentLayout) {
   return "same-name";
 }
 
-function appendCreateStudioCard() {
-  const card = createEl("button", "home-layout-card home-create-card");
-  card.type = "button";
-  card.addEventListener("click", createDriveBlankStudio);
-  const plus = createEl("span", "home-create-plus", "+");
-  const text = createEl("span", "home-create-text", "建立新的播放台");
-  const hint = createEl("span", "home-create-hint", "建立 Google Drive JSON 後自動存檔");
-  card.append(plus, text, hint);
-  els.homeLayoutGrid.appendChild(card);
-}
-
 function normalizeDriveStudioFileName(value, fallback = preferredFileName()) {
   const name = sanitizeFileName(value || fallback || preferredFileName());
   return /\.json$/i.test(name) ? name : `${name}.json`;
@@ -1300,11 +1289,12 @@ function appendHomeLayoutCard(layout, { current = false, folderFile = false, ver
 
   const actions = createEl("div", "home-layout-actions");
   if (folderFile) {
-    const openFolderFile = createEl("button", "", versionState === "newer" ? "開啟較新檔案" : `開啟${layout.source === "drive" ? "Drive" : "資料夾"}檔案`);
+    const openFolderFile = createEl("button", "", current ? "回到編輯" : versionState === "newer" ? "開啟較新檔案" : `開啟${layout.source === "drive" ? "Drive" : "資料夾"}檔案`);
     openFolderFile.type = "button";
     openFolderFile.addEventListener("click", (event) => {
       event.stopPropagation();
-      openHomeLayout(layout, { folderFile: true });
+      if (current) showStudio();
+      else openHomeLayout(layout, { folderFile: true });
     });
     actions.appendChild(openFolderFile);
   } else {
@@ -1329,31 +1319,22 @@ function appendHomeLayoutCard(layout, { current = false, folderFile = false, ver
 }
 
 function renderHomeVersions() {
-  const snapshot = currentFileSnapshotFromStorage();
-  const layout = {
-    name: currentFileName || "尚未命名的播放台檔案",
-    fileName: currentFileName || "",
-    savedAt: currentFileSavedAt || readFileMeta().savedAt || "",
-    state: snapshot,
-    driveFileId: currentDriveFileId,
-    source: currentDriveFileId ? "drive" : "",
-  };
-  const hasCurrentFile = Boolean(currentFileName || currentFileHandle || currentDriveFileId);
   const folderLayouts = [...folderLayoutFiles];
-  const hasNewerSameNameFolder = hasCurrentFile && folderLayouts.some((folderLayout) => layoutVersionState(folderLayout, layout) === "newer");
-  const visibleCount = folderLayouts.length + (hasCurrentFile ? 1 : 0);
+  const visibleCount = folderLayouts.length;
   els.homeLayoutGrid.innerHTML = "";
   els.homeVersionCount.textContent = `${visibleCount} 個播放台檔案`;
   setFileStatusInputs();
   setFileInputs(currentFileName || els.homeLayoutName.value || els.layoutName.value);
-  appendCreateStudioCard();
-  if (hasCurrentFile) appendHomeLayoutCard(layout, { current: true, versionState: hasNewerSameNameFolder ? "older" : "" });
-  folderLayouts.forEach((folderLayout) => appendHomeLayoutCard(folderLayout, {
-    folderFile: true,
-    versionState: layoutVersionState(folderLayout, layout),
-  }));
+  folderLayouts.forEach((folderLayout) => {
+    const isCurrentDriveFile = Boolean(currentDriveFileId && folderLayout.driveFileId === currentDriveFileId);
+    appendHomeLayoutCard(folderLayout, {
+      current: isCurrentDriveFile,
+      folderFile: true,
+      versionState: isCurrentDriveFile ? "same" : "",
+    });
+  });
   if (!visibleCount) {
-    els.homeLayoutGrid.appendChild(createEl("div", "home-empty", "選擇播放台資料夾後，這裡會出現可開啟的播放台。"));
+    els.homeLayoutGrid.appendChild(createEl("div", "home-empty", "按「載入 Drive 預覽」後，這裡會出現可開啟的播放台。"));
   }
   if (visibleCount > 0 && /資料夾權限已失效/.test(els.homeVersionMessage?.textContent || "")) {
     setVersionMessage("");
@@ -2085,6 +2066,7 @@ async function createDriveBlankStudio() {
     setVersionMessage("正在 Google Drive 建立播放台...");
     const metadata = await createDriveStudioFile(payload, sanitizeFileName(rawName || preferredFileName()));
     applyStudioFileState(state, metadata.name || rawName, null, payload.savedAt || metadata.modifiedTime || "", metadata);
+    await scanDriveStudioFolder({ silent: true });
   } catch (error) {
     setVersionMessage(`Drive 新建失敗：${googleDriveErrorMessage(error)}`, true);
   }
