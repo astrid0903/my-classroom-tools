@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Google Slides 教學播放台</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
-  <link rel="stylesheet" href="./styles.css?v=20260522g">
-  <link rel="stylesheet" href="./styles-dark.css?v=20260522g">
+  <link rel="stylesheet" href="./styles.css?v=20260522j">
+  <link rel="stylesheet" href="./styles-dark.css?v=20260522j">
 </head>
 <body data-theme="dark">
   <div id="session-bar" class="session-bar hidden" aria-label="Session 狀態">
@@ -757,7 +757,7 @@
     </div>
   </div>
 
-  <script src="./script.js?v=20260522h"></script>
+  <script src="./script.js?v=20260522j"></script>
   <script>
     // IA Step 1: side-rail wiring — forwards to existing dock buttons.
     (function () {
@@ -923,8 +923,44 @@
       // Each command runs an action. `when` lets us hide commands that don't apply (e.g. studio-only).
       var inStudio = function () { return !document.querySelector('main.studio').classList.contains('hidden'); };
       var inHome = function () { return !document.getElementById('home-view').classList.contains('hidden'); };
+      var inParticipant = function () { return !document.getElementById('participant-view').classList.contains('hidden'); };
+      var visible = function (id) {
+        var el = document.getElementById(id);
+        return Boolean(el && !el.classList.contains('hidden'));
+      };
+      var onPostBoardPage = function () {
+        try {
+          return inStudio() && (visible('post-board-stage') || document.getElementById('slide-stage').classList.contains('post-page'));
+        }
+        catch (e) { return false; }
+      };
+      var participantFormOpen = function () {
+        var screen = document.getElementById('participant-form-screen');
+        return inParticipant() && screen && !screen.classList.contains('hidden');
+      };
+      var participantBoardOpen = function () {
+        var screen = document.getElementById('participant-board-screen');
+        return inParticipant() && screen && !screen.classList.contains('hidden');
+      };
+      var participantPostModalOpen = function () {
+        var modal = document.getElementById('participant-post-modal');
+        return inParticipant() && modal && !modal.classList.contains('hidden');
+      };
       var clickById = function (id) { return function () { var el = document.getElementById(id); if (el) el.click(); }; };
       var clickTool = function (key) { return function () { var el = document.querySelector('.tool-dock [data-tool="' + key + '"]'); if (el) el.click(); }; };
+      var addWidget = function (key) {
+        return function () {
+          try {
+            if (typeof createDynamicWidget === 'function') {
+              createDynamicWidget(key);
+              if (typeof setActiveTool === 'function') setActiveTool('');
+              return;
+            }
+          } catch (e) {}
+          var el = document.querySelector('.tool-dock [data-tool="' + key + '"]');
+          if (el) el.click();
+        };
+      };
 
       var commands = [
         // Navigation
@@ -935,15 +971,30 @@
         { id:'enter-studio',label:'開啟舊播放台檔案',   group:'導覽', hint:'Open',        run: clickById('home-enter-studio'), when: inHome },
         { id:'new-studio',  label:'建立新播放台檔案',   group:'導覽', hint:'New',         run: clickById('home-new-studio'),   when: inHome },
 
+        // Post board (teacher view)
+        { id:'post-copy-link',label:'複製投稿連結',     group:'貼文板', hint:'Copy',       run: clickById('copy-post-board-link'), when: onPostBoardPage },
+        { id:'post-open-link',label:'開啟投稿頁',       group:'貼文板', hint:'Open',       run: clickById('open-post-board-link'), when: onPostBoardPage },
+        { id:'post-settings', label:'貼文板設定',       group:'貼文板', hint:'Pages',      run: clickTool('pages'),           when: onPostBoardPage },
+        { id:'post-add-section',label:'新增貼文區段',   group:'貼文板', hint:'Section',    run: function () { if (typeof addPostSection === 'function') addPostSection(); }, when: onPostBoardPage },
+        { id:'post-export-md', label:'匯出 Obsidian 筆記', group:'貼文板', hint:'Export',  run: clickById('export-obsidian'), when: onPostBoardPage },
+        { id:'post-export-pdf',label:'匯出 PDF',        group:'貼文板', hint:'PDF',        run: clickById('export-pdf'),      when: onPostBoardPage },
+        { id:'post-export-zip',label:'匯出所有檔案 ZIP', group:'貼文板', hint:'ZIP',       run: clickById('export-all-files'), when: onPostBoardPage },
+
+        // Post board (participant view)
+        { id:'participant-new-post', label:'新增貼文',   group:'投稿頁', hint:'New',        run: clickById('participant-open-form'), when: participantBoardOpen },
+        { id:'participant-back',     label:'返回看板',   group:'投稿頁', hint:'Back',       run: clickById('participant-back'),      when: participantFormOpen },
+        { id:'participant-submit',   label:'送出貼文',   group:'投稿頁', hint:'Submit',     run: clickById('participant-submit'),    when: participantFormOpen },
+        { id:'participant-close-post',label:'關閉貼文內容', group:'投稿頁', hint:'Close',   run: clickById('participant-post-modal-close'), when: participantPostModalOpen },
+
         // Tools (studio only)
         { id:'tool-slides', label:'簡報設定',           group:'工具', hint:'Slides',      run: clickTool('slides'),  when: inStudio },
         { id:'tool-pages',  label:'頁面',               group:'工具', hint:'Pages',       run: clickTool('pages'),   when: inStudio },
-        { id:'tool-timer',  label:'計時器',             group:'工具', hint:'Timer',       run: clickTool('timer'),   when: inStudio },
-        { id:'tool-clock',  label:'現在時間',           group:'工具', hint:'Clock',       run: clickTool('clock'),   when: inStudio },
-        { id:'tool-groups', label:'學員分組',           group:'工具', hint:'Groups',      run: clickTool('groups'),  when: inStudio },
-        { id:'tool-text',   label:'文字框',             group:'工具', hint:'Text',        run: clickTool('text'),    when: inStudio },
-        { id:'tool-image',  label:'圖片',               group:'工具', hint:'Image',       run: clickTool('image'),   when: inStudio },
-        { id:'tool-youtube',label:'YouTube',           group:'工具', hint:'Video',       run: clickTool('youtube'), when: inStudio },
+        { id:'tool-timer',  label:'計時器',             group:'工具', hint:'Timer',       run: addWidget('timer'),   when: inStudio },
+        { id:'tool-clock',  label:'現在時間',           group:'工具', hint:'Clock',       run: addWidget('clock'),   when: inStudio },
+        { id:'tool-groups', label:'學員分組',           group:'工具', hint:'Groups',      run: addWidget('groups'),  when: inStudio },
+        { id:'tool-text',   label:'文字框',             group:'工具', hint:'Text',        run: addWidget('text'),    when: inStudio },
+        { id:'tool-image',  label:'圖片',               group:'工具', hint:'Image',       run: addWidget('image'),   when: inStudio },
+        { id:'tool-youtube',label:'YouTube',           group:'工具', hint:'Video',       run: addWidget('youtube'), when: inStudio },
         { id:'tool-arrange',label:'排列小工具',         group:'工具', hint:'Arrange',     run: clickTool('arrange'), when: inStudio },
         { id:'tool-layouts',label:'檔案存檔',           group:'工具', hint:'File',        run: clickTool('layouts'), when: inStudio },
 
