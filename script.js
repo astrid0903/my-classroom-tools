@@ -251,9 +251,13 @@ const els = {
   imageViewerImg: document.querySelector("#image-viewer-img"),
   imageViewerDownload: document.querySelector("#image-viewer-download"),
   imageViewerClose: document.querySelector("#image-viewer-close"),
+  imageViewerPrev: document.querySelector("#image-viewer-prev"),
+  imageViewerNext: document.querySelector("#image-viewer-next"),
+  imageViewerNavCounter: document.querySelector("#image-viewer-nav-counter"),
   imageViewerRotateLeft: document.querySelector("#image-viewer-rotate-left"),
   imageViewerRotateRight: document.querySelector("#image-viewer-rotate-right"),
   imageViewerRotateReset: document.querySelector("#image-viewer-rotate-reset"),
+  imageViewerSaveRotation: document.querySelector("#image-viewer-save-rotation"),
   imageViewerZoom: document.querySelector("#image-viewer-zoom"),
   imageViewerZoomValue: document.querySelector("#image-viewer-zoom-value"),
 };
@@ -298,6 +302,9 @@ let participantUid = null;
 let participantEditingPostId = null;
 let participantImagePreviewUrls = [];
 let imageViewerRotation = 0;
+let imageViewerPost = null;
+let imageViewerIndex = 0;
+let imageViewerCanSaveRotation = false;
 let currentFileHandle = null;
 let currentFileName = "";
 let currentFileSavedAt = "";
@@ -3476,15 +3483,89 @@ function rotateImageViewer(delta) {
   setImageViewerRotation(imageViewerRotation + delta);
 }
 
-function openImageViewer(imageDataUrl, filename) {
+function openImageViewer(imageDataUrl, filename, { post = null, index = 0, canSaveRotation = false } = {}) {
   if (!imageDataUrl) return;
+  imageViewerPost = post;
+  imageViewerIndex = index;
+  imageViewerCanSaveRotation = canSaveRotation;
   els.imageViewerImg.src = imageDataUrl;
   els.imageViewerDownload.href = imageDataUrl;
   els.imageViewerDownload.download = filename || "貼文圖片.jpg";
   els.imageViewerZoom.value = 100;
   setImageViewerZoom(100);
   setImageViewerRotation(0);
+  const sources = post ? postImageSources(post) : [];
+  const hasMultiple = sources.length > 1;
+  els.imageViewerPrev.classList.toggle("hidden", !hasMultiple);
+  els.imageViewerNext.classList.toggle("hidden", !hasMultiple);
+  els.imageViewerNavCounter.classList.toggle("hidden", !hasMultiple);
+  if (hasMultiple) els.imageViewerNavCounter.textContent = `${index + 1} / ${sources.length}`;
+  els.imageViewerSaveRotation.classList.toggle("hidden", !canSaveRotation || !post);
   els.imageViewer.classList.remove("hidden");
+}
+
+function navigateImageViewer(delta) {
+  if (!imageViewerPost) return;
+  const sources = postImageSources(imageViewerPost);
+  imageViewerIndex = ((imageViewerIndex + delta) + sources.length) % sources.length;
+  const source = sources[imageViewerIndex];
+  openImageViewer(source, postImageFilename(imageViewerPost, imageViewerIndex, source), {
+    post: imageViewerPost,
+    index: imageViewerIndex,
+    canSaveRotation: imageViewerCanSaveRotation,
+  });
+}
+
+async function saveImageViewerRotation() {
+  if (!imageViewerPost?.id || imageViewerRotation === 0) return;
+  const sources = postImageSources(imageViewerPost);
+  const source = sources[imageViewerIndex];
+  if (!source) return;
+  const page = activePage();
+  if (page.type !== "posts" || !page.boardId) return;
+
+  const img = new Image();
+  img.src = source;
+  await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; });
+
+  const radians = (imageViewerRotation * Math.PI) / 180;
+  const sin = Math.abs(Math.sin(radians));
+  const cos = Math.abs(Math.cos(radians));
+  const newW = Math.round(img.width * cos + img.height * sin);
+  const newH = Math.round(img.width * sin + img.height * cos);
+  const canvas = document.createElement("canvas");
+  canvas.width = newW;
+  canvas.height = newH;
+  const ctx = canvas.getContext("2d");
+  ctx.translate(newW / 2, newH / 2);
+  ctx.rotate(radians);
+  ctx.drawImage(img, -img.width / 2, -img.height / 2);
+  const newDataUrl = canvas.toDataURL("image/jpeg", 0.92);
+
+  const newSources = [...sources];
+  newSources[imageViewerIndex] = newDataUrl;
+
+  els.imageViewerSaveRotation.disabled = true;
+  try {
+    const api = await loadFirebaseApi();
+    await requireFirebaseUser(api);
+    await api.updateDoc(api.doc(api.db, POST_BOARDS_COLLECTION, page.boardId, "posts", imageViewerPost.id), {
+      imageDataUrls: newSources,
+      imageDataUrl: newSources[0],
+      updatedAt: api.serverTimestamp(),
+    });
+    imageViewerPost.imageDataUrls = newSources;
+    openImageViewer(newDataUrl, postImageFilename(imageViewerPost, imageViewerIndex, newDataUrl), {
+      post: imageViewerPost,
+      index: imageViewerIndex,
+      canSaveRotation: imageViewerCanSaveRotation,
+    });
+    setVersionMessage("已儲存旋轉後的圖片。");
+  } catch (error) {
+    setVersionMessage(`儲存圖片失敗：${error.message || "請確認網路與權限。"}`, true);
+  } finally {
+    els.imageViewerSaveRotation.disabled = false;
+  }
 }
 
 function createPostImageGallery(post, { actions = false, className = "" } = {}) {
@@ -3507,7 +3588,7 @@ function createPostImageGallery(post, { actions = false, className = "" } = {}) 
     counter.textContent = `${index + 1}/${sources.length}`;
     counter.classList.toggle("hidden", sources.length < 2);
     if (expand) {
-      expand.onclick = () => openImageViewer(source, filename);
+      expand.onclick = () => openImageViewer(source, filename, { post, index, canSaveRotation: true });
     }
     if (download) {
       download.href = source;
@@ -3521,7 +3602,7 @@ function createPostImageGallery(post, { actions = false, className = "" } = {}) 
       renderImage();
       return;
     }
-    openImageViewer(sources[0], postImageFilename(post, 0, sources[0]));
+    openImageViewer(sources[0], postImageFilename(post, 0, sources[0]), { post, index: 0, canSaveRotation: actions });
   });
   wrap.append(image, counter);
   if (actions && imageActions && expand && download) {
@@ -3538,6 +3619,9 @@ function closeImageViewer() {
   els.imageViewerImg.removeAttribute("src");
   setImageViewerRotation(0);
   els.imageViewerDownload.href = "#";
+  imageViewerPost = null;
+  imageViewerIndex = 0;
+  imageViewerCanSaveRotation = false;
 }
 
 function postsForSection(posts, sectionId) {
@@ -6098,9 +6182,12 @@ els.distributeHorizontalWidgets.addEventListener("click", () => arrangeWidgets("
 els.distributeVerticalWidgets.addEventListener("click", () => arrangeWidgets("vertical"));
 els.clearWidgetSelection.addEventListener("click", clearWidgetSelection);
 els.imageViewerClose.addEventListener("click", closeImageViewer);
+els.imageViewerPrev.addEventListener("click", () => navigateImageViewer(-1));
+els.imageViewerNext.addEventListener("click", () => navigateImageViewer(1));
 els.imageViewerRotateLeft.addEventListener("click", () => rotateImageViewer(-90));
 els.imageViewerRotateRight.addEventListener("click", () => rotateImageViewer(90));
 els.imageViewerRotateReset.addEventListener("click", () => setImageViewerRotation(0));
+els.imageViewerSaveRotation.addEventListener("click", saveImageViewerRotation);
 els.imageViewer.addEventListener("click", (event) => {
   if (event.target === els.imageViewer) closeImageViewer();
 });

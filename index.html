@@ -731,10 +731,14 @@
 
   <div id="image-viewer" class="image-viewer hidden" role="dialog" aria-modal="true" aria-label="貼文圖片預覽">
     <div class="image-viewer-bar">
+      <button id="image-viewer-prev" type="button" class="hidden" title="上一張">← 上一張</button>
+      <span id="image-viewer-nav-counter" class="image-viewer-nav-counter hidden"></span>
+      <button id="image-viewer-next" type="button" class="hidden" title="下一張">下一張 →</button>
       <a id="image-viewer-download" class="link-button" href="#" download="貼文圖片.jpg">下載圖片</a>
       <button id="image-viewer-rotate-left" type="button" title="向左轉">↶ 左轉</button>
       <button id="image-viewer-rotate-right" type="button" title="向右轉">↷ 右轉</button>
       <button id="image-viewer-rotate-reset" type="button" title="重設方向">重設</button>
+      <button id="image-viewer-save-rotation" type="button" class="hidden" title="儲存旋轉後的圖片">儲存旋轉</button>
       <button id="image-viewer-close" type="button">關閉</button>
     </div>
     <div class="image-viewer-zoom-wrap">

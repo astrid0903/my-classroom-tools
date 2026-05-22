@@ -2945,6 +2945,7 @@ body.studio-mode .page-tabs {
 
 .image-viewer-bar {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
   gap: 10px;
 }
@@ -2952,6 +2953,32 @@ body.studio-mode .page-tabs {
 .image-viewer-bar button,
 .image-viewer-bar .link-button {
   min-height: 40px;
+}
+
+.image-viewer-nav-counter {
+  min-width: 44px;
+  text-align: center;
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+#image-viewer-save-rotation {
+  background: rgba(95, 212, 154, 0.18);
+  border: 1px solid rgba(95, 212, 154, 0.4);
+  color: #8ff0bf;
+}
+
+#image-viewer-save-rotation:hover {
+  background: rgba(95, 212, 154, 0.28);
+}
+
+/* 導航群組和操作群組之間加一條分隔線 */
+#image-viewer-download {
+  margin-left: 10px;
+  padding-left: 20px;
+  border-left: 1px solid rgba(255, 255, 255, 0.18);
 }
 
 .image-viewer-zoom-wrap {
