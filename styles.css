@@ -131,10 +131,6 @@ button:disabled,
   transform: translate(-50%, 0);
 }
 
-body.cmdk-open .ui-tooltip {
-  display: none !important;
-}
-
 .studio-file-status {
   width: 100%;
   min-height: 36px;

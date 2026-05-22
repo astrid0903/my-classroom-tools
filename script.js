@@ -5015,8 +5015,6 @@ function isToolPanelSafeTarget(target) {
     ".rail-btn",
     ".top-control",
     ".studio-action-bar",
-    ".cmdk-modal",
-    ".cmdk-backdrop",
     ".prompt-modal",
     ".confirm-modal",
     ".post-edit-modal",
