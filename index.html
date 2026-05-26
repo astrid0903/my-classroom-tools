@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Google Slides 教學播放台</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
-  <link rel="stylesheet" href="./styles.css?v=20260522p">
-  <link rel="stylesheet" href="./styles-dark.css?v=20260522p">
+  <link rel="stylesheet" href="./styles.css?v=20260523a">
+  <link rel="stylesheet" href="./styles-dark.css?v=20260523a">
 </head>
 <body data-theme="dark">
   <div id="session-bar" class="session-bar hidden" aria-label="Session 狀態">
@@ -316,8 +316,9 @@
             <button class="swatch" data-color="#1a1a2e" style="background:#1a1a2e" title="深藍黑"></button>
             <button class="swatch" data-color="#080a0e" style="background:#080a0e" title="近黑"></button>
           </div>
-          <label for="page-bg-image-file">背景圖片（本機）</label>
-          <input id="page-bg-image-file" type="file" accept="image/*">
+          <label for="page-bg-image-file">預設背景圖片</label>
+          <input id="page-bg-image-file" type="file" accept="image/*" multiple>
+          <div id="page-bg-preset-list" class="bg-preset-list" aria-live="polite"></div>
           <div id="page-bg-opacity-row" class="hidden">
             <label for="page-bg-opacity">圖片透明度 <span id="page-bg-opacity-value">60</span>%</label>
             <input id="page-bg-opacity" type="range" min="10" max="100" value="60" step="5">
@@ -744,7 +745,7 @@
 
   <div id="settings-backdrop" class="settings-backdrop hidden"></div>
 
-  <script src="./script.js?v=20260522p"></script>
+  <script src="./script.js?v=20260523a"></script>
   <script>
     // IA Step 1: side-rail wiring — forwards to existing dock buttons.
     (function () {

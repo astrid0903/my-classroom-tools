@@ -1,5 +1,6 @@
 const STORAGE_KEY = "classroomSlidesStudio.v1";
 const FILE_META_KEY = "classroomSlidesStudio.fileMeta.v1";
+const BACKGROUND_PRESETS_KEY = "classroomSlidesStudio.backgroundPresets.v1";
 const PLAYBACK_DIRECTORY_DB_NAME = "classroomSlidesStudio.directory.v1";
 const PLAYBACK_DIRECTORY_STORE_NAME = "handles";
 const PLAYBACK_DIRECTORY_HANDLE_KEY = "playbackDirectory";
@@ -19,6 +20,8 @@ const FIREBASE_COLLECTION = "classroomToolLayouts";
 const POST_BOARDS_COLLECTION = "classroomPostBoards";
 const POST_BOARD_ADMINS_COLLECTION = "classroomPostBoardAdmins";
 const POST_BOARD_BACKGROUND_IMAGE_LIMIT = 850000;
+const BACKGROUND_PRESET_MAX_COUNT = 8;
+const BACKGROUND_PRESET_MAX_TOTAL_LENGTH = 3200000;
 const POST_IMAGE_MAX_COUNT = 5;
 const POST_IMAGE_MAX_TOTAL_LENGTH = 950000;
 const POST_IMAGE_MAX_ITEM_LENGTH = 180000;
@@ -78,6 +81,7 @@ const els = {
   clearPageTitleColor: document.querySelector("#clear-page-title-color"),
   pageBgColor: document.querySelector("#page-bg-color"),
   pageBgImageFile: document.querySelector("#page-bg-image-file"),
+  pageBgPresetList: document.querySelector("#page-bg-preset-list"),
   pageBgOpacityRow: document.querySelector("#page-bg-opacity-row"),
   pageBgOpacity: document.querySelector("#page-bg-opacity"),
   pageBgOpacityValue: document.querySelector("#page-bg-opacity-value"),
@@ -326,6 +330,7 @@ let fileSaveTimerId = null;
 let fileSaveInProgress = false;
 let fileSaveQueued = false;
 let suppressFileAutoSave = false;
+let backgroundPresets = [];
 let folderLayoutFiles = [];
 let playbackDirectoryHandle = null;
 let nativePickerInProgress = false;
@@ -358,6 +363,18 @@ function readFileMeta() {
   } catch {
     return {};
   }
+}
+
+function readBackgroundPresetStorage() {
+  try {
+    return JSON.parse(window.localStorage.getItem(BACKGROUND_PRESETS_KEY)) || [];
+  } catch {
+    return [];
+  }
+}
+
+function writeBackgroundPresetStorage() {
+  window.localStorage.setItem(BACKGROUND_PRESETS_KEY, JSON.stringify(backgroundPresets));
 }
 
 function writeFileMeta(extra = {}) {
@@ -1523,6 +1540,34 @@ function normalizePages(value) {
   return hasMain ? normalized : [DEFAULT_PAGE, ...normalized];
 }
 
+function makeBackgroundPresetId() {
+  return `bg-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function normalizeBackgroundPresets(value) {
+  const source = Array.isArray(value) ? value : [];
+  const seen = new Set();
+  const normalized = [];
+  let totalLength = 0;
+  source.forEach((item) => {
+    const dataUrl = typeof item?.dataUrl === "string" ? item.dataUrl : "";
+    if (!dataUrl.startsWith("data:image/") || seen.has(dataUrl)) return;
+    totalLength += dataUrl.length;
+    if (totalLength > BACKGROUND_PRESET_MAX_TOTAL_LENGTH) return;
+    seen.add(dataUrl);
+    normalized.push({
+      id: String(item?.id || makeBackgroundPresetId()).trim(),
+      name: String(item?.name || `背景 ${normalized.length + 1}`).trim(),
+      dataUrl,
+    });
+  });
+  return normalized.slice(0, BACKGROUND_PRESET_MAX_COUNT);
+}
+
+function mergeBackgroundPresets(...presetGroups) {
+  return normalizeBackgroundPresets(presetGroups.flat());
+}
+
 function activePage() {
   return pages.find((page) => page.id === activePageId) || pages[0] || DEFAULT_PAGE;
 }
@@ -1611,7 +1656,41 @@ function renderPages() {
   els.pageBgOpacityValue.textContent = opacityVal;
   els.pageBgStatus.textContent = curPage.bgImage ? "已設定背景圖片。" : curPage.bgColor ? `背景顏色：${curPage.bgColor}` : "";
   updateSwatchActive(curPage.bgColor || "");
+  renderBackgroundPresets();
   updatePostBoardControls();
+}
+
+function renderBackgroundPresets() {
+  if (!els.pageBgPresetList) return;
+  els.pageBgPresetList.innerHTML = "";
+  const curPage = activePage();
+  if (backgroundPresets.length === 0) {
+    els.pageBgPresetList.appendChild(createEl("p", "bg-preset-empty", "尚未加入預設背景。"));
+    return;
+  }
+  backgroundPresets.forEach((preset, index) => {
+    const item = createEl("div", "bg-preset-item");
+    const choice = createEl("button", "bg-preset-choice");
+    choice.type = "button";
+    choice.title = preset.name || `背景 ${index + 1}`;
+    choice.classList.toggle("active", curPage.bgImage === preset.dataUrl);
+    const image = document.createElement("img");
+    image.src = preset.dataUrl;
+    image.alt = preset.name || `背景 ${index + 1}`;
+    choice.appendChild(image);
+    choice.addEventListener("click", () => applyPresetBackground(preset.dataUrl));
+
+    const remove = createEl("button", "bg-preset-remove", "×");
+    remove.type = "button";
+    remove.title = "移除預設背景";
+    remove.addEventListener("click", (event) => {
+      event.stopPropagation();
+      removeBackgroundPreset(preset.id);
+    });
+
+    item.append(choice, remove);
+    els.pageBgPresetList.appendChild(item);
+  });
 }
 
 function updateDynamicWidgetVisibility() {
@@ -2084,7 +2163,14 @@ async function openDriveStudioFilePicker() {
 }
 
 async function createDriveBlankStudio() {
-  const rawName = window.prompt("新的 Google Drive 播放台檔名", preferredFileName());
+  try {
+    setVersionMessage("正在連線 Google Drive...");
+    await requestGoogleDriveToken();
+  } catch (error) {
+    setVersionMessage(`Drive 新建失敗：${googleDriveErrorMessage(error)}`, true);
+    return;
+  }
+  const rawName = await showPromptModal("新的 Google Drive 播放台檔名", preferredFileName(), { maxLength: 80 });
   if (rawName === null) return;
   const state = blankStudioState();
   const payload = buildStudioFilePayload(state);
@@ -3862,11 +3948,11 @@ async function savePostSections(sections) {
   }
 }
 
-function showPromptModal(title, defaultValue = "") {
+function showPromptModal(title, defaultValue = "", options = {}) {
   return new Promise((resolve) => {
     els.promptModalTitle.textContent = title;
     els.promptModalInput.value = defaultValue;
-    els.promptModalInput.maxLength = 40;
+    els.promptModalInput.maxLength = options.maxLength || 40;
     els.promptModal.classList.remove("hidden");
     els.promptModalInput.focus();
     els.promptModalInput.select();
@@ -6319,6 +6405,8 @@ function restore() {
   suppressFileAutoSave = true;
   const state = readState();
   pages = normalizePages(state.pages);
+  backgroundPresets = mergeBackgroundPresets(readBackgroundPresetStorage(), state.backgroundPresets);
+  writeBackgroundPresetStorage();
   activePageId = pages.some((page) => page.id === state.activePageId) ? state.activePageId : DEFAULT_PAGE.id;
   const restoredSlidesUrl = typeof state.slidesUrl === "string" ? state.slidesUrl : DEFAULT_SLIDES_URL;
   els.slidesUrl.value = restoredSlidesUrl;
@@ -6460,29 +6548,78 @@ function updateSwatchActive(color) {
   });
 }
 
+function applyBackgroundImage(dataUrl, statusText = "已設定背景圖片。") {
+  const page = activePage();
+  const opacity = Number(els.pageBgOpacity.value) || page.bgOpacity || 60;
+  pages = pages.map((p) => (p.id === page.id ? { ...p, bgImage: dataUrl, bgColor: "", bgOpacity: opacity } : p));
+  applyPageBackground(activePage());
+  els.pageBgColor.value = "#080a0e";
+  els.pageBgOpacityRow.classList.remove("hidden");
+  els.pageBgStatus.textContent = statusText;
+  updateSwatchActive("");
+  renderBackgroundPresets();
+  writeState();
+  syncActivePostBoardMetadata();
+}
+
+function applyPresetBackground(dataUrl) {
+  if (!dataUrl) return;
+  applyBackgroundImage(dataUrl, "已套用預設背景。");
+}
+
+function removeBackgroundPreset(id) {
+  backgroundPresets = backgroundPresets.filter((preset) => preset.id !== id);
+  writeBackgroundPresetStorage();
+  renderBackgroundPresets();
+}
+
+async function addBackgroundPresetFiles(files) {
+  const fileArr = Array.from(files || []).filter((file) => file.type.startsWith("image/"));
+  if (fileArr.length === 0) return;
+  els.pageBgStatus.textContent = "上傳中…";
+  let appliedDataUrl = "";
+  let addedCount = 0;
+  try {
+    for (const file of fileArr) {
+      if (backgroundPresets.length >= BACKGROUND_PRESET_MAX_COUNT) break;
+      const dataUrl = await imageFileToBackgroundDataUrl(file);
+      if (backgroundPresets.some((preset) => preset.dataUrl === dataUrl)) {
+        if (!appliedDataUrl) appliedDataUrl = dataUrl;
+        continue;
+      }
+      const nextTotal = backgroundPresets.reduce((sum, preset) => sum + preset.dataUrl.length, 0) + dataUrl.length;
+      if (nextTotal > BACKGROUND_PRESET_MAX_TOTAL_LENGTH) break;
+      backgroundPresets.push({
+        id: makeBackgroundPresetId(),
+        name: file.name || `背景 ${backgroundPresets.length + 1}`,
+        dataUrl,
+      });
+      if (!appliedDataUrl) appliedDataUrl = dataUrl;
+      addedCount += 1;
+    }
+    backgroundPresets = normalizeBackgroundPresets(backgroundPresets);
+    writeBackgroundPresetStorage();
+    if (appliedDataUrl) {
+      applyBackgroundImage(appliedDataUrl, addedCount > 1 ? `已加入 ${addedCount} 張預設背景，並套用第一張。` : "已加入預設背景並套用。");
+    } else {
+      renderBackgroundPresets();
+      els.pageBgStatus.textContent = "預設背景已達上限。";
+    }
+  } catch (error) {
+    renderBackgroundPresets();
+    els.pageBgStatus.textContent = error.message || "圖片讀取失敗，請再試一次。";
+  } finally {
+    els.pageBgImageFile.value = "";
+  }
+}
+
 els.pageBgColor.addEventListener("change", () => applyBgColor(els.pageBgColor.value));
 
 document.querySelectorAll(".swatch").forEach((btn) => {
   btn.addEventListener("click", () => applyBgColor(btn.dataset.color));
 });
 els.pageBgImageFile.addEventListener("change", async () => {
-  const file = els.pageBgImageFile.files[0];
-  if (!file) return;
-  els.pageBgStatus.textContent = "上傳中…";
-  try {
-    const dataUrl = await imageFileToBackgroundDataUrl(file);
-    const page = activePage();
-    const opacity = Number(els.pageBgOpacity.value) || 60;
-    pages = pages.map((p) => (p.id === page.id ? { ...p, bgImage: dataUrl, bgColor: "", bgOpacity: opacity } : p));
-    applyPageBackground(activePage());
-    els.pageBgColor.value = "#080a0e";
-    els.pageBgOpacityRow.classList.remove("hidden");
-    els.pageBgStatus.textContent = "已設定背景圖片。";
-    writeState();
-    syncActivePostBoardMetadata();
-  } catch (error) {
-    els.pageBgStatus.textContent = error.message || "圖片讀取失敗，請再試一次。";
-  }
+  await addBackgroundPresetFiles(els.pageBgImageFile.files);
 });
 els.pageBgOpacity.addEventListener("input", () => {
   const val = Number(els.pageBgOpacity.value);
