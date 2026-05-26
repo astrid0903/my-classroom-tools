@@ -94,6 +94,8 @@ const els = {
   postBoardJoinUrl: document.querySelector("#post-board-join-url"),
   copyPostBoardLink: document.querySelector("#copy-post-board-link"),
   openPostBoardLink: document.querySelector("#open-post-board-link"),
+  postBoardParticipantMode: document.querySelector("#post-board-participant-mode"),
+  postBoardAddPost: document.querySelector("#post-board-add-post"),
   pageTabs: document.querySelector("#page-tabs"),
   emptyStateTitle: document.querySelector("#empty-state strong"),
   emptyStateDetail: document.querySelector("#empty-state span"),
@@ -238,6 +240,7 @@ const els = {
   participantPostModalContent: document.querySelector("#participant-post-modal-content"),
   participantPostModalImage: document.querySelector("#participant-post-modal-image"),
   postEditModal: document.querySelector("#post-edit-modal"),
+  postEditTitle: document.querySelector("#post-edit-title"),
   postEditSection: document.querySelector("#post-edit-section"),
   postEditSectionLabel: document.querySelector("#post-edit-section-label"),
   postEditAuthor: document.querySelector("#post-edit-author"),
@@ -309,6 +312,7 @@ let participantUnsubscribe = null;
 let participantBoardSections = [];
 let participantBoardPosts = [];
 let participantUid = null;
+let participantMode = "edit";
 let participantEditingPostId = null;
 let participantEditingExistingImages = [];
 let participantImagePreviewUrls = [];
@@ -336,6 +340,7 @@ let playbackDirectoryHandle = null;
 let nativePickerInProgress = false;
 const DEFAULT_PAGE = { id: "main", name: "主簡報", type: "slides" };
 const PAGE_TYPES = new Set(["slides", "dark", "posts"]);
+const POST_BOARD_PARTICIPANT_MODES = new Set(["edit", "add", "view"]);
 const DYNAMIC_WIDGET_TYPES = new Set(["timer", "clock", "groups", "text", "image", "youtube", "slides", "qr"]);
 const SNAP_GRID = 12;
 const SNAP_DISTANCE = 8;
@@ -1528,6 +1533,7 @@ function normalizePages(value) {
         normalizedPage.adminKey = String(page?.adminKey || makeBoardAdminKey()).trim();
         normalizedPage.sections = normalizePostSections(page?.sections);
         normalizedPage.noteHtml = String(page?.noteHtml || "");
+        normalizedPage.participantMode = normalizeParticipantMode(page?.participantMode);
       }
       normalizedPage.bgColor = typeof page?.bgColor === "string" ? page.bgColor : "";
       normalizedPage.bgImage = typeof page?.bgImage === "string" ? page.bgImage : "";
@@ -1619,6 +1625,10 @@ function normalizePostSections(value) {
     .filter((section) => section.id && section.name)
     .slice(0, 12);
   return normalized;
+}
+
+function normalizeParticipantMode(value) {
+  return POST_BOARD_PARTICIPANT_MODES.has(value) ? value : "edit";
 }
 
 function renderPages() {
@@ -2025,7 +2035,7 @@ function addDarkPage() {
 
 function addPostBoardPage() {
   const name = els.pageName.value.trim() || `貼文板 ${pages.filter((page) => page.type === "posts").length + 1}`;
-  const page = { id: makePageId(), name, type: "posts", boardId: makeBoardId(), sections: defaultPostSections() };
+  const page = { id: makePageId(), name, type: "posts", boardId: makeBoardId(), sections: defaultPostSections(), participantMode: "edit" };
   pages = [...pages, page];
   activePageId = page.id;
   els.pageMessage.textContent = `已新增「${name}」，QR Code 會連到這一頁的投稿入口。`;
@@ -3527,6 +3537,7 @@ function postBoardMetadataPayload(api, page, user, sections = normalizePostSecti
     adminUid: user.uid,
     sections,
     note: noteHtml,
+    participantMode: normalizeParticipantMode(page.participantMode),
     bgColor: page.bgColor || "",
     bgImage: page.bgImage || "",
     bgOpacity: Number.isFinite(Number(page.bgOpacity)) ? Number(page.bgOpacity) : 60,
@@ -3635,6 +3646,7 @@ function updatePostBoardControls() {
   const url = postBoardJoinUrl(page);
   els.postBoardJoinUrl.value = url;
   els.openPostBoardLink.href = url || "#";
+  els.postBoardParticipantMode.value = normalizeParticipantMode(page.participantMode);
 }
 
 function postImageSources(post) {
@@ -4053,14 +4065,30 @@ async function appendPostEditImages(images, files) {
   renderPostEditImages(images);
 }
 
-function editPost(post) {
+function createInstructorPost(sectionId = "") {
   const page = activePage();
-  if (page.type !== "posts" || !page.boardId || !post?.id) return;
+  if (page.type !== "posts" || !page.boardId) return;
+  const sections = normalizePostSections(postBoardSections.length > 0 ? postBoardSections : page.sections);
+  const fallbackSectionId = sections[0]?.id || "section-a";
+  editPost({
+    author: "講師",
+    sectionId: sectionId || fallbackSectionId,
+    content: "",
+    imageDataUrls: [],
+    imageDataUrl: "",
+  }, { create: true });
+}
+
+function editPost(post, options = {}) {
+  const page = activePage();
+  const isCreate = Boolean(options.create);
+  if (page.type !== "posts" || !page.boardId || (!isCreate && !post?.id)) return;
 
   const pbSections = normalizePostSections(postBoardSections);
   const pgSections = normalizePostSections(page.sections);
   const sections = pbSections.length >= pgSections.length ? pbSections : pgSections;
   const hasSections = sections.length > 0;
+  els.postEditTitle.textContent = isCreate ? "新增貼文" : "編輯貼文";
   els.postEditSection.innerHTML = "";
   els.postEditSectionLabel.hidden = !hasSections;
   els.postEditSection.hidden = !hasSections;
@@ -4118,17 +4146,29 @@ function editPost(post) {
       const api = await loadFirebaseApi();
       const user = await requireFirebaseUser(api);
       await ensurePostBoardAdmin(api, page, user);
-      await api.updateDoc(api.doc(api.db, POST_BOARDS_COLLECTION, page.boardId, "posts", post.id), {
+      const payload = {
         author: nextAuthor || "匿名",
         content: nextContent,
         sectionId: (hasSections ? els.postEditSection.value : null) || post.sectionId || "section-a",
         imageDataUrl: imageDataUrls[0] || "",
         imageDataUrls,
-        updatedAt: api.serverTimestamp(),
-      });
+      };
+      if (isCreate) {
+        await api.addDoc(postBoardPostsRef(api, page.boardId), {
+          ...payload,
+          order: -Date.now(),
+          createdAt: api.serverTimestamp(),
+          authorUid: user.uid,
+        });
+      } else {
+        await api.updateDoc(api.doc(api.db, POST_BOARDS_COLLECTION, page.boardId, "posts", post.id), {
+          ...payload,
+          updatedAt: api.serverTimestamp(),
+        });
+      }
       cleanup();
     } catch (error) {
-      els.postEditMessage.textContent = `儲存失敗：${error.message || "請確認網路與權限。"}`;
+      els.postEditMessage.textContent = `${isCreate ? "新增" : "儲存"}失敗：${error.message || "請確認網路與權限。"}`;
       els.postEditMessage.classList.add("error");
     } finally {
       els.postEditSave.disabled = false;
@@ -4566,11 +4606,13 @@ function renderPostBoardColumns(page, sections) {
     menuBtn.title = "區段選項";
     menuBtn.setAttribute("aria-label", `${section.name} 區段選項`);
     const menu = createEl("div", "post-section-menu hidden");
-    const addLink = createEl("a", "", "增加貼文");
-    addLink.href = postBoardSectionJoinUrl(page, section.id);
-    addLink.target = "_blank";
-    addLink.rel = "noreferrer";
-    addLink.title = `到「${section.name}」投稿`;
+    const addPostBtn = createEl("button", "", "講師新增貼文");
+    addPostBtn.type = "button";
+    addPostBtn.title = `直接新增到「${section.name}」`;
+    addPostBtn.addEventListener("click", () => {
+      menu.classList.add("hidden");
+      createInstructorPost(section.id);
+    });
     const descBtn = createEl("button", "", section.description ? "編輯區段說明" : "增加區段說明文字");
     descBtn.type = "button";
     descBtn.addEventListener("click", () => {
@@ -4592,7 +4634,7 @@ function renderPostBoardColumns(page, sections) {
       if (!wasOpen) menu.classList.remove("hidden");
     });
     menu.addEventListener("click", (event) => event.stopPropagation());
-    menu.append(addLink, descBtn, deleteBtn);
+    menu.append(addPostBtn, descBtn, deleteBtn);
     titleRow.append(titleButton, menuBtn, menu);
     head.appendChild(titleRow);
     if (section.description) head.appendChild(createEl("p", "post-section-description", section.description));
@@ -4755,8 +4797,9 @@ async function subscribeActivePostBoard() {
     await ensurePostBoardAdmin(api, page, user);
     postBoardMetadataUnsubscribe = api.onSnapshot(postBoardDocRef(api, page.boardId), (snapshot) => {
       const nextSections = normalizePostSections(snapshot.data()?.sections || page.sections);
+      const nextParticipantMode = normalizeParticipantMode(snapshot.data()?.participantMode);
       postBoardSections = nextSections;
-      pages = pages.map((item) => (item.id === page.id ? { ...item, sections: nextSections } : item));
+      pages = pages.map((item) => (item.id === page.id ? { ...item, sections: nextSections, participantMode: nextParticipantMode } : item));
       renderPostBoard();
       writeState();
     });
@@ -4804,6 +4847,18 @@ function sortPosts(posts) {
 
 function isParticipantMode() {
   return Boolean(new URLSearchParams(window.location.search).get("board"));
+}
+
+function participantCanCreate() {
+  return participantMode === "edit" || participantMode === "add";
+}
+
+function participantCanEdit() {
+  return participantMode === "edit";
+}
+
+function setParticipantMode(mode) {
+  participantMode = normalizeParticipantMode(mode);
 }
 
 function setParticipantMessage(text, isError = false) {
@@ -4895,6 +4950,10 @@ function showParticipantBoard() {
 }
 
 function showParticipantForm(sectionId) {
+  if (!participantCanCreate()) {
+    setParticipantMessage("目前貼文板設定為只能瀏覽。", true);
+    return;
+  }
   if (sectionId) els.participantSection.value = sectionId;
   els.participantMessage.textContent = "";
   els.participantMessage.classList.remove("error");
@@ -4905,6 +4964,10 @@ function showParticipantForm(sectionId) {
 }
 
 function showParticipantEditForm(post) {
+  if (!participantCanEdit()) {
+    setParticipantMessage("目前貼文板不開放參與者編輯。", true);
+    return;
+  }
   participantEditingPostId = post.id;
   els.participantFormTitle.textContent = "編輯貼文";
   els.participantName.value = post.author || "";
@@ -4927,6 +4990,10 @@ function showParticipantEditForm(post) {
 }
 
 async function deleteParticipantPost(postId) {
+  if (!participantCanEdit()) {
+    setParticipantMessage("目前貼文板不開放參與者刪除。", true);
+    return;
+  }
   const params = new URLSearchParams(window.location.search);
   const boardId = params.get("board");
   if (!boardId) return;
@@ -5051,7 +5118,7 @@ function renderParticipantPostCards(container, posts) {
     openBtn.type = "button";
     openBtn.addEventListener("click", () => openParticipantPostModal(post));
     actions.appendChild(openBtn);
-    if (participantUid && post.authorUid === participantUid) {
+    if (participantCanEdit() && participantUid && post.authorUid === participantUid) {
       const editBtn = createEl("button", "participant-post-edit", "編輯");
       editBtn.type = "button";
       editBtn.addEventListener("click", () => showParticipantEditForm(post));
@@ -5074,7 +5141,7 @@ function postsNotInSections(posts, sections) {
 
 function renderParticipantBoard(sections, posts) {
   els.participantBoardBody.innerHTML = "";
-  els.participantOpenForm.classList.remove("hidden");
+  els.participantOpenForm.classList.toggle("hidden", !participantCanCreate());
   if (sections.length === 0) {
     const body = createEl("div", "post-section-body");
     renderParticipantPostCards(body, sortPosts(posts));
@@ -5091,7 +5158,8 @@ function renderParticipantBoard(sections, posts) {
     addBtn.title = `投稿到「${section.name}」`;
     addBtn.setAttribute("aria-label", `投稿到「${section.name}」`);
     addBtn.addEventListener("click", () => showParticipantForm(section.id));
-    head.append(titleEl, addBtn);
+    head.append(titleEl);
+    if (participantCanCreate()) head.appendChild(addBtn);
     if (section.description) head.appendChild(createEl("p", "post-section-description", section.description));
     const body = createEl("div", "post-section-body");
     renderParticipantPostCards(body, postsForSection(posts, section.id));
@@ -5160,6 +5228,14 @@ async function submitParticipantPost(event) {
   const sectionId = els.participantSection.value || params.get("section") || "section-a";
   const content = els.participantContent.value.trim().slice(0, 600);
   if (!boardId) return;
+  if (participantEditingPostId && !participantCanEdit()) {
+    setParticipantMessage("目前貼文板不開放參與者編輯。", true);
+    return;
+  }
+  if (!participantEditingPostId && !participantCanCreate()) {
+    setParticipantMessage("目前貼文板設定為只能瀏覽。", true);
+    return;
+  }
   if (!content && participantEditingExistingImages.length === 0) {
     setParticipantMessage("請先輸入內容或選擇圖片。", true);
     return;
@@ -5236,6 +5312,7 @@ async function initParticipantMode() {
       els.participantTitle.textContent = boardSnapshot.data().title;
       document.title = boardSnapshot.data().title;
     }
+    setParticipantMode(boardSnapshot.data()?.participantMode);
     applyParticipantAppearance(boardSnapshot.data() || {});
     participantBoardSections = normalizePostSections(boardSnapshot.data()?.sections || []);
     renderParticipantNote(boardSnapshot.data()?.note || "");
@@ -5243,6 +5320,7 @@ async function initParticipantMode() {
     renderParticipantBoard(participantBoardSections, participantBoardPosts);
 
     api.onSnapshot(postBoardDocRef(api, boardId), (snapshot) => {
+      setParticipantMode(snapshot.data()?.participantMode);
       applyParticipantAppearance(snapshot.data() || {});
       participantBoardSections = normalizePostSections(snapshot.data()?.sections || []);
       renderParticipantNote(snapshot.data()?.note || "");
@@ -6548,6 +6626,16 @@ function updateSwatchActive(color) {
   });
 }
 
+function updatePostBoardParticipantMode(mode) {
+  const page = activePage();
+  if (page.type !== "posts") return;
+  const nextMode = normalizeParticipantMode(mode);
+  pages = pages.map((p) => (p.id === page.id ? { ...p, participantMode: nextMode } : p));
+  els.postBoardParticipantMode.value = nextMode;
+  writeState();
+  syncActivePostBoardMetadata();
+}
+
 function applyBackgroundImage(dataUrl, statusText = "已設定背景圖片。") {
   const page = activePage();
   const opacity = Number(els.pageBgOpacity.value) || page.bgOpacity || 60;
@@ -6654,6 +6742,8 @@ els.copyPostBoardLink.addEventListener("click", async () => {
     els.pageMessage.classList.add("error");
   }
 });
+els.postBoardParticipantMode.addEventListener("change", () => updatePostBoardParticipantMode(els.postBoardParticipantMode.value));
+els.postBoardAddPost.addEventListener("click", () => createInstructorPost());
 els.exportObsidian.addEventListener("click", exportPostBoardToObsidian);
 els.exportPdf.addEventListener("click", exportPostBoardToPdf);
 els.exportAllFiles.addEventListener("click", exportPostBoardAllFiles);

@@ -33,6 +33,10 @@ service cloud.firestore {
       return value == null || (value is number && value >= -9999999999999 && value <= 9999999999999);
     }
 
+    function isParticipantMode(value) {
+      return value == "edit" || value == "add" || value == "view";
+    }
+
     function hasPostBody() {
       return (request.resource.data.content is string && request.resource.data.content.size() > 0)
         || (request.resource.data.imageDataUrl is string && request.resource.data.imageDataUrl.size() > 0)
@@ -41,7 +45,7 @@ service cloud.firestore {
 
     function isPostBoardMetadata() {
       return request.auth != null
-        && request.resource.data.keys().hasOnly(['title', 'adminUid', 'sections', 'note', 'bgColor', 'bgImage', 'bgOpacity', 'titleColor', 'updatedAt', 'kind', 'version'])
+        && request.resource.data.keys().hasOnly(['title', 'adminUid', 'sections', 'note', 'participantMode', 'bgColor', 'bgImage', 'bgOpacity', 'titleColor', 'updatedAt', 'kind', 'version'])
         && request.resource.data.title is string
         && request.resource.data.title.size() > 0
         && request.resource.data.title.size() <= 80
@@ -49,6 +53,7 @@ service cloud.firestore {
         && request.resource.data.sections is list
         && request.resource.data.sections.size() <= 12
         && isOptionalString(request.resource.data.note, 5000)
+        && isParticipantMode(request.resource.data.participantMode)
         && isOptionalString(request.resource.data.bgColor, 40)
         && isOptionalString(request.resource.data.bgImage, 900000)
         && request.resource.data.bgOpacity is number
@@ -137,6 +142,23 @@ service cloud.firestore {
         );
     }
 
+    function boardParticipantMode(boardId) {
+      return get(/databases/$(database)/documents/classroomPostBoards/$(boardId)).data.participantMode;
+    }
+
+    function participantCanCreate(boardId) {
+      return request.auth != null
+        && (!get(/databases/$(database)/documents/classroomPostBoards/$(boardId)).data.keys().hasAny(['participantMode'])
+          || boardParticipantMode(boardId) == "edit"
+          || boardParticipantMode(boardId) == "add");
+    }
+
+    function participantCanEdit(boardId) {
+      return request.auth != null
+        && (!get(/databases/$(database)/documents/classroomPostBoards/$(boardId)).data.keys().hasAny(['participantMode'])
+          || boardParticipantMode(boardId) == "edit");
+    }
+
     match /classroomToolLayouts/{syncCode} {
       allow read: if isShortId(syncCode);
       allow write: if isShortId(syncCode)
@@ -161,14 +183,16 @@ service cloud.firestore {
 
       match /posts/{postId} {
         allow read: if isShortId(boardId);
-        allow create: if isShortId(boardId) && isPost();
+        allow create: if isShortId(boardId)
+          && isPost()
+          && (isBoardAdmin(boardId) || participantCanCreate(boardId));
         allow update: if isShortId(boardId)
           && (
             (isBoardAdmin(boardId) && isAdminPostEdit())
-            || isOwnPostEdit()
+            || (participantCanEdit(boardId) && isOwnPostEdit())
           );
         allow delete: if isShortId(boardId)
-          && (isBoardAdmin(boardId) || isOwnPost());
+          && (isBoardAdmin(boardId) || (participantCanEdit(boardId) && isOwnPost()));
       }
     }
 

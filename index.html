@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Google Slides 教學播放台</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
-  <link rel="stylesheet" href="./styles.css?v=20260523a">
-  <link rel="stylesheet" href="./styles-dark.css?v=20260523a">
+  <link rel="stylesheet" href="./styles.css?v=20260526a">
+  <link rel="stylesheet" href="./styles-dark.css?v=20260526a">
 </head>
 <body data-theme="dark">
   <div id="session-bar" class="session-bar hidden" aria-label="Session 狀態">
@@ -334,6 +334,13 @@
             <button id="copy-post-board-link" class="secondary" type="button">複製連結</button>
             <a id="open-post-board-link" class="link-button secondary" href="#" target="_blank" rel="noreferrer">開啟投稿頁</a>
           </div>
+          <label for="post-board-participant-mode">參與者權限</label>
+          <select id="post-board-participant-mode">
+            <option value="edit">可新增與編輯</option>
+            <option value="add">只能新增</option>
+            <option value="view">只能瀏覽</option>
+          </select>
+          <button id="post-board-add-post" type="button">講師新增貼文</button>
           <button id="export-obsidian" class="secondary" type="button">匯出 Obsidian 筆記</button>
           <button id="export-pdf" class="secondary" type="button">匯出 PDF</button>
           <button id="export-all-files" class="secondary" type="button">匯出所有檔案（ZIP）</button>
@@ -672,7 +679,7 @@
 
   <div id="post-edit-modal" class="post-edit-modal hidden" role="dialog" aria-modal="true" aria-label="編輯貼文">
     <div class="post-edit-dialog">
-      <h3>編輯貼文</h3>
+      <h3 id="post-edit-title">編輯貼文</h3>
       <label for="post-edit-section" id="post-edit-section-label">區段</label>
       <select id="post-edit-section"></select>
       <label for="post-edit-author">名稱</label>
@@ -745,7 +752,7 @@
 
   <div id="settings-backdrop" class="settings-backdrop hidden"></div>
 
-  <script src="./script.js?v=20260523a"></script>
+  <script src="./script.js?v=20260526a"></script>
   <script>
     // IA Step 1: side-rail wiring — forwards to existing dock buttons.
     (function () {
