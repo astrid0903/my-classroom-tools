@@ -1,6 +1,7 @@
 const STORAGE_KEY = "classroomSlidesStudio.v1";
 const FILE_META_KEY = "classroomSlidesStudio.fileMeta.v1";
 const BACKGROUND_PRESETS_KEY = "classroomSlidesStudio.backgroundPresets.v1";
+const GOOGLE_DRIVE_AUTH_GRANTED_KEY = "classroomSlidesStudio.googleDriveAuthGranted.v1";
 const PLAYBACK_DIRECTORY_DB_NAME = "classroomSlidesStudio.directory.v1";
 const PLAYBACK_DIRECTORY_STORE_NAME = "handles";
 const PLAYBACK_DIRECTORY_HANDLE_KEY = "playbackDirectory";
@@ -673,6 +674,16 @@ function googleDriveErrorMessage(error) {
 async function requestGoogleDriveToken() {
   if (googleDriveAccessToken) return googleDriveAccessToken;
   await loadGoogleDriveScript();
+  const hasPriorGrant = window.localStorage.getItem(GOOGLE_DRIVE_AUTH_GRANTED_KEY) === "true";
+  try {
+    return await requestGoogleDriveTokenWithPrompt(hasPriorGrant ? "" : "consent");
+  } catch (error) {
+    if (hasPriorGrant) return requestGoogleDriveTokenWithPrompt("consent");
+    throw error;
+  }
+}
+
+function requestGoogleDriveTokenWithPrompt(prompt) {
   return new Promise((resolve, reject) => {
     googleDriveTokenClient = window.google.accounts.oauth2.initTokenClient({
       client_id: GOOGLE_DRIVE_CLIENT_ID,
@@ -687,11 +698,12 @@ async function requestGoogleDriveToken() {
           reject(new Error("沒有取得 Google Drive 授權。"));
           return;
         }
+        window.localStorage.setItem(GOOGLE_DRIVE_AUTH_GRANTED_KEY, "true");
         resolve(googleDriveAccessToken);
       },
       error_callback: (error) => reject(error),
     });
-    googleDriveTokenClient.requestAccessToken({ prompt: googleDriveAccessToken ? "" : "consent" });
+    googleDriveTokenClient.requestAccessToken({ prompt });
   });
 }
 
