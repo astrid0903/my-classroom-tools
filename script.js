@@ -32,7 +32,7 @@ const GOOGLE_DRIVE_DISCOVERY_SRC = "https://accounts.google.com/gsi/client";
 const GOOGLE_DRIVE_UPLOAD_URL = "https://www.googleapis.com/upload/drive/v3/files";
 const GOOGLE_DRIVE_FILE_URL = "https://www.googleapis.com/drive/v3/files";
 const GOOGLE_DRIVE_STUDIO_FOLDER_ID = "1u1aXfQ1ESmXTW0OAXiTvkzFNGExr4AuK";
-const GOOGLE_DRIVE_STUDIO_FOLDER_NAME = "固定播放台資料夾";
+const GOOGLE_DRIVE_STUDIO_FOLDER_LABEL = `固定資料夾 ID：${GOOGLE_DRIVE_STUDIO_FOLDER_ID}`;
 
 const els = {
   homeView: document.querySelector("#home-view"),
@@ -798,7 +798,7 @@ async function driveLayoutFromFileMeta(file) {
 
 async function scanDriveStudioFolder({ silent = false } = {}) {
   try {
-    setFolderStatus(`正在讀取 Google Drive「${GOOGLE_DRIVE_STUDIO_FOLDER_NAME}」...`);
+    setFolderStatus(`正在讀取 Google Drive「${GOOGLE_DRIVE_STUDIO_FOLDER_LABEL}」...`);
     const files = await listDriveStudioFiles(GOOGLE_DRIVE_STUDIO_FOLDER_ID);
     const layouts = [];
     for (const file of files) {
@@ -810,7 +810,7 @@ async function scanDriveStudioFolder({ silent = false } = {}) {
     }
     layouts.sort((a, b) => String(b.modifiedTime || b.savedAt || "").localeCompare(String(a.modifiedTime || a.savedAt || "")));
     folderLayoutFiles = layouts;
-    setFolderStatus(`已連結 Google Drive「${GOOGLE_DRIVE_STUDIO_FOLDER_NAME}」｜${layouts.length} 個播放台檔案`);
+    setFolderStatus(`已連結 Google Drive「${GOOGLE_DRIVE_STUDIO_FOLDER_LABEL}」｜${layouts.length} 個播放台檔案`);
     renderHomeVersions();
     if (!silent) setVersionMessage(`已更新 Drive 預覽：${layouts.length} 個檔案。`);
   } catch (error) {
@@ -1443,7 +1443,7 @@ function showHome() {
   document.body.classList.add("home-mode");
   document.body.classList.remove("studio-mode");
   renderHomeVersions();
-  if (!folderLayoutFiles.length) setFolderStatus(`按「載入 Drive 預覽」讀取 Google Drive「${GOOGLE_DRIVE_STUDIO_FOLDER_NAME}」。`);
+  if (!folderLayoutFiles.length) setFolderStatus(`按「載入 Drive 預覽」讀取 Google Drive「${GOOGLE_DRIVE_STUDIO_FOLDER_LABEL}」。`);
   window.scrollTo({ top: 0, behavior: "instant" });
 }
 
@@ -1527,7 +1527,7 @@ function initHomeMode() {
   document.body.classList.remove("studio-mode");
   renderSavedLayouts();
   renderHomeVersions();
-  setFolderStatus(`按「載入 Drive 預覽」讀取 Google Drive「${GOOGLE_DRIVE_STUDIO_FOLDER_NAME}」。`);
+  setFolderStatus(`按「載入 Drive 預覽」讀取 Google Drive「${GOOGLE_DRIVE_STUDIO_FOLDER_LABEL}」。`);
 }
 
 function normalizePages(value) {
