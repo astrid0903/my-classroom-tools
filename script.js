@@ -1865,7 +1865,8 @@ function rgbLuminance({ r, g, b }) {
 function pageBaseLuminance(page) {
   const explicit = hexToRgb(page.bgColor);
   if (explicit) return rgbLuminance(explicit);
-  if (page.type === "posts" || page.type === "dark") return 0.02;
+  if (page.type === "posts") return 0.85; // 貼文板預設背景偏亮，底色亮度約 0.85
+  if (page.type === "dark") return 0.02; // 深色白板
   return 0.08;
 }
 
