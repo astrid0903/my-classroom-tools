@@ -1,7 +1,7 @@
 # my-classroom-tools — 我的班級工具總專案
 
 ## 對話開始時請先讀
-進度與最近更動都在 Obsidian：`OB/10-專案工作筆記/18.my-classroom-tools/18.my-classroom-tools 工作筆記.md`
+進度與最近更動都在 Obsidian：`OB/10-專案工作筆記/18.OB_my-classroom-tools/18.OB_my-classroom-tools 工作筆記.md`
 
 ## 工作模式
 - **加新工具**：對 Codex 說「我想做一個 XXX 工具」→ Codex 會建 `tools/<工具名>/` 子資料夾、引導跟著影片做
@@ -9,9 +9,9 @@
 - **接續工作**：對 Codex 說「讀工作筆記、告訴我上次做到哪」
 
 ## 工作桌 + 三個家
-- 📋 GDrive 工作桌：`/Users/hsiaoyutsai/我的雲端硬碟 (gisele0903@gmail.com)/04.Work/18.my-classroom-tools/`
+- 📋 GDrive 工作桌：`/Users/hsiaoyutsai/我的雲端硬碟 (gisele0903@gmail.com)/04.Work/18.ai_my-classroom-tools/`
 - 🐙 GitHub repo：`astrid0903/my-classroom-tools`（公開）
-- 📘 Obsidian 駕駛艙：`OB/10-專案工作筆記/18.my-classroom-tools/18.my-classroom-tools 工作筆記.md`
+- 📘 Obsidian 駕駛艙：`OB/10-專案工作筆記/18.OB_my-classroom-tools/18.OB_my-classroom-tools 工作筆記.md`
 - 🔥 Firebase 專案：`my-teaching-tools-gisele0903`
 
 ## 「收工」觸發規則（給 Codex 讀的）
@@ -19,14 +19,14 @@
 當使用者說「收工」、「結束了」、「準備換電腦」、「該同步的同步」、「先到這裡」等收尾語時，**請依照以下 SOP 執行**：
 
 1. 從對話歷史摘要：今天做了什麼（完成檔案、決策、新坑）
-2. 找到工作目錄（當前 cwd）和對應的 Obsidian 工作筆記（`OB/10-專案工作筆記/18.my-classroom-tools/18.my-classroom-tools 工作筆記.md`）
+2. 找到工作目錄（當前 cwd）和對應的 Obsidian 工作筆記（`OB/10-專案工作筆記/18.OB_my-classroom-tools/18.OB_my-classroom-tools 工作筆記.md`）
 3. 更新 Obsidian 工作筆記：
    - 「⏯️ 上次做到哪」段：最後動作、完成檔案、對話脈絡
    - 「🗓️ 最近更動紀錄」表格加一行：當天日期 + 摘要 + ✅✅✅
    - 「🕳️ 踩坑筆記」（若有新坑）
 4. Git commit + push：
    ```bash
-   cd "/Users/hsiaoyutsai/我的雲端硬碟 (gisele0903@gmail.com)/04.Work/18.my-classroom-tools"
+   cd "/Users/hsiaoyutsai/我的雲端硬碟 (gisele0903@gmail.com)/04.Work/18.ai_my-classroom-tools"
    git config windows.appendAtomically false
    git add <今天動到的檔案，不要 add .claude/ 或 .codex/>
    git commit -m "<今天工作摘要>"

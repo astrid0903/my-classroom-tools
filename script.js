@@ -4672,13 +4672,6 @@ function renderPostBoardColumns(page, sections) {
     menuBtn.title = "區段選項";
     menuBtn.setAttribute("aria-label", `${section.name} 區段選項`);
     const menu = createEl("div", "post-section-menu hidden");
-    const addPostBtn = createEl("button", "", "講師新增貼文");
-    addPostBtn.type = "button";
-    addPostBtn.title = `直接新增到「${section.name}」`;
-    addPostBtn.addEventListener("click", () => {
-      menu.classList.add("hidden");
-      createInstructorPost(section.id);
-    });
     const descBtn = createEl("button", "", section.description ? "編輯區段說明" : "增加區段說明文字");
     descBtn.type = "button";
     descBtn.addEventListener("click", () => {
@@ -4700,10 +4693,17 @@ function renderPostBoardColumns(page, sections) {
       if (!wasOpen) menu.classList.remove("hidden");
     });
     menu.addEventListener("click", (event) => event.stopPropagation());
-    menu.append(addPostBtn, descBtn, deleteBtn);
+    menu.append(descBtn, deleteBtn);
     titleRow.append(titleButton, menuBtn, menu);
     head.appendChild(titleRow);
     if (section.description) head.appendChild(createEl("p", "post-section-description", section.description));
+
+    const sectionAddBtn = createEl("button", "post-section-add", "+");
+    sectionAddBtn.type = "button";
+    sectionAddBtn.title = `新增貼文到「${section.name}」`;
+    sectionAddBtn.setAttribute("aria-label", `新增貼文到「${section.name}」`);
+    sectionAddBtn.addEventListener("click", () => createInstructorPost(section.id));
+    head.appendChild(sectionAddBtn);
     const body = createEl("div", "post-section-body");
     renderPostCards(body, postsForSection(postBoardPosts, section.id), { canManage: true, draggable: true });
     body.addEventListener("dragover", (e) => {

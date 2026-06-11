@@ -1168,10 +1168,17 @@ body.studio-mode .page-tabs {
 }
 
 .post-board-columns {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(260px, 1fr));
-  gap: 18px;
+  display: flex;
+  flex-direction: row;
   align-items: start;
+  gap: 18px;
+  padding-bottom: 12px;
+}
+
+.post-board-columns .post-section {
+  width: clamp(260px, 22vw, 320px);
+  min-width: 260px;
+  flex-shrink: 0;
 }
 
 .post-section {
@@ -3250,10 +3257,6 @@ body.studio-mode .page-tabs {
   .post-board-grid,
   .post-board-grid.compact {
     column-count: 1;
-  }
-
-  .post-board-columns {
-    grid-template-columns: 1fr;
   }
 }
 
