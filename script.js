@@ -31,8 +31,8 @@ const GOOGLE_DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
 const GOOGLE_DRIVE_DISCOVERY_SRC = "https://accounts.google.com/gsi/client";
 const GOOGLE_DRIVE_UPLOAD_URL = "https://www.googleapis.com/upload/drive/v3/files";
 const GOOGLE_DRIVE_FILE_URL = "https://www.googleapis.com/drive/v3/files";
-const GOOGLE_DRIVE_STUDIO_FOLDER_ID = "1u1aXfQ1ESmXTW0OAXiTvkzFNGExr4AuK";
-const GOOGLE_DRIVE_STUDIO_FOLDER_LABEL = `固定資料夾 ID：${GOOGLE_DRIVE_STUDIO_FOLDER_ID}`;
+let GOOGLE_DRIVE_STUDIO_FOLDER_ID = localStorage.getItem("my_classroom_tools_drive_folder_id") || "1u1aXfQ1ESmXTW0OAXiTvkzFNGExr4AuK";
+let GOOGLE_DRIVE_STUDIO_FOLDER_LABEL = `資料夾 ID：${GOOGLE_DRIVE_STUDIO_FOLDER_ID}`;
 
 const els = {
   homeView: document.querySelector("#home-view"),
@@ -51,6 +51,8 @@ const els = {
   homeRefreshFolder: document.querySelector("#home-refresh-folder"),
   homeFolderStatus: document.querySelector("#home-folder-status"),
   homeFolderImport: document.querySelector("#home-folder-import"),
+  homeDriveFolderUrl: document.querySelector("#home-drive-folder-url"),
+  homeDriveFolderChange: document.querySelector("#home-drive-folder-change"),
   homeFileStatus: document.querySelector("#home-file-status"),
   homeVersionMessage: document.querySelector("#home-version-message"),
   homeVersionCount: document.querySelector("#home-version-count"),
@@ -714,6 +716,13 @@ function extractDriveFileId(value) {
   return decodeURIComponent(match?.[1] || text).replace(/[^a-zA-Z0-9_-]/g, "");
 }
 
+function extractDriveFolderId(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  const match = text.match(/\/folders\/([^/?]+)/) || text.match(/[?&]id=([^&]+)/);
+  return decodeURIComponent(match?.[1] || text).replace(/[^a-zA-Z0-9_-]/g, "");
+}
+
 async function driveFetch(url, options = {}) {
   const token = await requestGoogleDriveToken();
   const response = await fetch(url, {
@@ -818,6 +827,28 @@ async function scanDriveStudioFolder({ silent = false } = {}) {
     setFolderStatus(`讀取 Google Drive 資料夾失敗：${googleDriveErrorMessage(error)}`, true);
     renderHomeVersions();
   }
+}
+
+async function changeDriveFolder() {
+  const raw = els.homeDriveFolderUrl.value.trim();
+  if (!raw) {
+    setFolderStatus("請輸入 Google Drive 資料夾連結或資料夾 ID。", true);
+    return;
+  }
+  const folderId = extractDriveFolderId(raw);
+  if (!folderId) {
+    setFolderStatus("無法辨識的 Google Drive 資料夾連結或 ID，請重新檢查。", true);
+    return;
+  }
+  
+  GOOGLE_DRIVE_STUDIO_FOLDER_ID = folderId;
+  GOOGLE_DRIVE_STUDIO_FOLDER_LABEL = `資料夾 ID：${GOOGLE_DRIVE_STUDIO_FOLDER_ID}`;
+  
+  localStorage.setItem("my_classroom_tools_drive_folder_id", folderId);
+  localStorage.setItem("my_classroom_tools_drive_folder_url", raw);
+  
+  setVersionMessage("已變更資料夾，正在載入預覽...");
+  await scanDriveStudioFolder();
 }
 
 async function readDriveStudioFile(fileId) {
@@ -1528,6 +1559,17 @@ function initHomeMode() {
   renderSavedLayouts();
   renderHomeVersions();
   setFolderStatus(`按「載入 Drive 預覽」讀取 Google Drive「${GOOGLE_DRIVE_STUDIO_FOLDER_LABEL}」。`);
+
+  // 回填資料夾連結或 ID
+  if (els.homeDriveFolderUrl) {
+    els.homeDriveFolderUrl.value = localStorage.getItem("my_classroom_tools_drive_folder_url") || GOOGLE_DRIVE_STUDIO_FOLDER_ID;
+  }
+
+  // 自動載入上次的資料夾預覽
+  const hasPriorGrant = window.localStorage.getItem(GOOGLE_DRIVE_AUTH_GRANTED_KEY) === "true";
+  if (hasPriorGrant) {
+    scanDriveStudioFolder({ silent: true }).catch(() => {});
+  }
 }
 
 function normalizePages(value) {
@@ -6597,6 +6639,10 @@ els.homeDriveNew.addEventListener("click", createDriveBlankStudio);
 els.homeFolderImport.addEventListener("change", () => importPlaybackFolderFiles(els.homeFolderImport.files));
 els.homeChooseFolder.addEventListener("click", choosePlaybackFolder);
 els.homeRefreshFolder.addEventListener("click", () => scanDriveStudioFolder());
+els.homeDriveFolderChange.addEventListener("click", changeDriveFolder);
+els.homeDriveFolderUrl.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") changeDriveFolder();
+});
 els.clearSlides.addEventListener("click", clearSlides);
 els.addSlidesWidget.addEventListener("click", addSlidesWidgetFromInput);
 els.switchSlidesMode.addEventListener("click", switchSlidesMode);
