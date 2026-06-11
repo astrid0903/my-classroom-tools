@@ -644,7 +644,12 @@
       <main class="participant-shell">
         <header class="participant-head">
           <span>Classroom Post Board</span>
-          <h1 id="participant-title">貼文板</h1>
+          <div class="participant-head-row">
+            <h1 id="participant-title">貼文板</h1>
+            <button id="participant-change-name-btn" class="participant-change-name-btn" type="button" title="點擊修改您的名字">
+              👤 我是：<span id="participant-display-name">訪客</span> (修改)
+            </button>
+          </div>
         </header>
       </main>
       <div id="participant-note" class="participant-note"></div>
@@ -694,7 +699,20 @@
       <input id="post-edit-author" type="text" maxlength="40">
       <label for="post-edit-content">內容</label>
       <textarea id="post-edit-content" maxlength="600" rows="5"></textarea>
-      <label for="post-edit-image-input">圖片</label>
+      
+      <label for="post-edit-type">貼文類型</label>
+      <select id="post-edit-type">
+        <option value="text">一般貼文</option>
+        <option value="poll">投票貼文</option>
+      </select>
+
+      <div id="post-edit-poll-container" class="hidden">
+        <label>投票選項</label>
+        <div id="post-edit-poll-options" class="post-edit-poll-options"></div>
+        <button id="post-edit-add-poll-option" class="secondary small-btn" type="button">+ 新增選項</button>
+      </div>
+
+      <label for="post-edit-image-input" id="post-edit-image-label">圖片</label>
       <div id="post-edit-images" class="post-edit-images hidden"></div>
       <input id="post-edit-image-input" type="file" accept="image/*" multiple>
       <div class="button-row">
@@ -711,6 +729,20 @@
       <div id="participant-post-modal-meta" class="post-meta participant-post-modal-meta"></div>
       <div id="participant-post-modal-content" class="participant-post-modal-content"></div>
       <div id="participant-post-modal-image" class="participant-post-modal-image"></div>
+    </div>
+  </div>
+
+  <!-- 學員姓名輸入彈窗 -->
+  <div id="participant-name-modal" class="post-edit-modal hidden" role="dialog" aria-modal="true" aria-label="歡迎加入貼文板">
+    <div class="post-edit-dialog participant-name-dialog">
+      <h3>歡迎加入貼文板</h3>
+      <label for="participant-name-modal-input" style="display:block; margin-bottom: 8px; font-weight: 700;">在開始使用前，請先輸入您的名字或座號：</label>
+      <input id="participant-name-modal-input" type="text" maxlength="20" placeholder="例如：3號 曉明">
+      <div class="button-row" style="margin-top: 15px;">
+        <button id="participant-name-modal-submit" type="button">開始使用</button>
+        <button id="participant-name-modal-cancel" class="secondary" type="button">取消</button>
+      </div>
+      <p id="participant-name-modal-error" class="hint error" style="margin-top: 8px;"></p>
     </div>
   </div>
 

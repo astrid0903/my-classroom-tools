@@ -244,6 +244,13 @@ const els = {
   participantPostModalMeta: document.querySelector("#participant-post-modal-meta"),
   participantPostModalContent: document.querySelector("#participant-post-modal-content"),
   participantPostModalImage: document.querySelector("#participant-post-modal-image"),
+  participantDisplayName: document.querySelector("#participant-display-name"),
+  participantChangeNameBtn: document.querySelector("#participant-change-name-btn"),
+  participantNameModal: document.querySelector("#participant-name-modal"),
+  participantNameModalInput: document.querySelector("#participant-name-modal-input"),
+  participantNameModalSubmit: document.querySelector("#participant-name-modal-submit"),
+  participantNameModalCancel: document.querySelector("#participant-name-modal-cancel"),
+  participantNameModalError: document.querySelector("#participant-name-modal-error"),
   postEditModal: document.querySelector("#post-edit-modal"),
   postEditTitle: document.querySelector("#post-edit-title"),
   postEditSection: document.querySelector("#post-edit-section"),
@@ -252,7 +259,12 @@ const els = {
   postEditContent: document.querySelector("#post-edit-content"),
   postEditImages: document.querySelector("#post-edit-images"),
   postEditImageInput: document.querySelector("#post-edit-image-input"),
+  postEditImageLabel: document.querySelector("#post-edit-image-label"),
   postEditSave: document.querySelector("#post-edit-save"),
+  postEditType: document.querySelector("#post-edit-type"),
+  postEditPollContainer: document.querySelector("#post-edit-poll-container"),
+  postEditPollOptions: document.querySelector("#post-edit-poll-options"),
+  postEditAddPollOption: document.querySelector("#post-edit-add-poll-option"),
   postEditCancel: document.querySelector("#post-edit-cancel"),
   postEditMessage: document.querySelector("#post-edit-message"),
   promptModal: document.querySelector("#prompt-modal"),
@@ -3525,6 +3537,7 @@ async function loadFirebaseApi() {
         orderBy: firestoreModule.orderBy,
         onSnapshot: firestoreModule.onSnapshot,
         serverTimestamp: firestoreModule.serverTimestamp,
+        deleteField: firestoreModule.deleteField,
         signInAnonymously: authModule.signInAnonymously,
       };
       return firebaseApi;
@@ -4179,6 +4192,73 @@ function editPost(post, options = {}) {
   const editSources = [...postImageSources(post)];
   renderPostEditImages(editSources);
 
+  // 投票型貼文的編輯與切換邏輯
+  const isPoll = post.type === "poll";
+  els.postEditType.value = isPoll ? "poll" : "text";
+
+  let localPollOptions = isPoll && post.pollOptions ? [...post.pollOptions] : ["", ""];
+
+  function renderPollOptions() {
+    if (!els.postEditPollOptions) return;
+    els.postEditPollOptions.innerHTML = "";
+    localPollOptions.forEach((optionText, idx) => {
+      const row = createEl("div", "poll-option-edit-row");
+      const input = createEl("input");
+      input.type = "text";
+      input.value = optionText;
+      input.placeholder = `選項 ${idx + 1}`;
+      input.maxLength = 50;
+      input.addEventListener("input", (e) => {
+        localPollOptions[idx] = e.target.value.slice(0, 50);
+      });
+
+      const delBtn = createEl("button", "danger", "刪除");
+      delBtn.type = "button";
+      delBtn.disabled = localPollOptions.length <= 2;
+      delBtn.addEventListener("click", () => {
+        if (localPollOptions.length > 2) {
+          localPollOptions.splice(idx, 1);
+          renderPollOptions();
+        }
+      });
+      row.append(input, delBtn);
+      els.postEditPollOptions.appendChild(row);
+    });
+  }
+
+  const updateTypeUI = () => {
+    const type = els.postEditType.value;
+    if (type === "poll") {
+      els.postEditPollContainer.classList.remove("hidden");
+      if (els.postEditImageLabel) els.postEditImageLabel.classList.add("hidden");
+      if (els.postEditImages) els.postEditImages.classList.add("hidden");
+      if (els.postEditImageInput) els.postEditImageInput.classList.add("hidden");
+      renderPollOptions();
+    } else {
+      els.postEditPollContainer.classList.add("hidden");
+      if (els.postEditImageLabel) els.postEditImageLabel.classList.remove("hidden");
+      if (editSources.length > 0 && els.postEditImages) els.postEditImages.classList.remove("hidden");
+      if (els.postEditImageInput) els.postEditImageInput.classList.remove("hidden");
+    }
+  };
+
+  const onAddPollOption = () => {
+    if (localPollOptions.length < 10) {
+      localPollOptions.push("");
+      renderPollOptions();
+      setTimeout(() => {
+        const inputs = els.postEditPollOptions.querySelectorAll("input");
+        if (inputs.length > 0) inputs[inputs.length - 1].focus();
+      }, 0);
+    } else {
+      alert("最多只能新增 10 個選項。");
+    }
+  };
+
+  els.postEditType.addEventListener("change", updateTypeUI);
+  els.postEditAddPollOption.addEventListener("click", onAddPollOption);
+  updateTypeUI();
+
   els.postEditModal.classList.remove("hidden");
   els.postEditContent.focus();
 
@@ -4187,6 +4267,8 @@ function editPost(post, options = {}) {
     els.postEditSave.removeEventListener("click", onSave);
     els.postEditCancel.removeEventListener("click", onCancel);
     els.postEditImageInput.removeEventListener("change", onImageChange);
+    els.postEditType.removeEventListener("change", updateTypeUI);
+    els.postEditAddPollOption.removeEventListener("click", onAddPollOption);
     els.postEditModal.removeEventListener("click", onBackdrop);
   };
 
@@ -4197,30 +4279,73 @@ function editPost(post, options = {}) {
   const onSave = async () => {
     const nextAuthor = els.postEditAuthor.value.trim().slice(0, 40);
     const nextContent = els.postEditContent.value.trim().slice(0, 600);
-    if (!nextContent && editSources.length === 0) {
-      els.postEditMessage.textContent = "內容不能為空。";
-      els.postEditMessage.classList.add("error");
-      return;
+    const nextType = els.postEditType.value;
+    const isNextPoll = nextType === "poll";
+
+    let finalPollOptions = null;
+    let finalPollVotes = null;
+
+    if (isNextPoll) {
+      const optionsList = localPollOptions.map(opt => opt.trim()).filter(Boolean);
+      if (optionsList.length < 2) {
+        els.postEditMessage.textContent = "投票貼文至少需要 2 個有效選項。";
+        els.postEditMessage.classList.add("error");
+        return;
+      }
+      finalPollOptions = optionsList;
+
+      const initialVotes = {};
+      finalPollOptions.forEach((_, idx) => {
+        initialVotes[String(idx)] = [];
+      });
+
+      if (!isCreate && post.type === "poll" && post.pollVotes) {
+        finalPollVotes = {};
+        finalPollOptions.forEach((_, idx) => {
+          finalPollVotes[String(idx)] = post.pollVotes[String(idx)] || [];
+        });
+      } else {
+        finalPollVotes = initialVotes;
+      }
+    } else {
+      if (!nextContent && editSources.length === 0) {
+        els.postEditMessage.textContent = "內容不能為空。";
+        els.postEditMessage.classList.add("error");
+        return;
+      }
     }
+
     els.postEditSave.disabled = true;
     els.postEditMessage.textContent = "儲存中…";
     els.postEditMessage.classList.remove("error");
     try {
-      const imageDataUrls = await Promise.all(editSources.map((src) => compressPostImageDataUrl(src)));
+      const api = await loadFirebaseApi();
+      const user = await requireFirebaseUser(api);
+      await ensurePostBoardAdmin(api, page, user);
+
+      const imageDataUrls = isNextPoll ? [] : await Promise.all(editSources.map((src) => compressPostImageDataUrl(src)));
       const totalImageLength = imageDataUrls.reduce((sum, src) => sum + src.length, 0);
       if (totalImageLength > POST_IMAGE_MAX_TOTAL_LENGTH) {
         throw new Error("圖片總容量太大，請減少張數或換較小的圖片。");
       }
-      const api = await loadFirebaseApi();
-      const user = await requireFirebaseUser(api);
-      await ensurePostBoardAdmin(api, page, user);
+
       const payload = {
         author: nextAuthor || "匿名",
         content: nextContent,
         sectionId: (hasSections ? els.postEditSection.value : null) || post.sectionId || "section-a",
-        imageDataUrl: imageDataUrls[0] || "",
+        type: nextType,
+        imageDataUrl: isNextPoll ? "" : (imageDataUrls[0] || ""),
         imageDataUrls,
       };
+
+      if (isNextPoll) {
+        payload.pollOptions = finalPollOptions;
+        payload.pollVotes = finalPollVotes;
+      } else if (!isCreate && post.type === "poll") {
+        payload.pollOptions = api.deleteField();
+        payload.pollVotes = api.deleteField();
+      }
+
       if (isCreate) {
         await api.addDoc(postBoardPostsRef(api, page.boardId), {
           ...payload,
@@ -4612,8 +4737,13 @@ function renderPostCards(container, posts, options = {}) {
       content.innerHTML = linkifyText(post.content);
       card.appendChild(content);
     }
-    const imageGallery = createPostImageGallery(post, { actions: true });
-    if (imageGallery) card.appendChild(imageGallery);
+    if (post.type === "poll") {
+      const pollView = renderPostPollView(post, false);
+      if (pollView) card.appendChild(pollView);
+    } else {
+      const imageGallery = createPostImageGallery(post, { actions: true });
+      if (imageGallery) card.appendChild(imageGallery);
+    }
     container.appendChild(card);
   });
 }
@@ -5026,6 +5156,9 @@ function showParticipantForm(sectionId) {
   els.participantMessage.textContent = "";
   els.participantMessage.classList.remove("error");
   clearParticipantImagePreview({ clearInput: true });
+  if (els.participantName) {
+    els.participantName.value = localStorage.getItem("classroom_participant_name") || "";
+  }
   els.participantBoardScreen.classList.add("hidden");
   els.participantFormScreen.classList.remove("hidden");
   els.participantContent.focus();
@@ -5073,6 +5206,118 @@ async function deleteParticipantPost(postId) {
   } catch (error) {
     setParticipantMessage(error.message || "刪除失敗，請稍後再試。", true);
   }
+}
+
+async function votePoll(postId, optionIdx) {
+  const params = new URLSearchParams(window.location.search);
+  const boardId = params.get("board");
+  if (!boardId) return;
+
+  if (!participantUid) {
+    try {
+      const api = await loadFirebaseApi();
+      const user = await requireFirebaseUser(api);
+      participantUid = user.uid;
+    } catch (e) {
+      alert("無法連線至資料庫，請稍後再試。");
+      return;
+    }
+  }
+
+  const post = participantBoardPosts.find((p) => p.id === postId);
+  if (!post || !post.pollOptions) return;
+
+  const pollVotes = post.pollVotes ? JSON.parse(JSON.stringify(post.pollVotes)) : {};
+  post.pollOptions.forEach((_, idx) => {
+    const k = String(idx);
+    if (!Array.isArray(pollVotes[k])) {
+      pollVotes[k] = [];
+    }
+  });
+
+  const optKey = String(optionIdx);
+  const alreadyVotedThis = pollVotes[optKey].includes(participantUid);
+
+  Object.keys(pollVotes).forEach((k) => {
+    pollVotes[k] = pollVotes[k].filter((uid) => uid !== participantUid);
+  });
+
+  if (!alreadyVotedThis) {
+    pollVotes[optKey].push(participantUid);
+  }
+
+  try {
+    const api = await loadFirebaseApi();
+    const ref = api.doc(postBoardPostsRef(api, boardId), postId);
+    await api.updateDoc(ref, {
+      pollVotes,
+      updatedAt: api.serverTimestamp(),
+    });
+  } catch (error) {
+    alert("投票失敗：" + (error.message || "請確認網路連線。"));
+  }
+}
+
+function renderPostPollView(post, isParticipant = false) {
+  if (!post || !post.pollOptions || post.pollOptions.length === 0) return null;
+
+  const pollVotes = post.pollVotes ? JSON.parse(JSON.stringify(post.pollVotes)) : {};
+  let totalVotes = 0;
+  const optionVotes = [];
+
+  post.pollOptions.forEach((_, idx) => {
+    const uids = pollVotes[String(idx)] || [];
+    optionVotes.push(uids.length);
+    totalVotes += uids.length;
+  });
+
+  const wrapper = createEl("div", "poll-view-wrapper");
+  let myVoteIdx = -1;
+
+  if (isParticipant && participantUid) {
+    post.pollOptions.forEach((_, idx) => {
+      const uids = pollVotes[String(idx)] || [];
+      if (uids.includes(participantUid)) {
+        myVoteIdx = idx;
+      }
+    });
+  }
+
+  post.pollOptions.forEach((optionText, idx) => {
+    const votes = optionVotes[idx];
+    const pct = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
+
+    const row = createEl("div", `poll-option-row ${myVoteIdx === idx ? "voted" : ""}`);
+    if (isParticipant) {
+      row.classList.add("clickable");
+      row.addEventListener("click", (e) => {
+        e.stopPropagation();
+        votePoll(post.id, idx);
+      });
+    }
+
+    const bar = createEl("div", "poll-progress-bar");
+    bar.style.width = `${pct}%`;
+
+    const content = createEl("div", "poll-option-content");
+    const label = createEl("span", "poll-option-label", optionText);
+
+    if (myVoteIdx === idx) {
+      const check = createEl("span", "poll-option-check", " ✓");
+      label.appendChild(check);
+    }
+
+    const stats = createEl("span", "poll-option-stats", `${pct}% (${votes}票)`);
+    content.append(label, stats);
+
+    row.append(bar, content);
+    wrapper.appendChild(row);
+  });
+
+  const totalRow = createEl("div", "poll-total-votes", `總票數：${totalVotes} 票`);
+  wrapper.appendChild(totalRow);
+
+  return wrapper;
 }
 
 function sanitizeNoteHtml(html) {
@@ -5154,8 +5399,13 @@ function openParticipantPostModal(post) {
     els.participantPostModalContent.appendChild(createEl("p", "post-content participant-detail-content muted", "這則貼文沒有文字內容。"));
   }
   els.participantPostModalImage.innerHTML = "";
-  const imageGallery = createPostImageGallery(post, { className: "participant-detail-image-gallery" });
-  if (imageGallery) els.participantPostModalImage.appendChild(imageGallery);
+  if (post.type === "poll") {
+    const pollView = renderPostPollView(post, true);
+    if (pollView) els.participantPostModalImage.appendChild(pollView);
+  } else {
+    const imageGallery = createPostImageGallery(post, { className: "participant-detail-image-gallery" });
+    if (imageGallery) els.participantPostModalImage.appendChild(imageGallery);
+  }
   els.participantPostModal.classList.remove("hidden");
 }
 
@@ -5168,6 +5418,7 @@ function renderParticipantPostCards(container, posts) {
   posts.forEach((post) => {
     const card = createEl("article", "post-card participant-post-card");
     const openDetail = (event) => {
+      if (post.type === "poll") return;
       if (event.target.closest("a, button")) return;
       openParticipantPostModal(post);
     };
@@ -5176,11 +5427,21 @@ function renderParticipantPostCards(container, posts) {
     meta.append(createEl("strong", "", post.author || "匿名"), createEl("span", "", formatPostTime(post.createdAt)));
     card.appendChild(meta);
     if (post.content) card.appendChild(postContentElement(post));
-    const imageGallery = createPostImageGallery(post, { className: "participant-card-image-gallery" });
-    if (imageGallery) {
-      imageGallery.addEventListener("click", (event) => event.stopPropagation());
-      card.appendChild(imageGallery);
+
+    if (post.type === "poll") {
+      const pollView = renderPostPollView(post, true);
+      if (pollView) {
+        pollView.addEventListener("click", (event) => event.stopPropagation());
+        card.appendChild(pollView);
+      }
+    } else {
+      const imageGallery = createPostImageGallery(post, { className: "participant-card-image-gallery" });
+      if (imageGallery) {
+        imageGallery.addEventListener("click", (event) => event.stopPropagation());
+        card.appendChild(imageGallery);
+      }
     }
+
     const actions = createEl("div", "participant-post-actions");
     const openBtn = createEl("button", "participant-post-open", "查看內容");
     openBtn.type = "button";
@@ -5354,22 +5615,69 @@ async function submitParticipantPost(event) {
   }
 }
 
-async function initParticipantMode() {
-  const params = new URLSearchParams(window.location.search);
-  const boardId = params.get("board");
-  const title = params.get("title") || "貼文板";
-  const selectedSectionId = params.get("section") || "";
-  if (!boardId) return;
+let participantSessionStarted = false;
 
-  els.homeView.classList.add("hidden");
-  els.studio.classList.add("hidden");
-  els.participantView.classList.remove("hidden");
-  document.body.classList.remove("home-mode", "studio-mode");
-  els.participantTitle.textContent = title;
-  document.title = title;
-  els.participantForm.addEventListener("submit", submitParticipantPost);
-  els.participantOpenForm.addEventListener("click", () => showParticipantForm());
-  els.participantBack.addEventListener("click", showParticipantBoard);
+function showParticipantNamePromptModal(isMandatory = false) {
+  if (!els.participantNameModal) return;
+  els.participantNameModalError.textContent = "";
+  const currentName = localStorage.getItem("classroom_participant_name") || "";
+  els.participantNameModalInput.value = currentName;
+
+  if (isMandatory) {
+    els.participantNameModalCancel.classList.add("hidden");
+  } else {
+    els.participantNameModalCancel.classList.remove("hidden");
+  }
+
+  els.participantNameModal.classList.remove("hidden");
+  els.participantNameModalInput.focus();
+
+  const cleanup = () => {
+    els.participantNameModal.classList.add("hidden");
+    els.participantNameModalSubmit.removeEventListener("click", onSubmit);
+    els.participantNameModalCancel.removeEventListener("click", onCancel);
+    els.participantNameModalInput.removeEventListener("keydown", onKeyDown);
+  };
+
+  const onSubmit = () => {
+    const name = els.participantNameModalInput.value.trim().slice(0, 20);
+    if (!name) {
+      els.participantNameModalError.textContent = "名字或座號不能為空。";
+      return;
+    }
+    localStorage.setItem("classroom_participant_name", name);
+    if (els.participantDisplayName) els.participantDisplayName.textContent = name;
+
+    if (!participantSessionStarted) {
+      const params = new URLSearchParams(window.location.search);
+      const boardId = params.get("board");
+      const selectedSectionId = params.get("section") || "";
+      if (boardId) {
+        startParticipantSession(boardId, selectedSectionId);
+      }
+    }
+    cleanup();
+  };
+
+  const onCancel = () => {
+    cleanup();
+  };
+
+  const onKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      onSubmit();
+    }
+  };
+
+  els.participantNameModalSubmit.addEventListener("click", onSubmit);
+  els.participantNameModalCancel.addEventListener("click", onCancel);
+  els.participantNameModalInput.addEventListener("keydown", onKeyDown);
+}
+
+async function startParticipantSession(boardId, selectedSectionId) {
+  if (participantSessionStarted) return;
+  participantSessionStarted = true;
 
   try {
     const api = await loadFirebaseApi();
@@ -5409,6 +5717,38 @@ async function initParticipantMode() {
     );
   } catch (error) {
     setParticipantMessage(`貼文板無法連線：${error.message || "請確認網路。"}`, true);
+  }
+}
+
+async function initParticipantMode() {
+  const params = new URLSearchParams(window.location.search);
+  const boardId = params.get("board");
+  const title = params.get("title") || "貼文板";
+  const selectedSectionId = params.get("section") || "";
+  if (!boardId) return;
+
+  els.homeView.classList.add("hidden");
+  els.studio.classList.add("hidden");
+  els.participantView.classList.remove("hidden");
+  document.body.classList.remove("home-mode", "studio-mode");
+  els.participantTitle.textContent = title;
+  document.title = title;
+  els.participantForm.addEventListener("submit", submitParticipantPost);
+  els.participantOpenForm.addEventListener("click", () => showParticipantForm());
+  els.participantBack.addEventListener("click", showParticipantBoard);
+
+  if (els.participantChangeNameBtn) {
+    els.participantChangeNameBtn.addEventListener("click", () => {
+      showParticipantNamePromptModal(false);
+    });
+  }
+
+  const cachedName = localStorage.getItem("classroom_participant_name");
+  if (!cachedName) {
+    showParticipantNamePromptModal(true);
+  } else {
+    if (els.participantDisplayName) els.participantDisplayName.textContent = cachedName;
+    startParticipantSession(boardId, selectedSectionId);
   }
 }
 
