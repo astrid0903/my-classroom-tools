@@ -993,6 +993,50 @@ body.studio-mode .page-tabs {
   border-radius: 8px;
 }
 
+.post-board-qr-modal-url-wrap {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  max-width: 320px;
+  width: 100%;
+  margin-top: -4px;
+}
+
+#post-board-qr-modal-url {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--muted);
+  word-break: break-all;
+  text-align: center;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  flex: 1;
+  min-width: 0;
+}
+
+#post-board-qr-modal-url:hover {
+  color: var(--blue);
+}
+
+#post-board-qr-modal-url-copy {
+  min-height: 32px;
+  height: 32px;
+  padding: 0 10px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+#post-board-qr-modal-url-copy:hover {
+  border-color: var(--blue);
+  color: var(--blue-deep);
+}
+
 .post-board-qr-modal-close {
   min-width: 120px;
   min-height: 44px;
@@ -2654,8 +2698,14 @@ body.studio-mode .page-tabs {
   cursor: text;
 }
 
-.participant-post-card .post-content a {
+.participant-post-card .post-content a,
+.participant-detail-content a,
+.participant-note a {
   cursor: pointer;
+  color: #2572b8;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  word-break: break-all;
 }
 
 .participant-section-title {

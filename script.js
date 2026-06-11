@@ -114,6 +114,8 @@ const els = {
   postBoardQrModal: document.querySelector("#post-board-qr-modal"),
   postBoardQrModalTitle: document.querySelector("#post-board-qr-modal-title"),
   postBoardQrModalImg: document.querySelector("#post-board-qr-modal-img"),
+  postBoardQrModalUrl: document.querySelector("#post-board-qr-modal-url"),
+  postBoardQrModalUrlCopy: document.querySelector("#post-board-qr-modal-url-copy"),
   postBoardQrModalClose: document.querySelector("#post-board-qr-modal-close"),
   postBoardNote: document.querySelector("#post-board-note"),
   postBoardNoteColor: document.querySelector("#post-board-note-color"),
@@ -3580,6 +3582,15 @@ function postBoardJoinUrl(page) {
   return url.toString();
 }
 
+function postBoardJoinShortUrl(page) {
+  if (!page?.boardId) return "";
+  const url = new URL(window.location.href);
+  url.search = "";
+  url.hash = "";
+  url.searchParams.set("board", page.boardId);
+  return url.toString();
+}
+
 function postBoardSectionJoinUrl(page, sectionId) {
   const url = new URL(postBoardJoinUrl(page));
   if (sectionId) url.searchParams.set("section", sectionId);
@@ -6939,11 +6950,45 @@ els.postBoardQrToggle.addEventListener("click", () => {
   els.postBoardJoinCard.classList.toggle("expanded");
 });
 els.postBoardJoinCard.addEventListener("click", (event) => event.stopPropagation());
+
+async function copyQrModalUrl() {
+  const url = els.postBoardQrModalUrl ? els.postBoardQrModalUrl.textContent : "";
+  if (!url) return;
+  try {
+    await navigator.clipboard.writeText(url);
+    const copyBtn = els.postBoardQrModalUrlCopy;
+    if (copyBtn) {
+      const originalText = copyBtn.textContent;
+      copyBtn.textContent = "已複製！";
+      copyBtn.classList.add("copied");
+      setTimeout(() => {
+        copyBtn.textContent = originalText;
+        copyBtn.classList.remove("copied");
+      }, 1500);
+    }
+  } catch (err) {
+    console.error("無法複製網址：", err);
+  }
+}
+
+if (els.postBoardQrModalUrlCopy) {
+  els.postBoardQrModalUrlCopy.addEventListener("click", copyQrModalUrl);
+}
+if (els.postBoardQrModalUrl) {
+  els.postBoardQrModalUrl.addEventListener("click", copyQrModalUrl);
+}
+
 els.postBoardQrExpand.addEventListener("click", () => {
   const page = activePage();
   const joinUrl = postBoardJoinUrl(page);
   els.postBoardQrModalTitle.textContent = page.name || "貼文板";
   els.postBoardQrModalImg.src = buildQrCodeUrl(joinUrl, "480");
+  
+  const shortUrl = postBoardJoinShortUrl(page);
+  if (els.postBoardQrModalUrl) {
+    els.postBoardQrModalUrl.textContent = shortUrl;
+  }
+  
   els.postBoardQrModal.classList.remove("hidden");
 });
 els.postBoardQrModalClose.addEventListener("click", () => els.postBoardQrModal.classList.add("hidden"));

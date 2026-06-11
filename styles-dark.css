@@ -281,6 +281,23 @@ body[data-theme="dark"] .post-board-qr-modal-inner {
   border: 1px solid var(--d-border);
 }
 body[data-theme="dark"] .post-board-qr-modal-title { color: var(--d-text); }
+
+body[data-theme="dark"] #post-board-qr-modal-url {
+  color: var(--d-text-2);
+}
+body[data-theme="dark"] #post-board-qr-modal-url:hover {
+  color: var(--d-cool);
+}
+body[data-theme="dark"] #post-board-qr-modal-url-copy {
+  background: var(--d-surface);
+  border-color: var(--d-border-strong);
+  color: var(--d-text);
+}
+body[data-theme="dark"] #post-board-qr-modal-url-copy:hover {
+  background: var(--d-surface-2);
+  border-color: var(--d-cool);
+  color: var(--d-cool);
+}
 /* note editor */
 body[data-theme="dark"] .post-board-note-toolbar {
   background: var(--d-surface);
@@ -409,6 +426,38 @@ body[data-theme="dark"] .slide-stage.page-bg-light .post-card {
   border-color: rgba(17, 24, 32, 0.08);
   color: var(--page-title-text, #111820);
   box-shadow: 0 14px 28px rgba(17, 24, 32, 0.12);
+}
+body[data-theme="dark"] .slide-stage.page-bg-light .post-board-qr-modal-inner {
+  background: #ffffff;
+  color: #111820;
+  border-color: rgba(17, 24, 32, 0.1);
+  box-shadow: 0 24px 64px rgba(17, 24, 32, 0.16);
+}
+body[data-theme="dark"] .slide-stage.page-bg-light .post-board-qr-modal-title {
+  color: #111820;
+}
+body[data-theme="dark"] .slide-stage.page-bg-light .post-board-qr-modal-close {
+  background: #111820;
+  color: #ffffff;
+}
+body[data-theme="dark"] .slide-stage.page-bg-light .post-board-qr-modal-close:hover {
+  background: #232d37;
+}
+body[data-theme="dark"] .slide-stage.page-bg-light #post-board-qr-modal-url {
+  color: #55606e;
+}
+body[data-theme="dark"] .slide-stage.page-bg-light #post-board-qr-modal-url:hover {
+  color: #2364aa;
+}
+body[data-theme="dark"] .slide-stage.page-bg-light #post-board-qr-modal-url-copy {
+  background: #ffffff;
+  border-color: rgba(17, 24, 32, 0.14);
+  color: #111820;
+}
+body[data-theme="dark"] .slide-stage.page-bg-light #post-board-qr-modal-url-copy:hover {
+  background: rgba(17, 24, 32, 0.04);
+  border-color: #2364aa;
+  color: #2364aa;
 }
 
 body[data-theme="dark"] .slide-stage.page-bg-light .page-tabs {
@@ -738,6 +787,11 @@ body[data-theme="dark"] .participant-post-card {
   border-color: rgba(255, 255, 255, 0.08);
   color: var(--d-text);
 }
+body[data-theme="dark"] .participant-post-card .post-content a,
+body[data-theme="dark"] .participant-detail-content a,
+body[data-theme="dark"] .participant-note a {
+  color: var(--d-cool);
+}
 body[data-theme="dark"] .participant-post-card:hover {
   border-color: rgba(255, 255, 255, 0.14);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
@@ -810,10 +864,13 @@ body[data-theme="dark"] .participant-view.page-bg-light .participant-form select
 }
 
 body[data-theme="dark"] .participant-view.page-bg-light .participant-post-card .post-content,
-body[data-theme="dark"] .participant-view.page-bg-light .participant-post-card .post-content a,
 body[data-theme="dark"] .participant-view.page-bg-light .participant-post-card .post-meta strong,
 body[data-theme="dark"] .participant-view.page-bg-light .participant-section-title {
   color: var(--page-title-text, #111820);
+}
+body[data-theme="dark"] .participant-view.page-bg-light .participant-post-card .post-content a,
+body[data-theme="dark"] .participant-view.page-bg-light .participant-note a {
+  color: #2364aa;
 }
 
 body[data-theme="dark"] .participant-view.page-bg-light .participant-post-card .post-meta span {
