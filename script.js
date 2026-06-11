@@ -1947,10 +1947,12 @@ function applyPageBackground(page) {
     els.stage.insertBefore(bgLayer, els.stage.firstChild);
   }
   if (page.bgImage) {
-    bgLayer.style.backgroundImage = `url("${page.bgImage}")`;
-    bgLayer.style.opacity = ((page.bgOpacity ?? 60) / 100).toFixed(2);
+    const opacity = Number.isFinite(Number(page.bgOpacity)) ? Math.max(0, Math.min(100, Number(page.bgOpacity))) : 60;
+    const veil = Math.max(0, Math.min(0.75, 1 - opacity / 100));
+    bgLayer.style.backgroundImage = `linear-gradient(rgba(255,255,255,${veil}), rgba(255,255,255,${veil})), url("${page.bgImage}")`;
+    bgLayer.style.opacity = "1";
     bgLayer.style.display = "";
-    els.stage.style.background = "";
+    els.stage.style.background = page.bgColor || "#111820";
   } else {
     bgLayer.style.backgroundImage = "";
     bgLayer.style.display = "none";
