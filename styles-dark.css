@@ -357,7 +357,7 @@ body[data-theme="dark"] .post-section-delete:hover { background: rgba(255, 138, 
 
 /* post cards */
 body[data-theme="dark"] .post-card {
-  background: var(--d-surface-strong);
+  background: #121820; /* 不透明深灰色 */
   border-color: var(--d-border);
   box-shadow: 0 14px 30px rgba(0, 0, 0, 0.4);
 }
@@ -426,6 +426,9 @@ body[data-theme="dark"] .slide-stage.page-bg-light .post-card {
   border-color: rgba(17, 24, 32, 0.08);
   color: var(--page-title-text, #111820);
   box-shadow: 0 14px 28px rgba(17, 24, 32, 0.12);
+}
+body[data-theme="dark"] .slide-stage.page-bg-light .post-card {
+  background: #ffffff; /* 亮底不透明白色 */
 }
 body[data-theme="dark"] .slide-stage.page-bg-light .post-board-qr-modal-inner {
   background: #ffffff;
@@ -786,7 +789,7 @@ body[data-theme="dark"] .participant-post-delete:hover {
 
 /* post cards in participant board — dark glass */
 body[data-theme="dark"] .participant-post-card {
-  background: rgba(255, 255, 255, 0.04);
+  background: #121820; /* 不透明深灰色 */
   border-color: rgba(255, 255, 255, 0.08);
   color: var(--d-text);
 }
@@ -825,6 +828,9 @@ body[data-theme="dark"] .participant-view.page-bg-light .post-section-add {
   border-color: rgba(17, 24, 32, 0.08);
   color: var(--page-title-text, #111820);
   box-shadow: 0 8px 20px rgba(17, 24, 32, 0.08);
+}
+body[data-theme="dark"] .participant-view.page-bg-light .participant-post-card {
+  background: #ffffff; /* 亮底不透明白色 */
 }
 
 body[data-theme="dark"] .participant-view.page-bg-light .participant-form-head {

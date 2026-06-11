@@ -1378,12 +1378,18 @@ body.studio-mode .page-tabs {
   width: 100%;
   margin: 0 0 18px;
   break-inside: avoid;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 8px;
   padding: 14px;
-  background: rgba(255, 255, 255, 0.04);
+  background: #121820; /* 不透明深灰色 */
   box-shadow: 0 14px 30px rgba(0, 0, 0, 0.4);
   color: #f2f7fa;
+}
+
+.page-bg-light .post-card {
+  background: #ffffff; /* 亮底不透明白色 */
+  border-color: rgba(0, 0, 0, 0.12);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.06);
 }
 
 .post-card[draggable="true"] {
