@@ -1301,22 +1301,25 @@ body.studio-mode .page-tabs {
 }
 
 .post-section-add {
-  min-height: 58px;
+  min-height: 29px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 6px;
   display: grid;
   place-items: center;
-  background: rgba(255, 255, 255, 0.66);
+  background: rgba(255, 255, 255, 0.36);
   color: #5f6974;
-  font-size: 2rem;
+  font-size: 1.15rem;
   font-weight: 450;
   text-decoration: none;
-  box-shadow: 0 12px 28px rgba(28, 42, 56, 0.08);
+  box-shadow: none;
+  opacity: 0.55;
+  transition: opacity 0.14s ease, background 0.14s ease, color 0.14s ease;
 }
 
 .post-section-add:hover {
-  background: rgba(255, 255, 255, 0.86);
+  background: rgba(255, 255, 255, 0.75);
   color: #2364aa;
+  opacity: 0.95;
 }
 
 .post-section-new {
