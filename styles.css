@@ -1392,8 +1392,9 @@ body.studio-mode .page-tabs {
 }
 
 .post-section-body {
-  column-count: 1;
-  column-gap: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
