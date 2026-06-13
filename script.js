@@ -4390,6 +4390,24 @@ async function deletePost(post) {
   }
 }
 
+async function togglePostStar(post) {
+  const page = activePage();
+  if (page.type !== "posts" || !page.boardId || !post?.id) return;
+  const nextStarred = !post.isStarred;
+  try {
+    const api = await loadFirebaseApi();
+    const user = await requireFirebaseUser(api);
+    await ensurePostBoardAdmin(api, page, user);
+    await api.updateDoc(api.doc(api.db, POST_BOARDS_COLLECTION, page.boardId, "posts", post.id), {
+      isStarred: nextStarred,
+      updatedAt: api.serverTimestamp(),
+    });
+  } catch (error) {
+    els.postBoardMessage.textContent = `標記星號失敗：${error.message || "請確認權限。"}`;
+    els.postBoardMessage.classList.add("error");
+  }
+}
+
 async function movePostToSection(postId, sectionId) {
   const page = activePage();
   if (page.type !== "posts" || !page.boardId) return;
@@ -4711,6 +4729,16 @@ function renderPostCards(container, posts, options = {}) {
     meta.append(author, time);
     card.appendChild(meta);
     if (options.canManage) {
+      const starBtn = createEl("button", `post-star-btn ${post.isStarred ? "starred" : ""}`);
+      starBtn.type = "button";
+      starBtn.title = post.isStarred ? "取消置頂" : "標記星號置頂";
+      starBtn.setAttribute("aria-label", post.isStarred ? "取消置頂" : "標記星號置頂");
+      starBtn.innerHTML = post.isStarred ? "★" : "☆";
+      starBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        togglePostStar(post);
+      });
+
       const menuBtn = createEl("button", "post-menu-btn", "⋮");
       menuBtn.type = "button";
       menuBtn.title = "貼文選項";
@@ -4730,7 +4758,7 @@ function renderPostCards(container, posts, options = {}) {
       });
       menu.addEventListener("click", (e) => e.stopPropagation());
       menu.append(editBtn, removeBtn);
-      card.append(menuBtn, menu);
+      card.append(starBtn, menuBtn, menu);
     }
     if (post.content) {
       const content = createEl("p", "post-content");
@@ -5033,6 +5061,11 @@ function postTimestampMs(value) {
 
 function sortPosts(posts) {
   return [...posts].sort((a, b) => {
+    const aStarred = Boolean(a.isStarred);
+    const bStarred = Boolean(b.isStarred);
+    if (aStarred !== bStarred) {
+      return aStarred ? -1 : 1;
+    }
     const aOrder = Number(a.order);
     const bOrder = Number(b.order);
     const aHasOrder = Number.isFinite(aOrder);
@@ -5424,6 +5457,11 @@ function renderParticipantPostCards(container, posts) {
     };
     card.addEventListener("click", openDetail);
     const meta = createEl("div", "post-meta");
+    if (post.isStarred) {
+      const starIndicator = createEl("span", "post-star-indicator", "★");
+      starIndicator.title = "已置頂貼文";
+      meta.appendChild(starIndicator);
+    }
     meta.append(createEl("strong", "", post.author || "匿名"), createEl("span", "", formatPostTime(post.createdAt)));
     card.appendChild(meta);
     if (post.content) card.appendChild(postContentElement(post));
