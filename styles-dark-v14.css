@@ -438,7 +438,6 @@ body[data-theme="dark"] .post-section-description {
    matching the light surface instead of forcing the global dark overlay. */
 body[data-theme="dark"] .slide-stage.page-bg-light .page-tabs,
 body[data-theme="dark"] .slide-stage.page-bg-light .post-board-qr-toggle,
-body[data-theme="dark"] .slide-stage.page-bg-light .post-board-qr-popover,
 body[data-theme="dark"] .slide-stage.page-bg-light .post-section-title-row,
 body[data-theme="dark"] .slide-stage.page-bg-light .post-section-add,
 body[data-theme="dark"] .slide-stage.page-bg-light .post-section-new,
@@ -447,6 +446,11 @@ body[data-theme="dark"] .slide-stage.page-bg-light .post-card {
   border-color: rgba(17, 24, 32, 0.08);
   color: var(--page-title-text, #111820);
   box-shadow: 0 14px 28px rgba(17, 24, 32, 0.12);
+}
+body[data-theme="dark"] .slide-stage.page-bg-light .post-board-qr-popover {
+  background: #ffffff;
+  border-color: rgba(17, 24, 32, 0.1);
+  box-shadow: 0 16px 48px rgba(17, 24, 32, 0.16);
 }
 body[data-theme="dark"] .slide-stage.page-bg-light .post-section-title,
 body[data-theme="dark"] .slide-stage.page-bg-light .post-section-menu-btn {
