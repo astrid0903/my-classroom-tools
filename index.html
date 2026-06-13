@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Google Slides 教學播放台</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
-  <link rel="stylesheet" href="./styles-v10.css">
-  <link rel="stylesheet" href="./styles-dark-v10.css">
+  <link rel="stylesheet" href="./styles-v11.css">
+  <link rel="stylesheet" href="./styles-dark-v11.css">
 </head>
 <body data-theme="dark">
   <div id="session-bar" class="session-bar hidden" aria-label="Session 狀態">
@@ -647,7 +647,7 @@
           <div class="participant-head-row">
             <h1 id="participant-title">貼文板</h1>
             <button id="participant-change-name-btn" class="participant-change-name-btn" type="button" title="點擊修改您的名字">
-              👤 我是：<span id="participant-display-name">訪客</span> (修改)
+              👤 我是：<span id="participant-display-name">訪客</span> <span class="edit-hint">✎ 修改</span>
             </button>
           </div>
         </header>
@@ -792,7 +792,7 @@
 
   <div id="settings-backdrop" class="settings-backdrop hidden"></div>
 
-  <script src="./script-v10.js"></script>
+  <script src="./script-v11.js"></script>
   <script>
     // IA Step 1: side-rail wiring — forwards to existing dock buttons.
     (function () {
