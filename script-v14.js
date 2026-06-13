@@ -7365,10 +7365,19 @@ els.participantImageClear.addEventListener("click", () => clearParticipantImageP
 els.postBoardQrToggle.addEventListener("click", (e) => {
   e.stopPropagation();
   if (els.postBoardQrPopover) {
-    els.postBoardQrPopover.classList.toggle("hidden");
-    // 同時確保公告 popover 收合
-    if (els.postBoardNoteWrap && !els.postBoardNoteWrap.classList.contains("hidden")) {
-      els.postBoardNoteWrap.classList.add("hidden");
+    const isOpen = !els.postBoardQrPopover.classList.contains("hidden");
+    if (isOpen) {
+      // 已開著→收合
+      els.postBoardQrPopover.classList.add("hidden");
+      els.postBoardQrToggle.classList.remove("active");
+    } else {
+      // 尚未開著→展開
+      els.postBoardQrPopover.classList.remove("hidden");
+      els.postBoardQrToggle.classList.add("active");
+      // 互斥：收合公告 popover
+      if (els.postBoardNoteWrap && !els.postBoardNoteWrap.classList.contains("hidden")) {
+        els.postBoardNoteWrap.classList.add("hidden");
+      }
     }
   }
 });
@@ -7522,6 +7531,7 @@ document.addEventListener("click", (e) => {
                           (els.postBoardQrToggle && els.postBoardQrToggle.contains(e.target));
     if (!isClickInside) {
       els.postBoardQrPopover.classList.add("hidden");
+      els.postBoardQrToggle.classList.remove("active");
     }
   }
 });

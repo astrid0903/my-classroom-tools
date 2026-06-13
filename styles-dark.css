@@ -390,10 +390,12 @@ body[data-theme="dark"] .post-menu button:hover { background: var(--d-surface-2)
 
 body[data-theme="dark"] .post-star-btn {
   color: rgba(255, 255, 255, 0.45);
+  box-shadow: none;
 }
 body[data-theme="dark"] .post-star-btn:hover {
   background: rgba(255, 255, 255, 0.08);
   color: #fbbf24;
+  box-shadow: none;
 }
 body[data-theme="dark"] .post-star-btn.starred {
   color: #fbbf24;

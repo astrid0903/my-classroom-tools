@@ -933,6 +933,11 @@ body.studio-mode .page-tabs {
   border-color: rgba(255, 255, 255, 0.2);
 }
 
+.post-board-action-btn.active {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
 .post-board-actions .top-control-toggle {
   width: 36px;
   min-width: 36px;
@@ -4110,6 +4115,7 @@ body.studio-mode .page-tabs {
   background: transparent;
   color: rgba(0, 0, 0, 0.42);
   font-size: 1.25rem;
+  font-family: "Segoe UI Symbol", "Apple Symbols", sans-serif; /* 強制文字渲染，避免 emoji 方塊 */
   line-height: 1;
   cursor: pointer;
   display: flex;
@@ -4117,12 +4123,14 @@ body.studio-mode .page-tabs {
   justify-content: center;
   z-index: 5;
   transition: background 0.12s, color 0.12s, transform 0.12s;
+  box-shadow: none; /* 確保沒有方塊陰影 */
 }
 
 .post-star-btn:hover {
   background: rgba(0, 0, 0, 0.05);
   color: #eab308;
   transform: scale(1.1);
+  box-shadow: none;
 }
 
 .post-star-btn.starred {
@@ -4132,9 +4140,12 @@ body.studio-mode .page-tabs {
 .post-star-indicator {
   color: #eab308;
   font-size: 1.1rem;
+  font-family: "Segoe UI Symbol", "Apple Symbols", sans-serif;
   margin-right: 4px;
   vertical-align: middle;
   line-height: 1;
+  text-shadow: none;
+  display: inline-block;
 }
 
 .post-card:not(.participant-post-card) .post-meta {
