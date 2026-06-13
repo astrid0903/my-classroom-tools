@@ -1,5 +1,19 @@
 {
   "firestore": {
     "rules": "firestore.rules"
+  },
+  "hosting": {
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "**/.git/**",
+      "**/.claude/**",
+      "**/.gemini/**",
+      "**/node_modules/**",
+      "scratch/**",
+      "tools/**",
+      "播放台存檔/**",
+      "舊的/**"
+    ]
   }
 }
