@@ -1198,51 +1198,71 @@ body.studio-mode .page-tabs {
 }
 
 .color-swatch {
-  width: 14px;
-  height: 14px;
+  width: 10px;
+  height: 10px;
+  min-width: 10px;
+  min-height: 10px;
   border-radius: 50%;
   border: 1px solid rgba(255, 255, 255, 0.2);
   cursor: pointer;
   padding: 0;
-  transition: transform 0.15s ease, border-color 0.15s ease;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .color-swatch:hover {
-  transform: scale(1.15);
+  transform: scale(1.25);
   border-color: rgba(255, 255, 255, 0.6);
 }
 
 .color-swatch.active {
-  transform: scale(1.15);
+  transform: scale(1.25);
   border-color: #fff;
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.25);
 }
 
-.note-color-custom {
+.color-swatch-custom {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 10px;
+  height: 10px;
+  min-width: 10px;
+  min-height: 10px;
+  border-radius: 50%;
   cursor: pointer;
   position: relative;
-  width: 16px;
-  height: 16px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
-.note-color-custom input[type="color"] {
+.color-swatch-custom input[type="color"] {
   position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
   opacity: 0;
   cursor: pointer;
+  z-index: 2;
 }
 
-.custom-color-icon {
-  font-size: 0.85rem;
-  transition: transform 0.15s ease;
+.color-swatch-custom svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
 }
 
-.custom-color-icon:hover {
-  transform: scale(1.15);
+.color-swatch-custom:hover {
+  transform: scale(1.25);
+}
+
+.color-swatch-custom:focus-within {
+  transform: scale(1.25);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.35);
 }
 
 .post-board-note {
@@ -3989,7 +4009,8 @@ body.studio-mode .page-tabs {
   color: rgba(17, 24, 32, 0.6);
 }
 
-.page-bg-light .color-swatch {
+.page-bg-light .color-swatch,
+.page-bg-light .color-swatch-custom {
   border-color: rgba(17, 24, 32, 0.2);
 }
 
@@ -4012,8 +4033,8 @@ body.studio-mode .page-tabs {
   background: rgba(17, 24, 32, 0.1);
 }
 
-.page-bg-light .note-color-wrap input[type="color"] {
-  border-color: rgba(17, 24, 32, 0.18);
+.page-bg-light .color-swatch-custom:focus-within {
+  box-shadow: 0 0 0 2px rgba(17, 24, 32, 0.25);
 }
 
 .page-bg-light .post-board-note {

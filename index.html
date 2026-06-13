@@ -182,7 +182,12 @@
                 <button type="button" class="note-size-btn" data-size="5" title="大字">大</button>
                 <button type="button" class="note-size-btn" data-size="7" title="特大字">特大</button>
                 <span class="note-tool-sep"></span>
-                <button type="button" class="note-link-btn" title="插入超連結">🔗</button>
+                <button type="button" class="note-link-btn" title="插入超連結">
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                  </svg>
+                </button>
                 <span class="note-tool-sep"></span>
                 <div class="note-color-swatches" title="文字顏色">
                   <button type="button" class="color-swatch active" data-color="#1e252c" style="background-color: #1e252c;"></button>
@@ -191,9 +196,19 @@
                   <button type="button" class="color-swatch" data-color="#059669" style="background-color: #059669;"></button>
                   <button type="button" class="color-swatch" data-color="#2563eb" style="background-color: #2563eb;"></button>
                   <button type="button" class="color-swatch" data-color="#7c3aed" style="background-color: #7c3aed;"></button>
-                  <label class="note-color-custom" title="自訂顏色">
+                  <label class="note-color-custom color-swatch-custom" title="自訂顏色">
                     <input type="color" id="post-board-note-color" value="#1e252c">
-                    <span class="custom-color-icon">🌈</span>
+                    <svg viewBox="0 0 24 24" class="custom-color-svg">
+                      <defs>
+                        <linearGradient id="rainbow" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stop-color="#ff0055" />
+                          <stop offset="35%" stop-color="#ffcc00" />
+                          <stop offset="70%" stop-color="#00cc88" />
+                          <stop offset="100%" stop-color="#6633ff" />
+                        </linearGradient>
+                      </defs>
+                      <circle cx="12" cy="12" r="10" fill="url(#rainbow)" />
+                    </svg>
                   </label>
                 </div>
               </div>

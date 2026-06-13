@@ -620,7 +620,8 @@ body[data-theme="dark"] .slide-stage.page-bg-light .note-link-btn:hover {
 body[data-theme="dark"] .slide-stage.page-bg-light .note-tool-sep {
   background: rgba(17, 24, 32, 0.1);
 }
-body[data-theme="dark"] .slide-stage.page-bg-light .color-swatch {
+body[data-theme="dark"] .slide-stage.page-bg-light .color-swatch,
+body[data-theme="dark"] .slide-stage.page-bg-light .color-swatch-custom {
   border-color: rgba(17, 24, 32, 0.2);
 }
 body[data-theme="dark"] .slide-stage.page-bg-light .color-swatch:hover {
@@ -629,6 +630,9 @@ body[data-theme="dark"] .slide-stage.page-bg-light .color-swatch:hover {
 body[data-theme="dark"] .slide-stage.page-bg-light .color-swatch.active {
   border-color: #111820;
   box-shadow: 0 0 0 2px rgba(17, 24, 32, 0.15);
+}
+body[data-theme="dark"] .slide-stage.page-bg-light .color-swatch-custom:focus-within {
+  box-shadow: 0 0 0 2px rgba(17, 24, 32, 0.25);
 }
 body[data-theme="dark"] .slide-stage.page-bg-light .post-board-note {
   color: #111820;
