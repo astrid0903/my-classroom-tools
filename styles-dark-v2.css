@@ -3089,4 +3089,33 @@ body[data-theme="dark"] .home-layout-actions:has(> button:only-child) {
   grid-template-columns: 1fr;
 }
 
+/* ── Custom low-visibility scrollbars for dark mode and adaptive page-bg-light ── */
+body[data-theme="dark"] .post-board-grid::-webkit-scrollbar-thumb,
+body[data-theme="dark"] .post-section-body::-webkit-scrollbar-thumb,
+body[data-theme="dark"] .participant-board-body::-webkit-scrollbar-thumb,
+body[data-theme="dark"] .participant-board-columns::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+body[data-theme="dark"] .post-board-grid::-webkit-scrollbar-thumb:hover,
+body[data-theme="dark"] .post-section-body::-webkit-scrollbar-thumb:hover,
+body[data-theme="dark"] .participant-board-body::-webkit-scrollbar-thumb:hover,
+body[data-theme="dark"] .participant-board-columns::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.32);
+}
+
+body[data-theme="dark"] .slide-stage.page-bg-light .post-board-grid::-webkit-scrollbar-thumb,
+body[data-theme="dark"] .slide-stage.page-bg-light .post-section-body::-webkit-scrollbar-thumb,
+body[data-theme="dark"] .participant-view.page-bg-light .participant-board-body::-webkit-scrollbar-thumb,
+body[data-theme="dark"] .participant-view.page-bg-light .participant-board-columns::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.14);
+}
+
+body[data-theme="dark"] .slide-stage.page-bg-light .post-board-grid::-webkit-scrollbar-thumb:hover,
+body[data-theme="dark"] .slide-stage.page-bg-light .post-section-body::-webkit-scrollbar-thumb:hover,
+body[data-theme="dark"] .participant-view.page-bg-light .participant-board-body::-webkit-scrollbar-thumb:hover,
+body[data-theme="dark"] .participant-view.page-bg-light .participant-board-columns::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.28);
+}
+
 /* === 結束 patch === */
