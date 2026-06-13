@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Google Slides 教學播放台</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
-  <link rel="stylesheet" href="./styles-v13.css">
-  <link rel="stylesheet" href="./styles-dark-v13.css">
+  <link rel="stylesheet" href="./styles-v14.css">
+  <link rel="stylesheet" href="./styles-dark-v14.css">
 </head>
 <body data-theme="dark">
   <div id="session-bar" class="session-bar hidden" aria-label="Session 狀態">
@@ -157,17 +157,7 @@
             
             <div class="post-board-actions">
               <button id="post-board-note-toggle" class="post-board-action-btn" type="button" title="編輯公告">公告</button>
-              <div class="post-board-join-card" id="post-board-join-card">
-                <button id="post-board-qr-toggle" type="button" class="post-board-action-btn" title="顯示／隱藏 QR Code">QR Code</button>
-                <div class="post-board-join-body">
-                  <span id="post-board-join-title" class="post-board-join-title"></span>
-                  <img id="post-board-qr" alt="貼文板 QR Code">
-                  <div class="post-board-join-footer">
-                    <a id="post-board-link" href="#" target="_blank" rel="noreferrer">開啟投稿頁</a>
-                    <button id="post-board-qr-expand" type="button" class="post-board-qr-expand" title="放大 QR Code">⛶</button>
-                  </div>
-                </div>
-              </div>
+              <button id="post-board-qr-toggle" type="button" class="post-board-action-btn" title="顯示／隱藏 QR Code">QR Code</button>
               <!-- Controls toggle will be dynamically appended here via JS -->
             </div>
 
@@ -213,6 +203,16 @@
                 </div>
               </div>
               <div id="post-board-note" class="post-board-note" contenteditable="true" data-placeholder="點此輸入公告文字…"></div>
+            </div>
+
+            <!-- QR Code popover -->
+            <div class="post-board-qr-popover hidden" id="post-board-qr-popover">
+              <span id="post-board-join-title" class="post-board-join-title"></span>
+              <img id="post-board-qr" alt="貼文板 QR Code">
+              <div class="post-board-join-footer">
+                <a id="post-board-link" href="#" target="_blank" rel="noreferrer">開啟投稿頁</a>
+                <button id="post-board-qr-expand" type="button" class="post-board-qr-expand" title="放大 QR Code">⛶</button>
+              </div>
             </div>
           </header>
           <div id="post-board-message" class="post-board-message" aria-live="polite"></div>
@@ -824,7 +824,7 @@
 
   <div id="settings-backdrop" class="settings-backdrop hidden"></div>
 
-  <script src="./script-v13.js"></script>
+  <script src="./script-v14.js"></script>
   <script>
     // IA Step 1: side-rail wiring — forwards to existing dock buttons.
     (function () {
