@@ -1,0 +1,21 @@
+# Local and generated files
+.firebase/**
+.DS_Store
+Icon?
+*.tmp
+~$*
+
+# Sensitive files
+.env
+*.key
+credentials.*
+client_secret*.json
+
+# Agent and test artifacts
+.claude/**
+.codex/**
+scratch/**
+tools/**
+播放台存檔/**
+舊的/**
+node_modules/**
