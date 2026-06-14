@@ -15,6 +15,15 @@ client_secret*.json
 .claude/
 .codex/
 
+# 本機部署快取與測試暫存
+.firebase/
+scratch/
+
+# 舊版暫存檔（非目前入口引用）
+script-v4.js
+script-v5.js
+script-v15.js
+
 # Node.js
 node_modules/
 package-lock.json
