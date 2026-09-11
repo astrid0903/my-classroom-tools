@@ -27,3 +27,6 @@ script-v15.js
 # Node.js
 node_modules/
 package-lock.json
+
+# 課堂實際存檔（repo 公開，內容不上雲端版控；備份靠 GDrive 同步）
+播放台存檔/
