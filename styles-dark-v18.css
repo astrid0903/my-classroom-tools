@@ -3304,3 +3304,42 @@ body[data-theme="dark"] .slide-stage.page-bg-light .note-color-wrap input[type="
 }
 
 /* === 結束 patch === */
+
+/* ===== 貼文 PDF 附件（暗色主題） ===== */
+body[data-theme="dark"] .post-pdf-preview {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.10);
+  color: var(--d-text-2);
+}
+body[data-theme="dark"] .post-pdf-remove {
+  background: rgba(255, 255, 255, 0.055);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: var(--d-text-2);
+}
+body[data-theme="dark"] .post-pdf-open,
+body[data-theme="dark"] .post-pdf-download {
+  background: rgba(255, 255, 255, 0.055);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: var(--d-text);
+}
+body[data-theme="dark"] .post-pdf-open:hover,
+body[data-theme="dark"] .post-pdf-download:hover {
+  background: rgba(255, 255, 255, 0.10);
+}
+body[data-theme="dark"] .page-bg-light .post-pdf-preview,
+body[data-theme="dark"] .participant-view.page-bg-light .post-pdf-preview {
+  background: rgba(255, 255, 255, 0.64);
+  border-color: rgba(17, 24, 32, 0.08);
+  color: #111820;
+}
+body[data-theme="dark"] .page-bg-light .post-pdf-remove,
+body[data-theme="dark"] .page-bg-light .post-pdf-open,
+body[data-theme="dark"] .page-bg-light .post-pdf-download {
+  background: rgba(17, 24, 32, 0.035);
+  border-color: rgba(17, 24, 32, 0.10);
+  color: #111820;
+}
+body[data-theme="dark"] .page-bg-light .post-pdf-open:hover,
+body[data-theme="dark"] .page-bg-light .post-pdf-download:hover {
+  background: rgba(17, 24, 32, 0.08);
+}

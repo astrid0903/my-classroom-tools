@@ -26,6 +26,8 @@ const BACKGROUND_PRESET_MAX_TOTAL_LENGTH = 3200000;
 const POST_IMAGE_MAX_COUNT = 5;
 const POST_IMAGE_MAX_TOTAL_LENGTH = 950000;
 const POST_IMAGE_MAX_ITEM_LENGTH = 180000;
+const POST_PDF_MAX_LENGTH = 700000;
+const POST_ATTACHMENT_MAX_TOTAL_LENGTH = 950000;
 const GOOGLE_DRIVE_CLIENT_ID = "229213858169-5tp9f6rjp8a45irarko8432h39uagt5a.apps.googleusercontent.com";
 const GOOGLE_DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
 const GOOGLE_DRIVE_DISCOVERY_SRC = "https://accounts.google.com/gsi/client";
@@ -240,6 +242,9 @@ const els = {
   participantImagePreview: document.querySelector("#participant-image-preview"),
   participantImagePreviewImg: document.querySelector("#participant-image-preview-img"),
   participantImageClear: document.querySelector("#participant-image-clear"),
+  participantPdfPreview: document.querySelector("#participant-pdf-preview"),
+  participantPdfName: document.querySelector("#participant-pdf-name"),
+  participantPdfRemove: document.querySelector("#participant-pdf-remove"),
   participantSubmit: document.querySelector("#participant-submit"),
   participantMessage: document.querySelector("#participant-message"),
   participantPostModal: document.querySelector("#participant-post-modal"),
@@ -263,6 +268,9 @@ const els = {
   postEditImages: document.querySelector("#post-edit-images"),
   postEditImageInput: document.querySelector("#post-edit-image-input"),
   postEditImageLabel: document.querySelector("#post-edit-image-label"),
+  postEditPdf: document.querySelector("#post-edit-pdf"),
+  postEditPdfName: document.querySelector("#post-edit-pdf-name"),
+  postEditPdfRemove: document.querySelector("#post-edit-pdf-remove"),
   postEditSave: document.querySelector("#post-edit-save"),
   postEditType: document.querySelector("#post-edit-type"),
   postEditPollContainer: document.querySelector("#post-edit-poll-container"),
@@ -335,6 +343,7 @@ let participantUid = null;
 let participantMode = "edit";
 let participantEditingPostId = null;
 let participantEditingExistingImages = [];
+let participantEditingPdf = null;
 let participantImagePreviewUrls = [];
 let imageViewerRotation = 0;
 let imageViewerPost = null;
@@ -3780,6 +3789,100 @@ function postImageFilename(post, index = 0, source = postImageSources(post)[inde
   return `post-image-${id || "download"}${suffix}.${extension}`;
 }
 
+function isPdfFile(file) {
+  if (!file) return false;
+  return file.type === "application/pdf" || /\.pdf$/i.test(file.name || "");
+}
+
+function sanitizePdfName(name) {
+  const base = String(name || "附件.pdf").split(/[\\/]/).pop().slice(0, 116).trim() || "附件.pdf";
+  return /\.pdf$/i.test(base) ? base : `${base}.pdf`;
+}
+
+async function pdfFileToPostDataUrl(file) {
+  if (!isPdfFile(file)) throw new Error("請選擇 PDF 檔。");
+  const dataUrl = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("PDF 讀取失敗，請再試一次。"));
+    reader.readAsDataURL(file);
+  });
+  if (!dataUrl.startsWith("data:application/pdf")) throw new Error("這個檔案不是有效的 PDF。");
+  if (dataUrl.length > POST_PDF_MAX_LENGTH) {
+    throw new Error(`PDF 太大（單一貼文上限約 ${Math.round((POST_PDF_MAX_LENGTH * 0.75) / 1024)} KB），請先壓縮或拆檔。`);
+  }
+  return dataUrl;
+}
+
+function postPdfAttachment(post) {
+  const dataUrl = typeof post?.pdfDataUrl === "string" ? post.pdfDataUrl : "";
+  if (!dataUrl.startsWith("data:application/pdf")) return null;
+  return { dataUrl, name: sanitizePdfName(post?.pdfName || "貼文附件.pdf") };
+}
+
+function postPdfFilename(post, attachment = postPdfAttachment(post)) {
+  if (!attachment) return "";
+  const id = String(post?.id || Date.now()).replace(/[^a-zA-Z0-9_-]+/g, "-").slice(0, 24);
+  return sanitizePostFilename(`${id}-${attachment.name}`);
+}
+
+function postAssetEntries(post) {
+  const entries = postImageSources(post).map((source, index) => ({
+    name: postImageFilename(post, index, source),
+    source,
+  }));
+  const attachment = postPdfAttachment(post);
+  if (attachment) entries.push({ name: postPdfFilename(post, attachment), source: attachment.dataUrl });
+  return entries;
+}
+
+function dataUrlToBlob(dataUrl) {
+  const [head, body = ""] = String(dataUrl).split(",");
+  const mime = (head.match(/data:([^;]+)/) || [])[1] || "application/octet-stream";
+  const binary = atob(body);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type: mime });
+}
+
+function openPostPdf(attachment) {
+  if (!attachment) return;
+  const blob = dataUrlToBlob(attachment.dataUrl);
+  const url = URL.createObjectURL(blob);
+  const opened = window.open(url, "_blank", "noopener");
+  if (!opened) {
+    // 彈窗被擋時退回下載，避免使用者完全打不開
+    triggerDownload(blob, attachment.name);
+    URL.revokeObjectURL(url);
+    return;
+  }
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+function createPostPdfChip(post, { stopPropagation = false } = {}) {
+  const attachment = postPdfAttachment(post);
+  if (!attachment) return null;
+  const wrap = createEl("div", "post-pdf-attachment");
+  const openBtn = createEl("button", "post-pdf-open");
+  openBtn.type = "button";
+  openBtn.title = `開啟 ${attachment.name}`;
+  openBtn.append(createEl("span", "post-pdf-icon", "PDF"), createEl("span", "post-pdf-name", attachment.name));
+  openBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openPostPdf(attachment);
+  });
+  const download = createEl("button", "post-pdf-download", "下載");
+  download.type = "button";
+  download.title = `下載 ${attachment.name}`;
+  download.addEventListener("click", (event) => {
+    event.stopPropagation();
+    triggerDownload(dataUrlToBlob(attachment.dataUrl), attachment.name);
+  });
+  wrap.append(openBtn, download);
+  if (stopPropagation) wrap.addEventListener("click", (event) => event.stopPropagation());
+  return wrap;
+}
+
 function setImageViewerZoom(value) {
   els.imageViewerImg.style.width = `${value}%`;
   els.imageViewerZoomValue.textContent = `${value}%`;
@@ -4153,33 +4256,62 @@ function renderPostEditImages(images) {
   els.postEditImages.classList.remove("hidden");
 }
 
-async function appendPostEditImages(images, files) {
-  const fileArr = Array.from(files || []).filter((file) => file.type.startsWith("image/"));
+function renderPostEditPdf(pdfRef) {
+  if (!els.postEditPdf) return;
+  const attachment = pdfRef?.value || null;
+  if (els.postEditPdfName) els.postEditPdfName.textContent = attachment ? attachment.name : "";
+  els.postEditPdf.classList.toggle("hidden", !attachment);
+}
+
+async function appendPostEditFiles(images, pdfRef, files) {
+  const all = Array.from(files || []);
   if (els.postEditImageInput) els.postEditImageInput.value = "";
-  if (fileArr.length === 0) {
-    els.postEditMessage.textContent = "請選擇圖片檔。";
-    els.postEditMessage.classList.add("error");
+  const imageFiles = all.filter((file) => file.type.startsWith("image/"));
+  const pdfFiles = all.filter((file) => isPdfFile(file));
+  const setMessage = (text, isError = false) => {
+    els.postEditMessage.textContent = text;
+    els.postEditMessage.classList.toggle("error", isError);
+  };
+
+  if (imageFiles.length === 0 && pdfFiles.length === 0) {
+    setMessage("請選擇圖片或 PDF 檔。", true);
     return;
   }
-  const remaining = POST_IMAGE_MAX_COUNT - images.length;
-  if (remaining <= 0) {
-    els.postEditMessage.textContent = `已達上限 ${POST_IMAGE_MAX_COUNT} 張。如需替換，請先移除舊圖片。`;
-    els.postEditMessage.classList.add("error");
-    return;
-  }
-  const toAdd = fileArr.slice(0, remaining);
-  els.postEditMessage.textContent = fileArr.length > remaining ? `最多共 ${POST_IMAGE_MAX_COUNT} 張，已加入前 ${remaining} 張。` : "";
-  els.postEditMessage.classList.remove("error");
-  for (const file of toAdd) {
+
+  const notes = [];
+
+  if (pdfFiles.length > 0) {
     try {
-      images.push(await imageFileToPostDataUrl(file));
+      const dataUrl = await pdfFileToPostDataUrl(pdfFiles[0]);
+      pdfRef.value = { dataUrl, name: sanitizePdfName(pdfFiles[0].name) };
+      renderPostEditPdf(pdfRef);
+      if (pdfFiles.length > 1) notes.push("一則貼文只能附 1 份 PDF，已加入第一份。");
     } catch (error) {
-      els.postEditMessage.textContent = error.message || "圖片處理失敗。";
-      els.postEditMessage.classList.add("error");
-      break;
+      setMessage(error.message || "PDF 處理失敗。", true);
+      return;
     }
   }
-  renderPostEditImages(images);
+
+  if (imageFiles.length > 0) {
+    const remaining = POST_IMAGE_MAX_COUNT - images.length;
+    if (remaining <= 0) {
+      setMessage(`圖片已達上限 ${POST_IMAGE_MAX_COUNT} 張。如需替換，請先移除舊圖片。`, true);
+      return;
+    }
+    if (imageFiles.length > remaining) notes.push(`圖片最多共 ${POST_IMAGE_MAX_COUNT} 張，已加入前 ${remaining} 張。`);
+    for (const file of imageFiles.slice(0, remaining)) {
+      try {
+        images.push(await imageFileToPostDataUrl(file));
+      } catch (error) {
+        setMessage(error.message || "圖片處理失敗。", true);
+        renderPostEditImages(images);
+        return;
+      }
+    }
+    renderPostEditImages(images);
+  }
+
+  setMessage(notes.join(" "));
 }
 
 function createInstructorPost(sectionId = "") {
@@ -4193,6 +4325,8 @@ function createInstructorPost(sectionId = "") {
     content: "",
     imageDataUrls: [],
     imageDataUrl: "",
+    pdfDataUrl: "",
+    pdfName: "",
   }, { create: true });
 }
 
@@ -4227,6 +4361,8 @@ function editPost(post, options = {}) {
 
   const editSources = [...postImageSources(post)];
   renderPostEditImages(editSources);
+  const editPdfRef = { value: postPdfAttachment(post) };
+  renderPostEditPdf(editPdfRef);
 
   // 投票型貼文的編輯與切換邏輯
   const isPoll = post.type === "poll";
@@ -4268,12 +4404,14 @@ function editPost(post, options = {}) {
       els.postEditPollContainer.classList.remove("hidden");
       if (els.postEditImageLabel) els.postEditImageLabel.classList.add("hidden");
       if (els.postEditImages) els.postEditImages.classList.add("hidden");
+      if (els.postEditPdf) els.postEditPdf.classList.add("hidden");
       if (els.postEditImageInput) els.postEditImageInput.classList.add("hidden");
       renderPollOptions();
     } else {
       els.postEditPollContainer.classList.add("hidden");
       if (els.postEditImageLabel) els.postEditImageLabel.classList.remove("hidden");
       if (editSources.length > 0 && els.postEditImages) els.postEditImages.classList.remove("hidden");
+      renderPostEditPdf(editPdfRef);
       if (els.postEditImageInput) els.postEditImageInput.classList.remove("hidden");
     }
   };
@@ -4303,6 +4441,7 @@ function editPost(post, options = {}) {
     els.postEditSave.removeEventListener("click", onSave);
     els.postEditCancel.removeEventListener("click", onCancel);
     els.postEditImageInput.removeEventListener("change", onImageChange);
+    if (els.postEditPdfRemove) els.postEditPdfRemove.removeEventListener("click", onPdfRemove);
     els.postEditType.removeEventListener("change", updateTypeUI);
     els.postEditAddPollOption.removeEventListener("click", onAddPollOption);
     els.postEditModal.removeEventListener("click", onBackdrop);
@@ -4310,7 +4449,13 @@ function editPost(post, options = {}) {
 
   const onCancel = () => cleanup();
   const onBackdrop = (e) => { if (e.target === els.postEditModal) cleanup(); };
-  const onImageChange = () => appendPostEditImages(editSources, els.postEditImageInput.files);
+  const onImageChange = () => appendPostEditFiles(editSources, editPdfRef, els.postEditImageInput.files);
+  const onPdfRemove = () => {
+    editPdfRef.value = null;
+    renderPostEditPdf(editPdfRef);
+    els.postEditMessage.textContent = "";
+    els.postEditMessage.classList.remove("error");
+  };
 
   const onSave = async () => {
     const nextAuthor = els.postEditAuthor.value.trim().slice(0, 40);
@@ -4344,7 +4489,7 @@ function editPost(post, options = {}) {
         finalPollVotes = initialVotes;
       }
     } else {
-      if (!nextContent && editSources.length === 0) {
+      if (!nextContent && editSources.length === 0 && !editPdfRef.value) {
         els.postEditMessage.textContent = "內容不能為空。";
         els.postEditMessage.classList.add("error");
         return;
@@ -4360,9 +4505,13 @@ function editPost(post, options = {}) {
       await ensurePostBoardAdmin(api, page, user);
 
       const imageDataUrls = isNextPoll ? [] : await Promise.all(editSources.map((src) => compressPostImageDataUrl(src)));
+      const pdfAttachment = isNextPoll ? null : editPdfRef.value;
       const totalImageLength = imageDataUrls.reduce((sum, src) => sum + src.length, 0);
       if (totalImageLength > POST_IMAGE_MAX_TOTAL_LENGTH) {
         throw new Error("圖片總容量太大，請減少張數或換較小的圖片。");
+      }
+      if (totalImageLength + (pdfAttachment?.dataUrl.length || 0) > POST_ATTACHMENT_MAX_TOTAL_LENGTH) {
+        throw new Error("圖片加 PDF 的總容量太大，請減少圖片張數或換較小的 PDF。");
       }
 
       const payload = {
@@ -4372,6 +4521,8 @@ function editPost(post, options = {}) {
         type: nextType,
         imageDataUrl: isNextPoll ? "" : (imageDataUrls[0] || ""),
         imageDataUrls,
+        pdfDataUrl: pdfAttachment?.dataUrl || "",
+        pdfName: pdfAttachment?.name || "",
       };
 
       if (isNextPoll) {
@@ -4407,6 +4558,7 @@ function editPost(post, options = {}) {
   els.postEditSave.addEventListener("click", onSave);
   els.postEditCancel.addEventListener("click", onCancel);
   els.postEditImageInput.addEventListener("change", onImageChange);
+  if (els.postEditPdfRemove) els.postEditPdfRemove.addEventListener("click", onPdfRemove);
   els.postEditModal.addEventListener("click", onBackdrop);
 }
 
@@ -4532,9 +4684,8 @@ function buildPostBoardMdLines(posts, imageFolder) {
   posts.forEach((post) => {
     lines.push(`**${post.author || "匿名"}**`);
     if (post.content) lines.push(post.content);
-    postImageSources(post).forEach((source, i) => {
-      const filename = postImageFilename(post, i, source);
-      lines.push(`![[${imageFolder}/${filename}]]`);
+    postAssetEntries(post).forEach(({ name }) => {
+      lines.push(`![[${imageFolder}/${name}]]`);
     });
     lines.push("");
   });
@@ -4560,8 +4711,8 @@ async function exportPostBoardToObsidian() {
     if (label) lines.push(`# ${label}`, ``);
     buildPostBoardMdLines(posts, filename).forEach((l) => lines.push(l));
     postBoardPosts.filter((p) => posts.includes(p)).forEach((post) => {
-      postImageSources(post).forEach((source, i) => {
-        imageEntries.push({ path: `${filename}/${postImageFilename(post, i, source)}`, source });
+      postAssetEntries(post).forEach(({ name, source }) => {
+        imageEntries.push({ path: `${filename}/${name}`, source });
       });
     });
   }
@@ -4570,8 +4721,8 @@ async function exportPostBoardToObsidian() {
     const sorted = sortPosts(postBoardPosts);
     lines.push(...buildPostBoardMdLines(sorted, filename));
     sorted.forEach((post) => {
-      postImageSources(post).forEach((source, i) => {
-        imageEntries.push({ path: `${filename}/${postImageFilename(post, i, source)}`, source });
+      postAssetEntries(post).forEach(({ name, source }) => {
+        imageEntries.push({ path: `${filename}/${name}`, source });
       });
     });
   } else {
@@ -4580,8 +4731,8 @@ async function exportPostBoardToObsidian() {
       const posts = sortPosts(postsForSection(postBoardPosts, section.id));
       lines.push(...buildPostBoardMdLines(posts, filename));
       posts.forEach((post) => {
-        postImageSources(post).forEach((source, i) => {
-          imageEntries.push({ path: `${filename}/${postImageFilename(post, i, source)}`, source });
+        postAssetEntries(post).forEach(({ name, source }) => {
+          imageEntries.push({ path: `${filename}/${name}`, source });
         });
       });
     });
@@ -4591,8 +4742,8 @@ async function exportPostBoardToObsidian() {
       lines.push(`# 未分類`, ``);
       lines.push(...buildPostBoardMdLines(orphans, filename));
       orphans.forEach((post) => {
-        postImageSources(post).forEach((source, i) => {
-          imageEntries.push({ path: `${filename}/${postImageFilename(post, i, source)}`, source });
+        postAssetEntries(post).forEach(({ name, source }) => {
+          imageEntries.push({ path: `${filename}/${name}`, source });
         });
       });
     }
@@ -4621,6 +4772,7 @@ function buildPostBoardPrintHtml(boardName, sections, allPosts) {
           <div class="post-meta">${escHtml(post.author || "匿名")} &nbsp; ${escHtml(formatPostTime(post.createdAt))}</div>
           <div class="post-author">${escHtml(post.author || "匿名")}</div>
           ${post.content ? `<div class="post-content">${escHtml(post.content)}</div>` : ""}
+          ${postPdfAttachment(post) ? `<div class="post-attachment">附件 PDF：${escHtml(postPdfAttachment(post).name)}</div>` : ""}
         </div>`;
       const rightHtml = hasImage ? `<div class="post-images">${sources.map((src) => `<img src="${src}" class="post-img" alt="">`).join("")}</div>` : "";
       return `<div class="post">${leftHtml}${rightHtml}</div>`;
@@ -4654,6 +4806,7 @@ function buildPostBoardPrintHtml(boardName, sections, allPosts) {
     .post-meta { font-size: 10px; color: #777; margin-bottom: 4px; }
     .post-author { font-weight: 700; font-size: 1.05em; margin-bottom: 6px; }
     .post-content { white-space: pre-wrap; line-height: 1.6; }
+    .post-attachment { margin-top: 6px; font-size: 11px; color: #555; }
     .post-images { flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; }
     .post-img { max-width: 300px; max-height: 300px; object-fit: contain; border-radius: 4px; }
     @media print {
@@ -4707,8 +4860,8 @@ async function exportPostBoardAllFiles() {
     lines.push(...buildPostBoardMdLines(posts, "images"));
     folder.file(`${sanitizePostFilename(sectionLabel)}.md`, lines.join("\n"));
     posts.forEach((post) => {
-      postImageSources(post).forEach((source, i) => {
-        imagesFolder.file(postImageFilename(post, i, source), source.split(",")[1], { base64: true });
+      postAssetEntries(post).forEach(({ name, source }) => {
+        imagesFolder.file(name, source.split(",")[1], { base64: true });
       });
     });
   }
@@ -4814,6 +4967,8 @@ function renderPostCards(container, posts, options = {}) {
     } else {
       const imageGallery = createPostImageGallery(post, { actions: true });
       if (imageGallery) card.appendChild(imageGallery);
+      const pdfChip = createPostPdfChip(post);
+      if (pdfChip) card.appendChild(pdfChip);
     }
     container.appendChild(card);
   });
@@ -5172,47 +5327,73 @@ function renderParticipantImagePending() {
   els.participantImagePreview.classList.remove("hidden");
 }
 
-async function appendParticipantImages(files) {
-  const fileArr = Array.from(files || []).filter((f) => f.type.startsWith("image/"));
+function renderParticipantPdfPending() {
+  if (!els.participantPdfPreview) return;
+  if (els.participantPdfName) els.participantPdfName.textContent = participantEditingPdf ? participantEditingPdf.name : "";
+  els.participantPdfPreview.classList.toggle("hidden", !participantEditingPdf);
+}
+
+async function appendParticipantFiles(files) {
+  const all = Array.from(files || []);
   if (els.participantImage) els.participantImage.value = "";
-  if (fileArr.length === 0) {
-    setParticipantMessage("請選擇圖片檔。", true);
+  const imageFiles = all.filter((file) => file.type.startsWith("image/"));
+  const pdfFiles = all.filter((file) => isPdfFile(file));
+
+  if (imageFiles.length === 0 && pdfFiles.length === 0) {
+    setParticipantMessage("請選擇圖片或 PDF 檔。", true);
     return;
   }
-  const remaining = POST_IMAGE_MAX_COUNT - participantEditingExistingImages.length;
-  if (remaining <= 0) {
-    setParticipantMessage(`已達上限 ${POST_IMAGE_MAX_COUNT} 張。如需替換，請先刪除舊圖片。`, true);
-    return;
-  }
-  const toAdd = fileArr.slice(0, remaining);
-  if (fileArr.length > remaining) {
-    setParticipantMessage(`最多共 ${POST_IMAGE_MAX_COUNT} 張，已加入前 ${remaining} 張。`);
-  } else {
-    els.participantMessage.textContent = "";
-    els.participantMessage.classList.remove("error");
-  }
-  for (const file of toAdd) {
+
+  const notes = [];
+
+  if (pdfFiles.length > 0) {
     try {
-      const dataUrl = await imageFileToPostDataUrl(file);
-      if (dataUrl.length > POST_IMAGE_MAX_ITEM_LENGTH) {
-        setParticipantMessage("有圖片太大，請換一張較小的圖片。", true);
-        break;
-      }
-      participantEditingExistingImages.push(dataUrl);
-    } catch (e) {
-      setParticipantMessage(e.message || "圖片處理失敗。", true);
-      break;
+      const dataUrl = await pdfFileToPostDataUrl(pdfFiles[0]);
+      participantEditingPdf = { dataUrl, name: sanitizePdfName(pdfFiles[0].name) };
+      renderParticipantPdfPending();
+      if (pdfFiles.length > 1) notes.push("一則貼文只能附 1 份 PDF，已加入第一份。");
+    } catch (error) {
+      setParticipantMessage(error.message || "PDF 處理失敗。", true);
+      return;
     }
   }
-  renderParticipantImagePending();
+
+  if (imageFiles.length > 0) {
+    const remaining = POST_IMAGE_MAX_COUNT - participantEditingExistingImages.length;
+    if (remaining <= 0) {
+      setParticipantMessage(`圖片已達上限 ${POST_IMAGE_MAX_COUNT} 張。如需替換，請先刪除舊圖片。`, true);
+      return;
+    }
+    if (imageFiles.length > remaining) notes.push(`圖片最多共 ${POST_IMAGE_MAX_COUNT} 張，已加入前 ${remaining} 張。`);
+    for (const file of imageFiles.slice(0, remaining)) {
+      try {
+        const dataUrl = await imageFileToPostDataUrl(file);
+        if (dataUrl.length > POST_IMAGE_MAX_ITEM_LENGTH) {
+          setParticipantMessage("有圖片太大，請換一張較小的圖片。", true);
+          renderParticipantImagePending();
+          return;
+        }
+        participantEditingExistingImages.push(dataUrl);
+      } catch (error) {
+        setParticipantMessage(error.message || "圖片處理失敗。", true);
+        renderParticipantImagePending();
+        return;
+      }
+    }
+    renderParticipantImagePending();
+  }
+
+  setParticipantMessage(notes.join(" "));
 }
 
 function clearParticipantImagePreview({ clearInput = false } = {}) {
   participantImagePreviewUrls.forEach((url) => URL.revokeObjectURL(url));
   participantImagePreviewUrls = [];
   participantEditingExistingImages = [];
+  participantEditingPdf = null;
   if (clearInput && els.participantImage) els.participantImage.value = "";
   renderParticipantImagePending();
+  renderParticipantPdfPending();
 }
 
 function showParticipantBoard() {
@@ -5259,8 +5440,10 @@ function showParticipantEditForm(post) {
     ? [post.imageDataUrl]
     : [];
   participantEditingExistingImages = [...existingUrls];
+  participantEditingPdf = postPdfAttachment(post);
   if (els.participantImage) els.participantImage.value = "";
   renderParticipantImagePending();
+  renderParticipantPdfPending();
   els.participantBoardScreen.classList.add("hidden");
   els.participantFormScreen.classList.remove("hidden");
   els.participantContent.focus();
@@ -5481,6 +5664,8 @@ function openParticipantPostModal(post) {
   } else {
     const imageGallery = createPostImageGallery(post, { className: "participant-detail-image-gallery" });
     if (imageGallery) els.participantPostModalImage.appendChild(imageGallery);
+    const pdfChip = createPostPdfChip(post);
+    if (pdfChip) els.participantPostModalImage.appendChild(pdfChip);
   }
   els.participantPostModal.classList.remove("hidden");
 }
@@ -5521,6 +5706,8 @@ function renderParticipantPostCards(container, posts) {
         imageGallery.addEventListener("click", (event) => event.stopPropagation());
         card.appendChild(imageGallery);
       }
+      const pdfChip = createPostPdfChip(post, { stopPropagation: true });
+      if (pdfChip) card.appendChild(pdfChip);
     }
 
     const actions = createEl("div", "participant-post-actions");
@@ -5646,8 +5833,8 @@ async function submitParticipantPost(event) {
     setParticipantMessage("目前貼文板設定為只能瀏覽。", true);
     return;
   }
-  if (!content && participantEditingExistingImages.length === 0) {
-    setParticipantMessage("請先輸入內容或選擇圖片。", true);
+  if (!content && participantEditingExistingImages.length === 0 && !participantEditingPdf) {
+    setParticipantMessage("請先輸入內容，或選擇圖片／PDF。", true);
     return;
   }
 
@@ -5658,6 +5845,10 @@ async function submitParticipantPost(event) {
     const totalImageLength = imageDataUrls.reduce((sum, src) => sum + src.length, 0);
     if (totalImageLength > POST_IMAGE_MAX_TOTAL_LENGTH) {
       throw new Error("圖片總容量太大，請減少張數或換較小的圖片。");
+    }
+    const pdfAttachment = participantEditingPdf;
+    if (totalImageLength + (pdfAttachment?.dataUrl.length || 0) > POST_ATTACHMENT_MAX_TOTAL_LENGTH) {
+      throw new Error("圖片加 PDF 的總容量太大，請減少圖片張數或換較小的 PDF。");
     }
     const api = await loadFirebaseApi();
     const user = await requireFirebaseUser(api);
@@ -5670,6 +5861,8 @@ async function submitParticipantPost(event) {
         content,
         imageDataUrls,
         imageDataUrl: imageDataUrls[0] || "",
+        pdfDataUrl: pdfAttachment?.dataUrl || "",
+        pdfName: pdfAttachment?.name || "",
         updatedAt: api.serverTimestamp(),
       });
       participantEditingPostId = null;
@@ -5680,6 +5873,8 @@ async function submitParticipantPost(event) {
         content,
         imageDataUrl: imageDataUrls[0] || "",
         imageDataUrls,
+        pdfDataUrl: pdfAttachment?.dataUrl || "",
+        pdfName: pdfAttachment?.name || "",
         order: -Date.now(),
         createdAt: api.serverTimestamp(),
         authorUid: participantUid || "",
@@ -7367,7 +7562,14 @@ els.participantPostModalClose.addEventListener("click", closeParticipantPostModa
 els.participantPostModal.addEventListener("click", (event) => {
   if (event.target === els.participantPostModal) closeParticipantPostModal();
 });
-els.participantImage.addEventListener("change", () => appendParticipantImages(els.participantImage.files));
+els.participantImage.addEventListener("change", () => appendParticipantFiles(els.participantImage.files));
+if (els.participantPdfRemove) {
+  els.participantPdfRemove.addEventListener("click", () => {
+    participantEditingPdf = null;
+    renderParticipantPdfPending();
+    setParticipantMessage("");
+  });
+}
 els.participantImageClear.addEventListener("click", () => clearParticipantImagePreview({ clearInput: true }));
 function setPostBoardQrOpen(isOpen) {
   if (!els.postBoardQrPopover || !els.postBoardQrToggle) return;

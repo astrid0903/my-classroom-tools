@@ -4193,3 +4193,95 @@ body.studio-mode .page-tabs {
 .participant-board-columns::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 0, 0, 0.28);
 }
+
+/* ===== 貼文 PDF 附件（上傳預覽 + 貼文卡片） ===== */
+.post-pdf-preview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.post-pdf-preview.hidden,
+.post-pdf-attachment.hidden {
+  display: none;
+}
+
+.post-pdf-icon {
+  flex-shrink: 0;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #ffffff;
+  background: #d64545;
+  border-radius: 4px;
+  padding: 3px 5px;
+  line-height: 1;
+}
+
+.post-pdf-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.82rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.post-pdf-remove {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: rgba(0, 0, 0, 0.04);
+  color: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.post-pdf-attachment {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  min-width: 0;
+}
+
+.post-pdf-open {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  padding: 7px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: rgba(0, 0, 0, 0.035);
+  color: inherit;
+  cursor: pointer;
+}
+
+.post-pdf-open:hover {
+  background: rgba(0, 0, 0, 0.07);
+}
+
+.post-pdf-download {
+  flex-shrink: 0;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: transparent;
+  color: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.post-pdf-download:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
