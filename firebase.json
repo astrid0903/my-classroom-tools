@@ -3,6 +3,7 @@
     "rules": "firestore.rules"
   },
   "hosting": {
+    "site": "my-teaching-tools-gisele0903",
     "public": ".",
     "ignore": [
       "firebase.json",
