@@ -29,8 +29,8 @@ service cloud.firestore {
       return value == null || isPostImages(value);
     }
 
-    function isOptionalPdfDataUrl(value) {
-      return value == null || (value is string && value.size() <= 700000);
+    function isOptionalFileDataUrl(value) {
+      return value == null || (value is string && value.size() <= 900000);
     }
 
     function isOptionalPostOrder(value) {
@@ -58,7 +58,7 @@ service cloud.firestore {
         || (request.resource.data.get('imageDataUrl', null) is string && request.resource.data.get('imageDataUrl', '').size() > 0)
         || (request.resource.data.get('imageDataUrls', null) is list && request.resource.data.get('imageDataUrls', []).size() > 0)
         || (request.resource.data.get('pollOptions', null) is list && request.resource.data.get('pollOptions', []).size() > 0)
-        || (request.resource.data.get('pdfDataUrl', null) is string && request.resource.data.get('pdfDataUrl', '').size() > 0);
+        || (request.resource.data.get('fileDataUrl', null) is string && request.resource.data.get('fileDataUrl', '').size() > 0);
     }
 
     function isPostBoardMetadata() {
@@ -96,7 +96,7 @@ service cloud.firestore {
     }
 
     function isPost() {
-      return request.resource.data.keys().hasOnly(['author', 'sectionId', 'content', 'imageDataUrl', 'imageDataUrls', 'pdfDataUrl', 'pdfName', 'order', 'createdAt', 'authorUid', 'type', 'pollOptions', 'pollVotes', 'isStarred'])
+      return request.resource.data.keys().hasOnly(['author', 'sectionId', 'content', 'imageDataUrl', 'imageDataUrls', 'fileDataUrl', 'fileName', 'order', 'createdAt', 'authorUid', 'type', 'pollOptions', 'pollVotes', 'isStarred'])
         && isOptionalString(request.resource.data.get('author', null), 40)
         && request.resource.data.sectionId is string
         && request.resource.data.sectionId.size() > 0
@@ -104,8 +104,8 @@ service cloud.firestore {
         && isOptionalString(request.resource.data.get('content', null), 600)
         && isOptionalString(request.resource.data.get('imageDataUrl', null), 950000)
         && isOptionalPostImages(request.resource.data.get('imageDataUrls', null))
-        && isOptionalPdfDataUrl(request.resource.data.get('pdfDataUrl', null))
-        && isOptionalString(request.resource.data.get('pdfName', null), 120)
+        && isOptionalFileDataUrl(request.resource.data.get('fileDataUrl', null))
+        && isOptionalString(request.resource.data.get('fileName', null), 120)
         && isOptionalPostOrder(request.resource.data.get('order', null))
         && isOptionalString(request.resource.data.get('type', null), 20)
         && isOptionalPollOptions(request.resource.data.get('pollOptions', null))
@@ -117,7 +117,7 @@ service cloud.firestore {
     }
 
     function isPostEdit() {
-      return request.resource.data.keys().hasOnly(['author', 'sectionId', 'content', 'imageDataUrl', 'imageDataUrls', 'pdfDataUrl', 'pdfName', 'order', 'createdAt', 'updatedAt', 'authorUid', 'type', 'pollOptions', 'pollVotes', 'isStarred'])
+      return request.resource.data.keys().hasOnly(['author', 'sectionId', 'content', 'imageDataUrl', 'imageDataUrls', 'fileDataUrl', 'fileName', 'order', 'createdAt', 'updatedAt', 'authorUid', 'type', 'pollOptions', 'pollVotes', 'isStarred'])
         && isOptionalString(request.resource.data.get('author', null), 40)
         && request.resource.data.sectionId is string
         && request.resource.data.sectionId.size() > 0
@@ -125,8 +125,8 @@ service cloud.firestore {
         && isOptionalString(request.resource.data.get('content', null), 600)
         && isOptionalString(request.resource.data.get('imageDataUrl', null), 950000)
         && isOptionalPostImages(request.resource.data.get('imageDataUrls', null))
-        && isOptionalPdfDataUrl(request.resource.data.get('pdfDataUrl', null))
-        && isOptionalString(request.resource.data.get('pdfName', null), 120)
+        && isOptionalFileDataUrl(request.resource.data.get('fileDataUrl', null))
+        && isOptionalString(request.resource.data.get('fileName', null), 120)
         && isOptionalPostOrder(request.resource.data.get('order', null))
         && isOptionalString(request.resource.data.get('type', null), 20)
         && isOptionalPollOptions(request.resource.data.get('pollOptions', null))
@@ -140,7 +140,7 @@ service cloud.firestore {
 
     function isAdminPostEdit() {
       return request.auth != null
-        && request.resource.data.keys().hasOnly(['author', 'sectionId', 'content', 'imageDataUrl', 'imageDataUrls', 'pdfDataUrl', 'pdfName', 'order', 'createdAt', 'updatedAt', 'authorUid', 'type', 'pollOptions', 'pollVotes', 'isStarred'])
+        && request.resource.data.keys().hasOnly(['author', 'sectionId', 'content', 'imageDataUrl', 'imageDataUrls', 'fileDataUrl', 'fileName', 'order', 'createdAt', 'updatedAt', 'authorUid', 'type', 'pollOptions', 'pollVotes', 'isStarred'])
         && isOptionalString(request.resource.data.get('author', null), 40)
         && request.resource.data.sectionId is string
         && request.resource.data.sectionId.size() > 0
@@ -148,8 +148,8 @@ service cloud.firestore {
         && isOptionalString(request.resource.data.get('content', null), 600)
         && isOptionalString(request.resource.data.get('imageDataUrl', null), 950000)
         && isOptionalPostImages(request.resource.data.get('imageDataUrls', null))
-        && isOptionalPdfDataUrl(request.resource.data.get('pdfDataUrl', null))
-        && isOptionalString(request.resource.data.get('pdfName', null), 120)
+        && isOptionalFileDataUrl(request.resource.data.get('fileDataUrl', null))
+        && isOptionalString(request.resource.data.get('fileName', null), 120)
         && isOptionalPostOrder(request.resource.data.get('order', null))
         && isOptionalString(request.resource.data.get('type', null), 20)
         && isOptionalPollOptions(request.resource.data.get('pollOptions', null))
@@ -160,14 +160,14 @@ service cloud.firestore {
     }
 
     function isPollVoteOnlyUpdate() {
-      return request.resource.data.keys().hasOnly(['author', 'sectionId', 'content', 'imageDataUrl', 'imageDataUrls', 'pdfDataUrl', 'pdfName', 'order', 'createdAt', 'updatedAt', 'authorUid', 'type', 'pollOptions', 'pollVotes', 'isStarred'])
+      return request.resource.data.keys().hasOnly(['author', 'sectionId', 'content', 'imageDataUrl', 'imageDataUrls', 'fileDataUrl', 'fileName', 'order', 'createdAt', 'updatedAt', 'authorUid', 'type', 'pollOptions', 'pollVotes', 'isStarred'])
         && request.resource.data.get('author', null) == resource.data.get('author', null)
         && request.resource.data.sectionId == resource.data.sectionId
         && request.resource.data.get('content', null) == resource.data.get('content', null)
         && request.resource.data.get('imageDataUrl', null) == resource.data.get('imageDataUrl', null)
         && request.resource.data.get('imageDataUrls', null) == resource.data.get('imageDataUrls', null)
-        && request.resource.data.get('pdfDataUrl', null) == resource.data.get('pdfDataUrl', null)
-        && request.resource.data.get('pdfName', null) == resource.data.get('pdfName', null)
+        && request.resource.data.get('fileDataUrl', null) == resource.data.get('fileDataUrl', null)
+        && request.resource.data.get('fileName', null) == resource.data.get('fileName', null)
         && request.resource.data.get('order', null) == resource.data.get('order', null)
         && request.resource.data.createdAt == resource.data.createdAt
         && request.resource.data.authorUid == resource.data.authorUid

@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Google Slides 教學播放台</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
-  <link rel="stylesheet" href="./styles-v18.css">
-  <link rel="stylesheet" href="./styles-dark-v18.css">
+  <link rel="stylesheet" href="./styles-v19.css">
+  <link rel="stylesheet" href="./styles-dark-v19.css">
 </head>
 <body data-theme="dark">
   <div id="session-bar" class="session-bar hidden" aria-label="Session 狀態">
@@ -705,12 +705,12 @@
           </div>
           <label for="participant-content">貼文內容</label>
           <textarea id="participant-content" rows="5" maxlength="600" placeholder="寫下你的想法、問題或回饋"></textarea>
-          <label for="participant-image">上傳圖片或 PDF（圖片最多 5 張，PDF 1 份）</label>
-          <input id="participant-image" type="file" accept="image/*,application/pdf,.pdf" multiple>
-          <div id="participant-pdf-preview" class="post-pdf-preview hidden" aria-live="polite">
-            <span class="post-pdf-icon" aria-hidden="true">PDF</span>
-            <span id="participant-pdf-name" class="post-pdf-name"></span>
-            <button id="participant-pdf-remove" type="button" class="post-pdf-remove" aria-label="移除 PDF">×</button>
+          <label for="participant-image">上傳檔案（圖片最多 5 張，另可附 1 個任意格式的檔案）</label>
+          <input id="participant-image" type="file" multiple>
+          <div id="participant-file-preview" class="post-file-preview hidden" aria-live="polite">
+            <span id="participant-file-icon" class="post-file-icon" aria-hidden="true">檔案</span>
+            <span id="participant-file-name" class="post-file-name"></span>
+            <button id="participant-file-remove" type="button" class="post-file-remove" aria-label="移除附件">×</button>
           </div>
           <div id="participant-image-preview" class="participant-image-preview hidden" aria-live="polite">
             <div class="participant-image-preview-head">
@@ -749,14 +749,14 @@
         <button id="post-edit-add-poll-option" class="secondary small-btn" type="button">+ 新增選項</button>
       </div>
 
-      <label for="post-edit-image-input" id="post-edit-image-label">圖片 / PDF</label>
+      <label for="post-edit-image-input" id="post-edit-image-label">圖片 / 附件檔案</label>
       <div id="post-edit-images" class="post-edit-images hidden"></div>
-      <div id="post-edit-pdf" class="post-pdf-preview hidden" aria-live="polite">
-        <span class="post-pdf-icon" aria-hidden="true">PDF</span>
-        <span id="post-edit-pdf-name" class="post-pdf-name"></span>
-        <button id="post-edit-pdf-remove" type="button" class="post-pdf-remove" aria-label="移除 PDF">×</button>
+      <div id="post-edit-file" class="post-file-preview hidden" aria-live="polite">
+        <span id="post-edit-file-icon" class="post-file-icon" aria-hidden="true">檔案</span>
+        <span id="post-edit-file-name" class="post-file-name"></span>
+        <button id="post-edit-file-remove" type="button" class="post-file-remove" aria-label="移除附件">×</button>
       </div>
-      <input id="post-edit-image-input" type="file" accept="image/*,application/pdf,.pdf" multiple>
+      <input id="post-edit-image-input" type="file" multiple>
       <div class="button-row">
         <button id="post-edit-save" type="button">儲存</button>
         <button id="post-edit-cancel" class="secondary" type="button">取消</button>
@@ -834,7 +834,7 @@
 
   <div id="settings-backdrop" class="settings-backdrop hidden"></div>
 
-  <script src="./script-v18.js"></script>
+  <script src="./script-v19.js"></script>
   <script>
     // IA Step 1: side-rail wiring — forwards to existing dock buttons.
     (function () {

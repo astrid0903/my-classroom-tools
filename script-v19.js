@@ -26,7 +26,7 @@ const BACKGROUND_PRESET_MAX_TOTAL_LENGTH = 3200000;
 const POST_IMAGE_MAX_COUNT = 5;
 const POST_IMAGE_MAX_TOTAL_LENGTH = 950000;
 const POST_IMAGE_MAX_ITEM_LENGTH = 180000;
-const POST_PDF_MAX_LENGTH = 700000;
+const POST_FILE_MAX_LENGTH = 900000;
 const POST_ATTACHMENT_MAX_TOTAL_LENGTH = 950000;
 const GOOGLE_DRIVE_CLIENT_ID = "229213858169-5tp9f6rjp8a45irarko8432h39uagt5a.apps.googleusercontent.com";
 const GOOGLE_DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
@@ -242,9 +242,10 @@ const els = {
   participantImagePreview: document.querySelector("#participant-image-preview"),
   participantImagePreviewImg: document.querySelector("#participant-image-preview-img"),
   participantImageClear: document.querySelector("#participant-image-clear"),
-  participantPdfPreview: document.querySelector("#participant-pdf-preview"),
-  participantPdfName: document.querySelector("#participant-pdf-name"),
-  participantPdfRemove: document.querySelector("#participant-pdf-remove"),
+  participantAttachmentPreview: document.querySelector("#participant-file-preview"),
+  participantAttachmentName: document.querySelector("#participant-file-name"),
+  participantAttachmentIcon: document.querySelector("#participant-file-icon"),
+  participantAttachmentRemove: document.querySelector("#participant-file-remove"),
   participantSubmit: document.querySelector("#participant-submit"),
   participantMessage: document.querySelector("#participant-message"),
   participantPostModal: document.querySelector("#participant-post-modal"),
@@ -268,9 +269,10 @@ const els = {
   postEditImages: document.querySelector("#post-edit-images"),
   postEditImageInput: document.querySelector("#post-edit-image-input"),
   postEditImageLabel: document.querySelector("#post-edit-image-label"),
-  postEditPdf: document.querySelector("#post-edit-pdf"),
-  postEditPdfName: document.querySelector("#post-edit-pdf-name"),
-  postEditPdfRemove: document.querySelector("#post-edit-pdf-remove"),
+  postEditAttachment: document.querySelector("#post-edit-file"),
+  postEditAttachmentName: document.querySelector("#post-edit-file-name"),
+  postEditAttachmentIcon: document.querySelector("#post-edit-file-icon"),
+  postEditAttachmentRemove: document.querySelector("#post-edit-file-remove"),
   postEditSave: document.querySelector("#post-edit-save"),
   postEditType: document.querySelector("#post-edit-type"),
   postEditPollContainer: document.querySelector("#post-edit-poll-container"),
@@ -343,7 +345,7 @@ let participantUid = null;
 let participantMode = "edit";
 let participantEditingPostId = null;
 let participantEditingExistingImages = [];
-let participantEditingPdf = null;
+let participantEditingAttachment = null;
 let participantImagePreviewUrls = [];
 let imageViewerRotation = 0;
 let imageViewerPost = null;
@@ -3789,38 +3791,49 @@ function postImageFilename(post, index = 0, source = postImageSources(post)[inde
   return `post-image-${id || "download"}${suffix}.${extension}`;
 }
 
-function isPdfFile(file) {
-  if (!file) return false;
-  return file.type === "application/pdf" || /\.pdf$/i.test(file.name || "");
+function isImageFile(file) {
+  return Boolean(file) && typeof file.type === "string" && file.type.startsWith("image/");
 }
 
-function sanitizePdfName(name) {
-  const base = String(name || "附件.pdf").split(/[\\/]/).pop().slice(0, 116).trim() || "附件.pdf";
-  return /\.pdf$/i.test(base) ? base : `${base}.pdf`;
+function sanitizeAttachmentName(name) {
+  const base = String(name || "附件").split(/[\\/]/).pop().trim() || "附件";
+  if (base.length <= 116) return base;
+  // 過長檔名從中間截，保留副檔名（rules 上限 120 字元）
+  const dot = base.lastIndexOf(".");
+  const ext = dot > 0 ? base.slice(dot, dot + 12) : "";
+  return base.slice(0, 116 - ext.length) + ext;
 }
 
-async function pdfFileToPostDataUrl(file) {
-  if (!isPdfFile(file)) throw new Error("請選擇 PDF 檔。");
+function attachmentBadgeLabel(name) {
+  const dot = String(name || "").lastIndexOf(".");
+  const ext = dot > 0 ? name.slice(dot + 1) : "";
+  if (!ext || ext.length > 4) return "檔案";
+  return ext.toUpperCase();
+}
+
+async function fileToPostDataUrl(file) {
+  if (!file) throw new Error("請選擇檔案。");
+  if (file.size === 0) throw new Error("這個檔案是空的，請換一個。");
   const dataUrl = await new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = () => reject(new Error("PDF 讀取失敗，請再試一次。"));
+    reader.onerror = () => reject(new Error("檔案讀取失敗，請再試一次。"));
     reader.readAsDataURL(file);
   });
-  if (!dataUrl.startsWith("data:application/pdf")) throw new Error("這個檔案不是有效的 PDF。");
-  if (dataUrl.length > POST_PDF_MAX_LENGTH) {
-    throw new Error(`PDF 太大（單一貼文上限約 ${Math.round((POST_PDF_MAX_LENGTH * 0.75) / 1024)} KB），請先壓縮或拆檔。`);
+  if (!dataUrl.startsWith("data:")) throw new Error("檔案讀取失敗，請再試一次。");
+  if (dataUrl.length > POST_FILE_MAX_LENGTH) {
+    throw new Error(`檔案太大（單一貼文上限約 ${Math.round((POST_FILE_MAX_LENGTH * 0.75) / 1024)} KB），請先壓縮或改用雲端連結。`);
   }
   return dataUrl;
 }
 
-function postPdfAttachment(post) {
-  const dataUrl = typeof post?.pdfDataUrl === "string" ? post.pdfDataUrl : "";
-  if (!dataUrl.startsWith("data:application/pdf")) return null;
-  return { dataUrl, name: sanitizePdfName(post?.pdfName || "貼文附件.pdf") };
+function postFileAttachment(post) {
+  const dataUrl = typeof post?.fileDataUrl === "string" ? post.fileDataUrl : "";
+  if (!dataUrl.startsWith("data:")) return null;
+  return { dataUrl, name: sanitizeAttachmentName(post?.fileName || "貼文附件") };
 }
 
-function postPdfFilename(post, attachment = postPdfAttachment(post)) {
+function postAttachmentFilename(post, attachment = postFileAttachment(post)) {
   if (!attachment) return "";
   const id = String(post?.id || Date.now()).replace(/[^a-zA-Z0-9_-]+/g, "-").slice(0, 24);
   return sanitizePostFilename(`${id}-${attachment.name}`);
@@ -3831,8 +3844,8 @@ function postAssetEntries(post) {
     name: postImageFilename(post, index, source),
     source,
   }));
-  const attachment = postPdfAttachment(post);
-  if (attachment) entries.push({ name: postPdfFilename(post, attachment), source: attachment.dataUrl });
+  const attachment = postFileAttachment(post);
+  if (attachment) entries.push({ name: postAttachmentFilename(post, attachment), source: attachment.dataUrl });
   return entries;
 }
 
@@ -3845,7 +3858,7 @@ function dataUrlToBlob(dataUrl) {
   return new Blob([bytes], { type: mime });
 }
 
-function openPostPdf(attachment) {
+function openPostAttachment(attachment) {
   if (!attachment) return;
   const blob = dataUrlToBlob(attachment.dataUrl);
   const url = URL.createObjectURL(blob);
@@ -3859,19 +3872,21 @@ function openPostPdf(attachment) {
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
-function createPostPdfChip(post, { stopPropagation = false } = {}) {
-  const attachment = postPdfAttachment(post);
+function createPostFileChip(post, { stopPropagation = false } = {}) {
+  const attachment = postFileAttachment(post);
   if (!attachment) return null;
-  const wrap = createEl("div", "post-pdf-attachment");
-  const openBtn = createEl("button", "post-pdf-open");
+  const wrap = createEl("div", "post-file-attachment");
+  const openBtn = createEl("button", "post-file-open");
   openBtn.type = "button";
   openBtn.title = `開啟 ${attachment.name}`;
-  openBtn.append(createEl("span", "post-pdf-icon", "PDF"), createEl("span", "post-pdf-name", attachment.name));
+  const badge = createEl("span", "post-file-icon", attachmentBadgeLabel(attachment.name));
+  badge.dataset.kind = attachmentBadgeLabel(attachment.name).toLowerCase();
+  openBtn.append(badge, createEl("span", "post-file-name", attachment.name));
   openBtn.addEventListener("click", (event) => {
     event.stopPropagation();
-    openPostPdf(attachment);
+    openPostAttachment(attachment);
   });
-  const download = createEl("button", "post-pdf-download", "下載");
+  const download = createEl("button", "post-file-download", "下載");
   download.type = "button";
   download.title = `下載 ${attachment.name}`;
   download.addEventListener("click", (event) => {
@@ -4256,38 +4271,43 @@ function renderPostEditImages(images) {
   els.postEditImages.classList.remove("hidden");
 }
 
-function renderPostEditPdf(pdfRef) {
-  if (!els.postEditPdf) return;
-  const attachment = pdfRef?.value || null;
-  if (els.postEditPdfName) els.postEditPdfName.textContent = attachment ? attachment.name : "";
-  els.postEditPdf.classList.toggle("hidden", !attachment);
+function renderPostEditAttachment(attachmentRef) {
+  if (!els.postEditAttachment) return;
+  const attachment = attachmentRef?.value || null;
+  if (els.postEditAttachmentName) els.postEditAttachmentName.textContent = attachment ? attachment.name : "";
+  if (els.postEditAttachmentIcon && attachment) {
+    const label = attachmentBadgeLabel(attachment.name);
+    els.postEditAttachmentIcon.textContent = label;
+    els.postEditAttachmentIcon.dataset.kind = label.toLowerCase();
+  }
+  els.postEditAttachment.classList.toggle("hidden", !attachment);
 }
 
-async function appendPostEditFiles(images, pdfRef, files) {
+async function appendPostEditFiles(images, attachmentRef, files) {
   const all = Array.from(files || []);
   if (els.postEditImageInput) els.postEditImageInput.value = "";
-  const imageFiles = all.filter((file) => file.type.startsWith("image/"));
-  const pdfFiles = all.filter((file) => isPdfFile(file));
+  const imageFiles = all.filter((file) => isImageFile(file));
+  const otherFiles = all.filter((file) => !isImageFile(file));
   const setMessage = (text, isError = false) => {
     els.postEditMessage.textContent = text;
     els.postEditMessage.classList.toggle("error", isError);
   };
 
-  if (imageFiles.length === 0 && pdfFiles.length === 0) {
-    setMessage("請選擇圖片或 PDF 檔。", true);
+  if (imageFiles.length === 0 && otherFiles.length === 0) {
+    setMessage("請選擇檔案。", true);
     return;
   }
 
   const notes = [];
 
-  if (pdfFiles.length > 0) {
+  if (otherFiles.length > 0) {
     try {
-      const dataUrl = await pdfFileToPostDataUrl(pdfFiles[0]);
-      pdfRef.value = { dataUrl, name: sanitizePdfName(pdfFiles[0].name) };
-      renderPostEditPdf(pdfRef);
-      if (pdfFiles.length > 1) notes.push("一則貼文只能附 1 份 PDF，已加入第一份。");
+      const dataUrl = await fileToPostDataUrl(otherFiles[0]);
+      attachmentRef.value = { dataUrl, name: sanitizeAttachmentName(otherFiles[0].name) };
+      renderPostEditAttachment(attachmentRef);
+      if (otherFiles.length > 1) notes.push("一則貼文只能附 1 個檔案，已加入第一個。");
     } catch (error) {
-      setMessage(error.message || "PDF 處理失敗。", true);
+      setMessage(error.message || "檔案處理失敗。", true);
       return;
     }
   }
@@ -4325,8 +4345,8 @@ function createInstructorPost(sectionId = "") {
     content: "",
     imageDataUrls: [],
     imageDataUrl: "",
-    pdfDataUrl: "",
-    pdfName: "",
+    fileDataUrl: "",
+    fileName: "",
   }, { create: true });
 }
 
@@ -4361,8 +4381,8 @@ function editPost(post, options = {}) {
 
   const editSources = [...postImageSources(post)];
   renderPostEditImages(editSources);
-  const editPdfRef = { value: postPdfAttachment(post) };
-  renderPostEditPdf(editPdfRef);
+  const editAttachmentRef = { value: postFileAttachment(post) };
+  renderPostEditAttachment(editAttachmentRef);
 
   // 投票型貼文的編輯與切換邏輯
   const isPoll = post.type === "poll";
@@ -4404,14 +4424,14 @@ function editPost(post, options = {}) {
       els.postEditPollContainer.classList.remove("hidden");
       if (els.postEditImageLabel) els.postEditImageLabel.classList.add("hidden");
       if (els.postEditImages) els.postEditImages.classList.add("hidden");
-      if (els.postEditPdf) els.postEditPdf.classList.add("hidden");
+      if (els.postEditAttachment) els.postEditAttachment.classList.add("hidden");
       if (els.postEditImageInput) els.postEditImageInput.classList.add("hidden");
       renderPollOptions();
     } else {
       els.postEditPollContainer.classList.add("hidden");
       if (els.postEditImageLabel) els.postEditImageLabel.classList.remove("hidden");
       if (editSources.length > 0 && els.postEditImages) els.postEditImages.classList.remove("hidden");
-      renderPostEditPdf(editPdfRef);
+      renderPostEditAttachment(editAttachmentRef);
       if (els.postEditImageInput) els.postEditImageInput.classList.remove("hidden");
     }
   };
@@ -4441,7 +4461,7 @@ function editPost(post, options = {}) {
     els.postEditSave.removeEventListener("click", onSave);
     els.postEditCancel.removeEventListener("click", onCancel);
     els.postEditImageInput.removeEventListener("change", onImageChange);
-    if (els.postEditPdfRemove) els.postEditPdfRemove.removeEventListener("click", onPdfRemove);
+    if (els.postEditAttachmentRemove) els.postEditAttachmentRemove.removeEventListener("click", onAttachmentRemove);
     els.postEditType.removeEventListener("change", updateTypeUI);
     els.postEditAddPollOption.removeEventListener("click", onAddPollOption);
     els.postEditModal.removeEventListener("click", onBackdrop);
@@ -4449,10 +4469,10 @@ function editPost(post, options = {}) {
 
   const onCancel = () => cleanup();
   const onBackdrop = (e) => { if (e.target === els.postEditModal) cleanup(); };
-  const onImageChange = () => appendPostEditFiles(editSources, editPdfRef, els.postEditImageInput.files);
-  const onPdfRemove = () => {
-    editPdfRef.value = null;
-    renderPostEditPdf(editPdfRef);
+  const onImageChange = () => appendPostEditFiles(editSources, editAttachmentRef, els.postEditImageInput.files);
+  const onAttachmentRemove = () => {
+    editAttachmentRef.value = null;
+    renderPostEditAttachment(editAttachmentRef);
     els.postEditMessage.textContent = "";
     els.postEditMessage.classList.remove("error");
   };
@@ -4489,7 +4509,7 @@ function editPost(post, options = {}) {
         finalPollVotes = initialVotes;
       }
     } else {
-      if (!nextContent && editSources.length === 0 && !editPdfRef.value) {
+      if (!nextContent && editSources.length === 0 && !editAttachmentRef.value) {
         els.postEditMessage.textContent = "內容不能為空。";
         els.postEditMessage.classList.add("error");
         return;
@@ -4505,13 +4525,13 @@ function editPost(post, options = {}) {
       await ensurePostBoardAdmin(api, page, user);
 
       const imageDataUrls = isNextPoll ? [] : await Promise.all(editSources.map((src) => compressPostImageDataUrl(src)));
-      const pdfAttachment = isNextPoll ? null : editPdfRef.value;
+      const attachment = isNextPoll ? null : editAttachmentRef.value;
       const totalImageLength = imageDataUrls.reduce((sum, src) => sum + src.length, 0);
       if (totalImageLength > POST_IMAGE_MAX_TOTAL_LENGTH) {
         throw new Error("圖片總容量太大，請減少張數或換較小的圖片。");
       }
-      if (totalImageLength + (pdfAttachment?.dataUrl.length || 0) > POST_ATTACHMENT_MAX_TOTAL_LENGTH) {
-        throw new Error("圖片加 PDF 的總容量太大，請減少圖片張數或換較小的 PDF。");
+      if (totalImageLength + (attachment?.dataUrl.length || 0) > POST_ATTACHMENT_MAX_TOTAL_LENGTH) {
+        throw new Error("圖片加附件的總容量太大，請減少圖片張數或換較小的檔案。");
       }
 
       const payload = {
@@ -4521,8 +4541,8 @@ function editPost(post, options = {}) {
         type: nextType,
         imageDataUrl: isNextPoll ? "" : (imageDataUrls[0] || ""),
         imageDataUrls,
-        pdfDataUrl: pdfAttachment?.dataUrl || "",
-        pdfName: pdfAttachment?.name || "",
+        fileDataUrl: attachment?.dataUrl || "",
+        fileName: attachment?.name || "",
       };
 
       if (isNextPoll) {
@@ -4558,7 +4578,7 @@ function editPost(post, options = {}) {
   els.postEditSave.addEventListener("click", onSave);
   els.postEditCancel.addEventListener("click", onCancel);
   els.postEditImageInput.addEventListener("change", onImageChange);
-  if (els.postEditPdfRemove) els.postEditPdfRemove.addEventListener("click", onPdfRemove);
+  if (els.postEditAttachmentRemove) els.postEditAttachmentRemove.addEventListener("click", onAttachmentRemove);
   els.postEditModal.addEventListener("click", onBackdrop);
 }
 
@@ -4772,7 +4792,7 @@ function buildPostBoardPrintHtml(boardName, sections, allPosts) {
           <div class="post-meta">${escHtml(post.author || "匿名")} &nbsp; ${escHtml(formatPostTime(post.createdAt))}</div>
           <div class="post-author">${escHtml(post.author || "匿名")}</div>
           ${post.content ? `<div class="post-content">${escHtml(post.content)}</div>` : ""}
-          ${postPdfAttachment(post) ? `<div class="post-attachment">附件 PDF：${escHtml(postPdfAttachment(post).name)}</div>` : ""}
+          ${postFileAttachment(post) ? `<div class="post-attachment">附件：${escHtml(postFileAttachment(post).name)}</div>` : ""}
         </div>`;
       const rightHtml = hasImage ? `<div class="post-images">${sources.map((src) => `<img src="${src}" class="post-img" alt="">`).join("")}</div>` : "";
       return `<div class="post">${leftHtml}${rightHtml}</div>`;
@@ -4967,8 +4987,8 @@ function renderPostCards(container, posts, options = {}) {
     } else {
       const imageGallery = createPostImageGallery(post, { actions: true });
       if (imageGallery) card.appendChild(imageGallery);
-      const pdfChip = createPostPdfChip(post);
-      if (pdfChip) card.appendChild(pdfChip);
+      const fileChip = createPostFileChip(post);
+      if (fileChip) card.appendChild(fileChip);
     }
     container.appendChild(card);
   });
@@ -5327,33 +5347,38 @@ function renderParticipantImagePending() {
   els.participantImagePreview.classList.remove("hidden");
 }
 
-function renderParticipantPdfPending() {
-  if (!els.participantPdfPreview) return;
-  if (els.participantPdfName) els.participantPdfName.textContent = participantEditingPdf ? participantEditingPdf.name : "";
-  els.participantPdfPreview.classList.toggle("hidden", !participantEditingPdf);
+function renderParticipantAttachmentPending() {
+  if (!els.participantAttachmentPreview) return;
+  if (els.participantAttachmentName) els.participantAttachmentName.textContent = participantEditingAttachment ? participantEditingAttachment.name : "";
+  if (els.participantAttachmentIcon && participantEditingAttachment) {
+    const label = attachmentBadgeLabel(participantEditingAttachment.name);
+    els.participantAttachmentIcon.textContent = label;
+    els.participantAttachmentIcon.dataset.kind = label.toLowerCase();
+  }
+  els.participantAttachmentPreview.classList.toggle("hidden", !participantEditingAttachment);
 }
 
 async function appendParticipantFiles(files) {
   const all = Array.from(files || []);
   if (els.participantImage) els.participantImage.value = "";
-  const imageFiles = all.filter((file) => file.type.startsWith("image/"));
-  const pdfFiles = all.filter((file) => isPdfFile(file));
+  const imageFiles = all.filter((file) => isImageFile(file));
+  const otherFiles = all.filter((file) => !isImageFile(file));
 
-  if (imageFiles.length === 0 && pdfFiles.length === 0) {
-    setParticipantMessage("請選擇圖片或 PDF 檔。", true);
+  if (imageFiles.length === 0 && otherFiles.length === 0) {
+    setParticipantMessage("請選擇檔案。", true);
     return;
   }
 
   const notes = [];
 
-  if (pdfFiles.length > 0) {
+  if (otherFiles.length > 0) {
     try {
-      const dataUrl = await pdfFileToPostDataUrl(pdfFiles[0]);
-      participantEditingPdf = { dataUrl, name: sanitizePdfName(pdfFiles[0].name) };
-      renderParticipantPdfPending();
-      if (pdfFiles.length > 1) notes.push("一則貼文只能附 1 份 PDF，已加入第一份。");
+      const dataUrl = await fileToPostDataUrl(otherFiles[0]);
+      participantEditingAttachment = { dataUrl, name: sanitizeAttachmentName(otherFiles[0].name) };
+      renderParticipantAttachmentPending();
+      if (otherFiles.length > 1) notes.push("一則貼文只能附 1 個檔案，已加入第一個。");
     } catch (error) {
-      setParticipantMessage(error.message || "PDF 處理失敗。", true);
+      setParticipantMessage(error.message || "檔案處理失敗。", true);
       return;
     }
   }
@@ -5390,10 +5415,10 @@ function clearParticipantImagePreview({ clearInput = false } = {}) {
   participantImagePreviewUrls.forEach((url) => URL.revokeObjectURL(url));
   participantImagePreviewUrls = [];
   participantEditingExistingImages = [];
-  participantEditingPdf = null;
+  participantEditingAttachment = null;
   if (clearInput && els.participantImage) els.participantImage.value = "";
   renderParticipantImagePending();
-  renderParticipantPdfPending();
+  renderParticipantAttachmentPending();
 }
 
 function showParticipantBoard() {
@@ -5440,10 +5465,10 @@ function showParticipantEditForm(post) {
     ? [post.imageDataUrl]
     : [];
   participantEditingExistingImages = [...existingUrls];
-  participantEditingPdf = postPdfAttachment(post);
+  participantEditingAttachment = postFileAttachment(post);
   if (els.participantImage) els.participantImage.value = "";
   renderParticipantImagePending();
-  renderParticipantPdfPending();
+  renderParticipantAttachmentPending();
   els.participantBoardScreen.classList.add("hidden");
   els.participantFormScreen.classList.remove("hidden");
   els.participantContent.focus();
@@ -5664,8 +5689,8 @@ function openParticipantPostModal(post) {
   } else {
     const imageGallery = createPostImageGallery(post, { className: "participant-detail-image-gallery" });
     if (imageGallery) els.participantPostModalImage.appendChild(imageGallery);
-    const pdfChip = createPostPdfChip(post);
-    if (pdfChip) els.participantPostModalImage.appendChild(pdfChip);
+    const fileChip = createPostFileChip(post);
+    if (fileChip) els.participantPostModalImage.appendChild(fileChip);
   }
   els.participantPostModal.classList.remove("hidden");
 }
@@ -5706,8 +5731,8 @@ function renderParticipantPostCards(container, posts) {
         imageGallery.addEventListener("click", (event) => event.stopPropagation());
         card.appendChild(imageGallery);
       }
-      const pdfChip = createPostPdfChip(post, { stopPropagation: true });
-      if (pdfChip) card.appendChild(pdfChip);
+      const fileChip = createPostFileChip(post, { stopPropagation: true });
+      if (fileChip) card.appendChild(fileChip);
     }
 
     const actions = createEl("div", "participant-post-actions");
@@ -5833,8 +5858,8 @@ async function submitParticipantPost(event) {
     setParticipantMessage("目前貼文板設定為只能瀏覽。", true);
     return;
   }
-  if (!content && participantEditingExistingImages.length === 0 && !participantEditingPdf) {
-    setParticipantMessage("請先輸入內容，或選擇圖片／PDF。", true);
+  if (!content && participantEditingExistingImages.length === 0 && !participantEditingAttachment) {
+    setParticipantMessage("請先輸入內容，或選擇檔案。", true);
     return;
   }
 
@@ -5846,9 +5871,9 @@ async function submitParticipantPost(event) {
     if (totalImageLength > POST_IMAGE_MAX_TOTAL_LENGTH) {
       throw new Error("圖片總容量太大，請減少張數或換較小的圖片。");
     }
-    const pdfAttachment = participantEditingPdf;
-    if (totalImageLength + (pdfAttachment?.dataUrl.length || 0) > POST_ATTACHMENT_MAX_TOTAL_LENGTH) {
-      throw new Error("圖片加 PDF 的總容量太大，請減少圖片張數或換較小的 PDF。");
+    const attachment = participantEditingAttachment;
+    if (totalImageLength + (attachment?.dataUrl.length || 0) > POST_ATTACHMENT_MAX_TOTAL_LENGTH) {
+      throw new Error("圖片加附件的總容量太大，請減少圖片張數或換較小的檔案。");
     }
     const api = await loadFirebaseApi();
     const user = await requireFirebaseUser(api);
@@ -5861,8 +5886,8 @@ async function submitParticipantPost(event) {
         content,
         imageDataUrls,
         imageDataUrl: imageDataUrls[0] || "",
-        pdfDataUrl: pdfAttachment?.dataUrl || "",
-        pdfName: pdfAttachment?.name || "",
+        fileDataUrl: attachment?.dataUrl || "",
+        fileName: attachment?.name || "",
         updatedAt: api.serverTimestamp(),
       });
       participantEditingPostId = null;
@@ -5873,8 +5898,8 @@ async function submitParticipantPost(event) {
         content,
         imageDataUrl: imageDataUrls[0] || "",
         imageDataUrls,
-        pdfDataUrl: pdfAttachment?.dataUrl || "",
-        pdfName: pdfAttachment?.name || "",
+        fileDataUrl: attachment?.dataUrl || "",
+        fileName: attachment?.name || "",
         order: -Date.now(),
         createdAt: api.serverTimestamp(),
         authorUid: participantUid || "",
@@ -7563,10 +7588,10 @@ els.participantPostModal.addEventListener("click", (event) => {
   if (event.target === els.participantPostModal) closeParticipantPostModal();
 });
 els.participantImage.addEventListener("change", () => appendParticipantFiles(els.participantImage.files));
-if (els.participantPdfRemove) {
-  els.participantPdfRemove.addEventListener("click", () => {
-    participantEditingPdf = null;
-    renderParticipantPdfPending();
+if (els.participantAttachmentRemove) {
+  els.participantAttachmentRemove.addEventListener("click", () => {
+    participantEditingAttachment = null;
+    renderParticipantAttachmentPending();
     setParticipantMessage("");
   });
 }

@@ -4195,7 +4195,7 @@ body.studio-mode .page-tabs {
 }
 
 /* ===== 貼文 PDF 附件（上傳預覽 + 貼文卡片） ===== */
-.post-pdf-preview {
+.post-file-preview {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -4205,24 +4205,42 @@ body.studio-mode .page-tabs {
   background: rgba(0, 0, 0, 0.03);
 }
 
-.post-pdf-preview.hidden,
-.post-pdf-attachment.hidden {
+.post-file-preview.hidden,
+.post-file-attachment.hidden {
   display: none;
 }
 
-.post-pdf-icon {
+.post-file-icon {
   flex-shrink: 0;
   font-size: 0.62rem;
   font-weight: 800;
   letter-spacing: 0.06em;
   color: #ffffff;
-  background: #d64545;
+  background: #5a6472;
   border-radius: 4px;
   padding: 3px 5px;
   line-height: 1;
+  white-space: nowrap;
 }
 
-.post-pdf-name {
+/* 常見格式給個好認的顏色，其餘一律中性灰 */
+.post-file-icon[data-kind="pdf"] { background: #d64545; }
+.post-file-icon[data-kind="doc"],
+.post-file-icon[data-kind="docx"] { background: #2b579a; }
+.post-file-icon[data-kind="xls"],
+.post-file-icon[data-kind="xlsx"],
+.post-file-icon[data-kind="csv"] { background: #217346; }
+.post-file-icon[data-kind="ppt"],
+.post-file-icon[data-kind="pptx"] { background: #c43e1c; }
+.post-file-icon[data-kind="zip"],
+.post-file-icon[data-kind="rar"],
+.post-file-icon[data-kind="7z"] { background: #8a6d3b; }
+.post-file-icon[data-kind="mp3"],
+.post-file-icon[data-kind="wav"],
+.post-file-icon[data-kind="mp4"],
+.post-file-icon[data-kind="mov"] { background: #6b4fa0; }
+
+.post-file-name {
   flex: 1;
   min-width: 0;
   font-size: 0.82rem;
@@ -4232,7 +4250,7 @@ body.studio-mode .page-tabs {
   text-align: left;
 }
 
-.post-pdf-remove {
+.post-file-remove {
   flex-shrink: 0;
   width: 22px;
   height: 22px;
@@ -4245,7 +4263,7 @@ body.studio-mode .page-tabs {
   cursor: pointer;
 }
 
-.post-pdf-attachment {
+.post-file-attachment {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -4253,7 +4271,7 @@ body.studio-mode .page-tabs {
   min-width: 0;
 }
 
-.post-pdf-open {
+.post-file-open {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -4267,11 +4285,11 @@ body.studio-mode .page-tabs {
   cursor: pointer;
 }
 
-.post-pdf-open:hover {
+.post-file-open:hover {
   background: rgba(0, 0, 0, 0.07);
 }
 
-.post-pdf-download {
+.post-file-download {
   flex-shrink: 0;
   padding: 7px 12px;
   border-radius: 999px;
@@ -4282,6 +4300,6 @@ body.studio-mode .page-tabs {
   cursor: pointer;
 }
 
-.post-pdf-download:hover {
+.post-file-download:hover {
   background: rgba(0, 0, 0, 0.05);
 }
