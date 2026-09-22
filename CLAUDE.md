@@ -1,7 +1,7 @@
-# my-classroom-tools — 我的班級工具總專案
+# W08-05.教學播放台 — 我的班級工具總專案
 
 ## 對話開始時請先讀
-進度與最近更動都在 Obsidian：`OB/10-專案工作筆記/18.OB_my-classroom-tools/18.OB_my-classroom-tools 工作筆記.md`
+進度與最近更動都在 Obsidian：`OB/10-專案工作筆記/W08-05.教學播放台-OB/W08-05.教學播放台-OB 工作筆記.md`
 
 ## 工作模式
 - **加新工具**：對 Claude Code 說「我想做一個 XXX 工具」→ 會建 `tools/<工具名>/` 子資料夾、引導完成
@@ -9,9 +9,10 @@
 - **接續工作**：對 Claude Code 說「讀工作筆記、告訴我上次做到哪」
 
 ## 工作桌 + 三個家
-- 📋 GDrive 工作桌：`/Users/hsiaoyutsai/我的雲端硬碟 (gisele0903@gmail.com)/my-classroom-tools/`
+- 📋 GDrive 工作桌（Mac）：`/Users/hsiaoyutsai/我的雲端硬碟 (gisele0903@gmail.com)/04.Work/08.Work_AI應用功能/W08-05.教學播放台/`
+- 📋 GDrive 工作桌（Windows）：`H:\我的雲端硬碟\04.Work\08.Work_AI應用功能\W08-05.教學播放台\`
 - 🐙 GitHub repo：`astrid0903/my-classroom-tools`（公開）
-- 📘 Obsidian 駕駛艙：`OB/10-專案工作筆記/18.OB_my-classroom-tools/18.OB_my-classroom-tools 工作筆記.md`
+- 📘 Obsidian 駕駛艙：`OB/10-專案工作筆記/W08-05.教學播放台-OB/W08-05.教學播放台-OB 工作筆記.md`
 - 🔥 Firebase 專案：`my-teaching-tools-gisele0903`
 
 ## 「收工」觸發規則
