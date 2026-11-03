@@ -128,7 +128,7 @@ const els = {
   postBoardMessage: document.querySelector("#post-board-message"),
   participantNote: document.querySelector("#participant-note"),
   snapGuides: document.querySelector("#snap-guides"),
-  fullscreenButton: document.querySelector("#fullscreen-button"),
+  fullscreenButton: document.querySelector("#rail-fullscreen"),
   showTimer: document.querySelector("#show-timer"),
   timerMinutes: document.querySelector("#timer-minutes"),
   timerSeconds: document.querySelector("#timer-seconds"),
@@ -210,18 +210,11 @@ const els = {
   groupsWidget: document.querySelector("#groups-widget"),
   stageGroupsTitle: document.querySelector("#stage-groups-title"),
   stageGroups: document.querySelector("#stage-groups"),
-  toolDock: document.querySelector(".tool-dock"),
-  hideWidgets: document.querySelector("#hide-widgets"),
-  moreTools: document.querySelector("#more-tools"),
-  hiddenWidgetsButton: document.querySelector("#hidden-widgets-button"),
+  hiddenWidgetsButton: document.querySelector("#rail-layers"),
   hiddenWidgetPopover: document.querySelector("#hidden-widget-popover"),
   hiddenWidgetList: document.querySelector("#hidden-widget-list"),
   showAllCreatedWidgets: document.querySelector("#show-all-created-widgets"),
   hideAllCreatedWidgets: document.querySelector("#hide-all-created-widgets"),
-  moreToolItems: document.querySelectorAll(".more-tool"),
-  collapseDock: document.querySelector("#collapse-dock"),
-  expandDock: document.querySelector("#expand-dock"),
-  dockItems: document.querySelectorAll(".dock-item[data-tool]"),
   toolPanels: document.querySelectorAll(".tool-section[data-panel]"),
   settingsBackdrop: document.querySelector("#settings-backdrop"),
   studio: document.querySelector(".studio"),
@@ -1829,7 +1822,6 @@ function widgetListLabel(widget) {
 
 function setHiddenWidgetsOpen(isOpen) {
   hiddenWidgetsOpen = isOpen;
-  if (hiddenWidgetsOpen && moreToolsOpen) setMoreToolsOpen(false);
   els.hiddenWidgetPopover.classList.toggle("hidden", !hiddenWidgetsOpen);
   els.hiddenWidgetsButton.classList.toggle("active", hiddenWidgetsOpen);
   els.hiddenWidgetsButton.setAttribute("aria-expanded", String(hiddenWidgetsOpen));
@@ -2066,17 +2058,6 @@ function updateStageForPage() {
   renderPages();
 }
 
-function setMoreToolsOpen(isOpen) {
-  if (isOpen && activeTool) setActiveTool("");
-  if (isOpen && hiddenWidgetsOpen) setHiddenWidgetsOpen(false);
-  moreToolsOpen = isOpen;
-  els.toolDock.classList.toggle("more-open", moreToolsOpen);
-  els.moreTools.setAttribute("aria-expanded", String(moreToolsOpen));
-  els.moreTools.querySelector("span:last-child").textContent = moreToolsOpen ? "less" : "more";
-  els.moreToolItems.forEach((item) => item.classList.toggle("hidden", !moreToolsOpen));
-  writeState();
-}
-
 function widgetSelectionId(widget) {
   return widget.dataset.dynamicId ? `dynamic:${widget.dataset.dynamicId}` : `fixed:${widget.dataset.widget}`;
 }
@@ -2130,6 +2111,17 @@ function handleWidgetClick(event) {
     selectedWidgets.add(id);
   }
   renderWidgetSelection();
+  // 只選一個動態小工具時，右側面板顯示它的設定；多選或取消選取就收起
+  const only = selectedWidgets.size === 1 && selectedWidgets.has(id) ? getDynamicWidget(widget.dataset.dynamicId) : null;
+  if (only) openWidgetInspector(only);
+  else closeAllWidgetSettings();
+}
+
+function handleWidgetDoubleClick(event) {
+  const widget = event.target.closest(".dynamic-widget");
+  if (!widget || event.target.closest("button, a, input, textarea, select, iframe")) return;
+  const instance = getDynamicWidget(widget.dataset.dynamicId);
+  if (instance) openWidgetInspector(instance);
 }
 
 function bringWidgetToFront(widget) {
@@ -2137,24 +2129,44 @@ function bringWidgetToFront(widget) {
   widget.style.zIndex = String(topWidgetZ);
 }
 
-function placeDynamicSettings(instance) {
-  if (!instance.state.settingsOpen) return;
-  const rect = instance.element.getBoundingClientRect();
-  const width = Math.min(320, Math.max(220, window.innerWidth - 32));
-  // 先放小工具右邊、放不下改左邊，兩邊都放不下才疊在上面；一律不蓋到左側欄
-  const rail = document.getElementById("side-rail");
-  const minLeft = rail && !rail.classList.contains("hidden") ? rail.getBoundingClientRect().right + 12 : 16;
-  const maxLeft = Math.max(minLeft, window.innerWidth - width - 16);
-  let left;
-  if (rect.right + 10 <= maxLeft) left = rect.right + 10;
-  else if (rect.left - width - 10 >= minLeft) left = rect.left - width - 10;
-  else left = Math.min(Math.max(minLeft, rect.right - width), maxLeft);
-  const top = Math.min(Math.max(16, rect.top), Math.max(16, window.innerHeight - 220));
-  instance.settings.style.position = "fixed";
-  instance.settings.style.width = `${width}px`;
-  instance.settings.style.left = `${left}px`;
-  instance.settings.style.right = "auto";
-  instance.settings.style.top = `${top}px`;
+// 選取一個小工具＝打開它在右側的屬性面板；其他小工具的面板一併關掉
+function openWidgetInspector(instance) {
+  dynamicWidgets.forEach((item) => {
+    if (item.id !== instance.id && item.state.settingsOpen) {
+      item.state.settingsOpen = false;
+      renderDynamicWidget(item);
+    }
+  });
+  instance.state.settingsOpen = true;
+  selectedWidgets = new Set([widgetSelectionId(instance.element)]);
+  bringWidgetToFront(instance.element);
+  renderDynamicWidget(instance);
+  renderWidgetSelection();
+  writeState();
+}
+
+// 從側欄新增：放在舞台中央（扣掉右側面板的寬度），同位置已有小工具就往右下錯開，並直接選取
+function addDynamicWidgetAtCenter(type) {
+  const instance = createDynamicWidget(type);
+  if (!instance) return null;
+  const widget = instance.element;
+  const stageRect = els.stage.getBoundingClientRect();
+  const rect = widget.getBoundingClientRect();
+  const inspectorWidth = Math.min(300, stageRect.width / 2);
+  let left = Math.max(16, Math.round((stageRect.width - inspectorWidth - rect.width) / 2));
+  let top = Math.max(16, Math.round((stageRect.height - rect.height) / 2));
+  const taken = (l, t) => dynamicWidgets.some((item) => item !== instance && item.element.style.left === `${l}px` && item.element.style.top === `${t}px`);
+  for (let step = 0; step < 8 && taken(left, top); step += 1) {
+    left += 28;
+    top += 28;
+  }
+  widget.style.left = `${left}px`;
+  widget.style.top = `${top}px`;
+  widget.style.right = "";
+  widget.style.bottom = "";
+  keepWidgetVisible(widget);
+  openWidgetInspector(instance);
+  return instance;
 }
 
 function addDarkPage() {
@@ -2223,7 +2235,7 @@ function addSlidesWidgetFromInput() {
     return;
   }
   createDynamicWidget("slides", {
-    title: "Slides",
+    title: "簡報",
     slidesUrl: els.slidesUrl.value,
     mode: slidesMode,
     embedUrl: buildSlidesUrl(slides),
@@ -2783,11 +2795,11 @@ function sanitizeDynamicState(state) {
 function defaultDynamicState(type) {
   if (type === "timer") return { title: "計時器", titleSize: "13", minutes: "5", seconds: "0", remaining: 300, settingsOpen: true };
   if (type === "clock") return { title: "現在時間", titleSize: "13", settingsOpen: true };
-  if (type === "groups") return { title: "Groups", titleSize: "13", studentList: "", groupCount: "4", shuffle: true, groups: [], checkable: false, checkedStudents: {}, settingsOpen: true };
-  if (type === "text") return { title: "Text", titleSize: "13", content: "文字框", size: "44", color: "#ffffff", align: "center", settingsOpen: true };
-  if (type === "image") return { title: "Image", titleSize: "13", imageUrl: "", imageSource: "", imageScale: "100", settingsOpen: true };
+  if (type === "groups") return { title: "分組", titleSize: "13", studentList: "", groupCount: "4", shuffle: true, groups: [], checkable: false, checkedStudents: {}, settingsOpen: true };
+  if (type === "text") return { title: "文字框", titleSize: "13", content: "文字框", size: "44", color: "", align: "center", settingsOpen: true };
+  if (type === "image") return { title: "圖片", titleSize: "13", imageUrl: "", imageSource: "", imageScale: "100", settingsOpen: true };
   if (type === "youtube") return { title: "YouTube", titleSize: "13", youtubeUrl: "", embedUrl: "", watchUrl: "", settingsOpen: true, minimized: false };
-  if (type === "slides") return { title: "Slides", titleSize: "13", slidesUrl: "", embedUrl: "", editUrl: "", mode: "preview", settingsOpen: true };
+  if (type === "slides") return { title: "簡報", titleSize: "13", slidesUrl: "", embedUrl: "", editUrl: "", mode: "preview", settingsOpen: true };
   if (type === "qr") return { title: "QR Code", titleSize: "13", qrUrl: "", qrImageUrl: "", qrSize: "320", settingsOpen: true };
   return { title: "Widget", titleSize: "13", settingsOpen: true };
 }
@@ -2969,6 +2981,10 @@ function createDynamicWidget(type, state = {}, position = null) {
   };
   if (type === "timer" && nextState.title === "Timer") nextState.title = "計時器";
   if (type === "clock" && nextState.title === "Clock") nextState.title = "現在時間";
+  // 舊檔的英文預設標題換成中文；文字框舊預設白字在明亮模式看不到，改成跟著明暗走
+  const legacyTitles = { groups: "Groups", text: "Text", image: "Image", slides: "Slides" };
+  if (legacyTitles[type] && nextState.title === legacyTitles[type]) nextState.title = defaultDynamicState(type).title;
+  if (type === "text" && String(nextState.color).toLowerCase() === "#ffffff") nextState.color = "";
   delete nextState.id;
 
   const widget = document.createElement("article");
@@ -3009,7 +3025,7 @@ function createDynamicWidget(type, state = {}, position = null) {
     minimizeButton.setAttribute("aria-label", "最小化 YouTube");
     actions.appendChild(minimizeButton);
   }
-  actions.append(hideButton, copyButton, settingsButton, removeButton);
+  actions.append(hideButton, settingsButton);
   head.append(drag, title, actions);
 
   const content = createEl("div", "dynamic-content");
@@ -3058,19 +3074,8 @@ function createDynamicWidget(type, state = {}, position = null) {
     writeState();
   });
   settingsButton.addEventListener("click", () => {
-    bringWidgetToFront(widget);
-    instance.state.settingsOpen = !instance.state.settingsOpen;
-    if (instance.state.settingsOpen) {
-      dynamicWidgets.forEach((item) => {
-        if (item.id !== instance.id && item.state.settingsOpen) {
-          item.state.settingsOpen = false;
-          renderDynamicWidget(item);
-        }
-      });
-    }
-    els.settingsBackdrop.classList.toggle("hidden", !instance.state.settingsOpen);
-    renderDynamicWidget(instance);
-    writeState();
+    if (instance.state.settingsOpen) closeAllWidgetSettings();
+    else openWidgetInspector(instance);
   });
   removeButton.addEventListener("click", async () => {
     if (await showConfirmModal(`確定要刪除「${widgetListLabel(instance)}」嗎？刪除後不能復原。`)) {
@@ -3088,7 +3093,6 @@ function createDynamicWidget(type, state = {}, position = null) {
       }
     });
     bringWidgetToFront(widget);
-    els.settingsBackdrop.classList.remove("hidden");
   }
   applyWidgetPosition(widget, position);
   keepWidgetVisible(widget);
@@ -3108,6 +3112,40 @@ function updateDynamicState(instance, patch = {}) {
 }
 
 function buildDynamicSettings(instance) {
+  buildDynamicSettingsFields(instance);
+  addInspectorChrome(instance);
+}
+
+// 右側屬性面板的頭尾：標題＋關閉，底部複製／隱藏／刪除（刪除不放在小工具標題列，避免誤按）
+function addInspectorChrome(instance) {
+  const { settings } = instance;
+  const head = createEl("div", "inspector-head");
+  head.appendChild(createEl("strong", "", `${widgetTypeLabel(instance.type)} 設定`));
+  const close = createEl("button", "inspector-close", "×");
+  close.type = "button";
+  close.title = "關閉設定";
+  close.setAttribute("aria-label", "關閉設定");
+  close.addEventListener("click", closeAllWidgetSettings);
+  head.appendChild(close);
+  settings.prepend(head);
+
+  const foot = createEl("div", "inspector-foot");
+  const copy = createEl("button", "secondary", "複製");
+  const hide = createEl("button", "secondary", "隱藏");
+  const remove = createEl("button", "danger", "刪除");
+  [copy, hide, remove].forEach((button) => { button.type = "button"; });
+  copy.addEventListener("click", () => copyDynamicWidget(instance.id));
+  hide.addEventListener("click", () => setDynamicWidgetHidden(instance, true));
+  remove.addEventListener("click", async () => {
+    if (await showConfirmModal(`確定要刪除「${widgetListLabel(instance)}」嗎？刪除後不能復原。`)) {
+      removeDynamicWidget(instance.id);
+    }
+  });
+  foot.append(copy, hide, remove);
+  settings.appendChild(foot);
+}
+
+function buildDynamicSettingsFields(instance) {
   const { type, state, settings } = instance;
   settings.innerHTML = "";
 
@@ -3205,7 +3243,7 @@ function buildDynamicSettings(instance) {
     const size = addLabeledInput(row, "字體大小", dynamicInput(state.size || "44", "number"));
     size.min = "8";
     size.max = "320";
-    const color = addLabeledInput(row, "顏色", dynamicInput(state.color || "#ffffff", "color"));
+    const color = addLabeledInput(row, "顏色", dynamicInput(state.color || (document.documentElement.dataset.tone === "light" ? "#2b2622" : "#f3eee8"), "color"));
     settings.appendChild(row);
     const align = addLabeledInput(settings, "文字對齊", alignmentSelect(state.align || "center"));
     content.addEventListener("input", () => updateDynamicState(instance, { content: content.value }));
@@ -3338,7 +3376,6 @@ function renderDynamicWidget(instance) {
     hideButton.title = state.hidden ? "小工具已隱藏" : "隱藏小工具";
     hideButton.setAttribute("aria-label", state.hidden ? "小工具已隱藏" : "隱藏小工具");
   }
-  placeDynamicSettings(instance);
 
   if (type === "timer") {
     display.textContent = formatTime(Math.max(0, Number(state.remaining) || dynamicTimerTotal(state.minutes, state.seconds)));
@@ -3400,7 +3437,7 @@ function renderDynamicWidget(instance) {
   } else if (type === "text") {
     display.textContent = state.content || "文字框";
     display.style.fontSize = `${Math.min(320, Math.max(8, Number(state.size) || 44))}px`;
-    display.style.color = state.color || "#ffffff";
+    display.style.color = state.color || "";
     display.style.textAlign = ["left", "center", "right"].includes(state.align) ? state.align : "center";
   } else if (type === "image") {
     display.innerHTML = "";
@@ -6116,11 +6153,7 @@ async function loadLayoutsFromCloud() {
 }
 
 function setActiveTool(tool) {
-  if (tool && moreToolsOpen) setMoreToolsOpen(false);
   activeTool = tool;
-  els.dockItems.forEach((item) => {
-    item.classList.toggle("active", item.dataset.tool === tool);
-  });
   document.querySelectorAll(".rail-btn[data-rail]").forEach((item) => {
     item.classList.toggle("active", item.dataset.rail === tool);
   });
@@ -6140,11 +6173,8 @@ function isToolPanelSafeTarget(target) {
   if (!(target instanceof Element)) return false;
   return Boolean(target.closest([
     ".tool-section",
-    ".dock-item",
-    ".dock-mini",
     ".rail-btn",
     ".top-control",
-    ".studio-action-bar",
     ".prompt-modal",
     ".confirm-modal",
     ".post-edit-modal",
@@ -6176,37 +6206,6 @@ function toggleActiveTool(tool) {
     renderYoutube();
   }
   setActiveTool(activeTool === tool ? "" : tool);
-}
-
-function setDockCollapsed(isCollapsed) {
-  dockCollapsed = isCollapsed;
-  els.toolDock.classList.toggle("collapsed", dockCollapsed);
-  els.expandDock.classList.toggle("hidden", !dockCollapsed);
-  if (dockCollapsed) {
-    setActiveTool("");
-    setHiddenWidgetsOpen(false);
-  }
-  writeState();
-}
-
-function hideAllWidgets() {
-  setAllDynamicWidgetsHidden(true);
-  clearWidgetSelection();
-  els.showTimer.checked = false;
-  els.showClock.checked = false;
-  els.showGroups.checked = false;
-  els.showTextBox.checked = false;
-  els.showImage.checked = false;
-  els.showYoutube.checked = false;
-  pauseTimer();
-  renderTimer();
-  renderClock();
-  renderGroups();
-  renderTextBox();
-  renderImage();
-  renderYoutube();
-  setActiveTool("");
-  writeState();
 }
 
 function widgetPosition(widget) {
@@ -7372,8 +7371,6 @@ function restore() {
   renderYoutube();
   renderSavedLayouts();
   setActiveTool(activeTool);
-  setDockCollapsed(dockCollapsed);
-  setMoreToolsOpen(moreToolsOpen);
   setHiddenWidgetsOpen(hiddenWidgetsOpen);
   updateStageForPage();
   suppressFileAutoSave = previousSuppressFileAutoSave;
@@ -7575,13 +7572,9 @@ els.frame.addEventListener("load", () => {
   }
 });
 els.fullscreenButton.addEventListener("click", () => els.stage.requestFullscreen?.());
-els.hideWidgets.addEventListener("click", hideAllWidgets);
-els.moreTools.addEventListener("click", () => setMoreToolsOpen(!moreToolsOpen));
 els.hiddenWidgetsButton.addEventListener("click", () => setHiddenWidgetsOpen(!hiddenWidgetsOpen));
 els.showAllCreatedWidgets.addEventListener("click", () => setAllDynamicWidgetsHidden(false));
 els.hideAllCreatedWidgets.addEventListener("click", () => setAllDynamicWidgetsHidden(true));
-els.collapseDock.addEventListener("click", () => setDockCollapsed(true));
-els.expandDock.addEventListener("click", () => setDockCollapsed(false));
 els.timerStart.addEventListener("click", startTimer);
 els.timerPause.addEventListener("click", pauseTimer);
 els.timerReset.addEventListener("click", resetTimer);
@@ -7890,7 +7883,11 @@ els.settingsBackdrop.addEventListener("mousedown", closeAllWidgetSettings);
 
 document.addEventListener("mousedown", (e) => {
   if (!isToolPanelSafeTarget(e.target)) closeActiveToolPanel();
-  if (e.target.closest(".dynamic-settings") || e.target.closest(".dynamic-settings-btn")) return;
+  if (e.target.closest(".dynamic-settings, .dynamic-settings-btn, #confirm-modal")) return;
+  const openWidget = e.target.closest(".dynamic-widget");
+  if (openWidget && getDynamicWidget(openWidget.dataset.dynamicId)?.state.settingsOpen) return;
+  // 點空白舞台＝取消選取並收起面板
+  if (e.target.closest("#slide-stage") && !openWidget) clearWidgetSelection();
   closeAllWidgetSettings();
 });
 window.addEventListener("keydown", (event) => {
@@ -7906,6 +7903,40 @@ window.addEventListener("keydown", (event) => {
     }
   }
 });
+
+// 播放台快捷鍵：Delete 刪除、⌘／Ctrl＋D 複製、H 隱藏、Esc 取消選取（打字中或有彈窗時不作用）
+function selectedDynamicWidgets() {
+  return dynamicWidgets.filter((item) => selectedWidgets.has(widgetSelectionId(item.element)));
+}
+
+window.addEventListener("keydown", async (event) => {
+  if (els.studio.classList.contains("hidden") || event.defaultPrevented || event.isComposing) return;
+  if (event.target.closest?.("input, textarea, select, [contenteditable='true'], [contenteditable='']")) return;
+  if (document.querySelector(".post-edit-modal:not(.hidden), .prompt-modal:not(.hidden)")) return;
+  const targets = selectedDynamicWidgets();
+  const key = event.key.toLowerCase();
+  if (key === "escape") {
+    if (targets.length === 0 && !dynamicWidgets.some((item) => item.state.settingsOpen)) return;
+    clearWidgetSelection();
+    closeAllWidgetSettings();
+    return;
+  }
+  if (targets.length === 0) return;
+  if ((key === "delete" || key === "backspace") && !event.metaKey && !event.ctrlKey) {
+    event.preventDefault();
+    const label = targets.length === 1 ? `「${widgetListLabel(targets[0])}」` : `選取的 ${targets.length} 個小工具`;
+    if (await showConfirmModal(`確定要刪除${label}嗎？刪除後不能復原。`)) {
+      targets.forEach((item) => removeDynamicWidget(item.id));
+    }
+  } else if (key === "d" && (event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey) {
+    event.preventDefault();
+    targets.forEach((item) => copyDynamicWidget(item.id));
+  } else if (key === "h" && !event.metaKey && !event.ctrlKey && !event.altKey) {
+    event.preventDefault();
+    targets.forEach((item) => setDynamicWidgetHidden(item, true));
+    clearWidgetSelection();
+  }
+});
 els.makeGroups.addEventListener("click", makeGroups);
 els.copyGroups.addEventListener("click", copyGroups);
 els.buildManualGroups.addEventListener("click", () => buildManualGroups());
@@ -7917,29 +7948,8 @@ els.groupCount.addEventListener("change", () => {
 });
 els.shuffleGroups.addEventListener("change", writeState);
 els.stage.addEventListener("click", handleWidgetClick);
-els.dockItems.forEach((item) => {
-  item.addEventListener("click", () => {
-    if (item.dataset.tool === "layouts") {
-      showHome();
-      return;
-    }
-    if (item.dataset.tool === "slides") {
-      toggleActiveTool("slides");
-      return;
-    }
-    if (item.dataset.tool === "slides-widget") {
-      addSlidesWidgetFromInput();
-      setActiveTool("");
-      return;
-    }
-    if (DYNAMIC_WIDGET_TYPES.has(item.dataset.tool)) {
-      createDynamicWidget(item.dataset.tool);
-      setActiveTool("");
-      return;
-    }
-    toggleActiveTool(item.dataset.tool);
-  });
-});
+els.stage.addEventListener("dblclick", handleWidgetDoubleClick);
+
 
 document.querySelectorAll(".drag-handle").forEach((handle) => {
   handle.addEventListener("pointerdown", startDrag);

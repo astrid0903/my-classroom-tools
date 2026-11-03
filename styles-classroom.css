@@ -281,11 +281,12 @@ html body[data-theme="dark"] .tool-section h3 {
 }
 
 /* ── 明亮模式：把舊夜間樣式寫死的白色半透明換成暖色 ── */
-html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) button {
+/* 一般按鈕的明亮底色：用 :where 壓低權重，側欄、面板等自己的按鈕樣式才蓋得過 */
+html[data-tone="light"] :where(body[data-theme="dark"]:not(.participant-mode)) button {
   background: var(--cl-bg-2);
   color: var(--cl-ink);
 }
-html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) button:hover {
+html[data-tone="light"] :where(body[data-theme="dark"]:not(.participant-mode)) button:hover {
   background: #e2dbd0;
   color: var(--cl-ink);
 }
@@ -596,3 +597,180 @@ html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .home-lay
 }
 html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .home-layout-rename,
 html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .home-layout-name-edit { color: var(--cl-ink); }
+
+/* ─── 第 2 階段：右側屬性面板＋小工具外框 ───────────────── */
+
+/* 設定面板固定在右側（原本跟著小工具浮動） */
+html body[data-theme="dark"] .dynamic-settings {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  bottom: 12px;
+  left: auto;
+  z-index: 120;
+  width: min(300px, calc(100vw - var(--cl-rail-w) - 24px));
+  max-height: none;
+  overflow-y: auto;
+  align-content: start;
+  padding: 0 16px 16px;
+  border: 0;
+  border-radius: var(--cl-r);
+  background: var(--cl-surface);
+  color: var(--cl-ink);
+  box-shadow: var(--cl-shadow);
+  backdrop-filter: none;
+  animation: cl-inspector-in var(--cl-t-fast) ease-out;
+}
+@keyframes cl-inspector-in {
+  from { opacity: 0; transform: translateX(12px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html body[data-theme="dark"] .dynamic-settings { animation: none; }
+}
+.inspector-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 0 -16px 4px;
+  padding: 14px 12px 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: var(--cl-surface);
+  border-bottom: 1px solid var(--cl-line);
+}
+.inspector-head strong {
+  color: var(--cl-ink);
+  font: 400 16px/1.3 var(--cl-f-title);
+}
+html body[data-theme="dark"] .dynamic-settings .inspector-close {
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--cl-ink-2);
+  font-size: 20px;
+  line-height: 1;
+}
+html body[data-theme="dark"] .dynamic-settings .inspector-close:hover {
+  background: var(--cl-hover);
+  color: var(--cl-ink);
+}
+.inspector-foot {
+  margin-top: 8px;
+  padding-top: 12px;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  border-top: 1px solid var(--cl-line);
+}
+html body[data-theme="dark"] .dynamic-settings .inspector-foot button {
+  height: 36px;
+  min-height: 36px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--cl-bg-2);
+  color: var(--cl-ink-2);
+  font: 500 13px/1 var(--cl-f-ui);
+}
+html body[data-theme="dark"] .dynamic-settings .inspector-foot button:hover {
+  background: var(--cl-hover);
+  color: var(--cl-ink);
+}
+html body[data-theme="dark"] .dynamic-settings .inspector-foot button.danger { color: #d0453a; }
+html body[data-theme="dark"] .dynamic-settings .inspector-foot button.danger:hover {
+  background: rgba(208, 69, 58, .12);
+  color: #d0453a;
+}
+html body[data-theme="dark"] .dynamic-settings label,
+html body[data-theme="dark"] .dynamic-settings .dynamic-group-field {
+  font: 500 12px/1.4 var(--cl-f-ui);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--cl-ink-2);
+}
+
+/* 小工具標題列：按鈕放大到 30px、常駐半透明（不必先滑過才看得到） */
+html body[data-theme="dark"] .dynamic-actions button,
+html body[data-theme="dark"] .dynamic-drag {
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  min-height: 30px;
+  border-radius: 9px;
+  font-size: 15px;
+  letter-spacing: 0;
+  opacity: .45;
+  color: var(--cl-ink-2);
+}
+html body[data-theme="dark"] .dynamic-widget:hover .dynamic-actions button,
+html body[data-theme="dark"] .dynamic-widget:hover .dynamic-drag,
+html body[data-theme="dark"] .dynamic-widget.selected-widget .dynamic-actions button,
+html body[data-theme="dark"] .dynamic-widget.selected-widget .dynamic-drag { opacity: 1; }
+html body[data-theme="dark"] .dynamic-actions button:hover,
+html body[data-theme="dark"] .dynamic-drag:hover {
+  background: var(--cl-hover);
+  color: var(--cl-ink);
+}
+html body[data-theme="dark"] .dynamic-title {
+  font: 500 12px/1.2 var(--cl-f-ui);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--cl-ink-2);
+}
+
+/* 計時器、時鐘預設大一點，投影時看得清楚（拖曳縮放後的尺寸照舊覆蓋） */
+.dynamic-widget[data-widget-type="timer"],
+.dynamic-widget[data-widget-type="clock"] {
+  width: 340px;
+  height: 210px;
+}
+
+/* 學員端姓名框：貼文板是淺色背景時，彈窗也換淺色（彈窗和 #participant-view 同在 body 下） */
+html body[data-theme="dark"] .participant-view.page-bg-light ~ #participant-name-modal { background: rgba(43, 38, 34, .28); }
+html body[data-theme="dark"] .participant-view.page-bg-light ~ #participant-name-modal .post-edit-dialog {
+  background: #fffdf9;
+  border-color: #e6dfd4;
+  color: #2b2622;
+  box-shadow: 0 10px 30px rgba(92, 64, 40, .14);
+}
+html body[data-theme="dark"] .participant-view.page-bg-light ~ #participant-name-modal h3,
+html body[data-theme="dark"] .participant-view.page-bg-light ~ #participant-name-modal label { color: #2b2622; }
+html body[data-theme="dark"] .participant-view.page-bg-light ~ #participant-name-modal input {
+  background: #f4f1ec;
+  border-color: #e6dfd4;
+  color: #2b2622;
+  color-scheme: light;
+}
+html body[data-theme="dark"] .participant-view.page-bg-light ~ #participant-name-modal button:not(.secondary) {
+  background: #c9502f;
+  color: #fff;
+}
+html body[data-theme="dark"] .participant-view.page-bg-light ~ #participant-name-modal button.secondary {
+  background: #ebe6de;
+  border-color: transparent;
+  color: #6f665e;
+}
+
+/* 面板內主要按鈕（產生 QR Code、開始等）：舊夜間樣式寫死藍色，改珊瑚 */
+html body[data-theme="dark"] .dynamic-settings > button:not(.secondary):not(.danger),
+html body[data-theme="dark"] .dynamic-settings .button-row button:not(.secondary):not(.danger) {
+  background: var(--cl-accent-soft);
+  border-color: transparent;
+  color: var(--cl-accent);
+}
+html body[data-theme="dark"] .dynamic-settings > button:not(.secondary):not(.danger):hover,
+html body[data-theme="dark"] .dynamic-settings .button-row button:not(.secondary):not(.danger):hover {
+  background: var(--cl-accent);
+  color: var(--cl-on-accent);
+}
+
+/* 右側面板打開時，右上 ▣ 往左讓位，不壓在面板標題上 */
+body.studio-mode:has(> .dynamic-settings:not(.collapsed)) .top-control {
+  right: calc(min(300px, 100vw - var(--cl-rail-w) - 24px) + 24px);
+}
