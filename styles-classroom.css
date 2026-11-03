@@ -507,97 +507,6 @@ html body[data-theme="dark"] .home-view input[type="text"]:focus {
   box-shadow: 0 0 0 3px var(--cl-accent-soft);
 }
 
-/* 首頁明亮 */
-html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .home-kicker {
-  background: var(--cl-surface);
-  border-color: var(--cl-line);
-  color: var(--cl-ink-3);
-}
-html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .home-hero h1,
-html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .home-section-head h2,
-html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .home-layout-title h3 { color: var(--cl-ink); }
-html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .home-hero p { color: var(--cl-ink-2); }
-html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .home-section-head span,
-html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .home-layout-title span,
-html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .home-empty,
-html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .home-message { color: var(--cl-ink-3); }
-html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .file-status-line,
-html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .folder-status-line { color: var(--cl-ink-2); }
-html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .home-view input[type="text"] {
-  background: var(--cl-surface);
-  border-color: var(--cl-line);
-  color: var(--cl-ink);
-}
-html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .home-view input[type="text"]::placeholder { color: var(--cl-ink-3); }
-html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .home-view button.secondary,
-html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .home-folder-actions button.secondary {
-  background: var(--cl-surface);
-  border-color: var(--cl-line);
-  color: var(--cl-ink-2);
-}
-html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .home-view button.secondary:hover,
-html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .home-folder-actions button.secondary:hover {
-  background: var(--cl-bg-2);
-  border-color: var(--cl-line);
-  color: var(--cl-ink);
-}
-html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .home-layout-card {
-  background: var(--cl-surface);
-  border-color: var(--cl-line);
-  box-shadow: var(--cl-shadow);
-}
-html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .home-layout-card:hover {
-  background: var(--cl-surface);
-  border-color: #d9d0c3;
-  box-shadow: 0 16px 36px rgba(92, 64, 40, .14);
-}
-html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .home-layout-card::before { color: var(--cl-ink-3); }
-html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .home-layout-card[data-current-layout="true"] {
-  border-color: color-mix(in oklab, var(--cl-accent-2) 45%, transparent);
-  background: linear-gradient(180deg, color-mix(in oklab, var(--cl-accent-2) 6%, var(--cl-surface)), var(--cl-surface));
-}
-html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .home-layout-card[data-current-layout="true"]::after {
-  color: var(--cl-accent-2);
-  border-color: color-mix(in oklab, var(--cl-accent-2) 35%, transparent);
-  background-color: color-mix(in oklab, var(--cl-accent-2) 10%, transparent);
-}
-html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .home-preview {
-  background: var(--cl-stage);
-  border-color: var(--cl-line);
-}
-html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .home-preview-tab { background: rgba(43, 38, 34, .14); }
-html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .home-preview-tab:first-child { background: var(--cl-accent); }
-html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .home-preview-widget {
-  background: var(--cl-surface);
-  border-color: var(--cl-line);
-  color: var(--cl-ink-2);
-}
-html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .home-layout-meta span {
-  background: var(--cl-bg);
-  border-color: var(--cl-line);
-  color: var(--cl-ink-2);
-}
-html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .home-layout-badge {
-  background: var(--cl-bg-2);
-  border-color: var(--cl-line);
-  color: var(--cl-ink-2);
-}
-html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .home-layout-badge.current { color: var(--cl-accent-2); }
-html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .home-layout-badge.newer,
-html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .home-layout-badge.folder { color: var(--cl-accent); }
-html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .home-layout-actions button.secondary {
-  background: var(--cl-bg-2);
-  border-color: transparent;
-  color: var(--cl-ink-2);
-}
-html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .home-layout-actions button.danger {
-  background: transparent;
-  border-color: var(--cl-line);
-  color: var(--cl-ink-3);
-}
-html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .home-layout-rename,
-html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .home-layout-name-edit { color: var(--cl-ink); }
-
 /* ─── 第 2 階段：右側屬性面板＋小工具外框 ───────────────── */
 
 /* 設定面板固定在右側（原本跟著小工具浮動） */
@@ -773,4 +682,277 @@ html body[data-theme="dark"] .dynamic-settings .button-row button:not(.secondary
 /* 右側面板打開時，右上 ▣ 往左讓位，不壓在面板標題上 */
 body.studio-mode:has(> .dynamic-settings:not(.collapsed)) .top-control {
   right: calc(min(300px, 100vw - var(--cl-rail-w) - 24px) + 24px);
+}
+
+/* ─── 首頁卡片重新設計（2026-11-03 晚，明暗共用一組，全部吃 --cl-*） ───
+   拿掉舊版的終端機風（等寬大寫小字、AUTO-SAVING、01 編號、綠色霓虹框），
+   改成白卡＋珊瑚主按鈕；「目前開啟中」只留一個青綠小標。 */
+html body[data-theme="dark"] .home-view .home-kicker {
+  padding: 4px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--cl-accent-soft);
+  color: var(--cl-accent);
+  font: 500 12px/1.4 var(--cl-f-ui);
+  letter-spacing: .04em;
+  text-transform: none;
+}
+html body[data-theme="dark"] .home-view .home-hero h1,
+html body[data-theme="dark"] .home-view .home-section-head h2 { color: var(--cl-ink); }
+html body[data-theme="dark"] .home-view .home-hero p { color: var(--cl-ink-2); }
+html body[data-theme="dark"] .home-view .home-hero { border-bottom-color: var(--cl-line); }
+html body[data-theme="dark"] .home-view .home-section-head { border-bottom-color: var(--cl-line); }
+html body[data-theme="dark"] .home-view .home-section-head span,
+html body[data-theme="dark"] .home-view .home-message,
+html body[data-theme="dark"] .home-view .home-empty {
+  color: var(--cl-ink-3);
+  font: 400 13px/1.5 var(--cl-f-ui);
+  letter-spacing: 0;
+}
+html body[data-theme="dark"] .home-view .file-status-line,
+html body[data-theme="dark"] .home-view .folder-status-line { color: var(--cl-ink-2); font-weight: 500; }
+html body[data-theme="dark"] .home-view .home-empty { border-color: var(--cl-line); border-radius: var(--cl-r); }
+html body[data-theme="dark"] .home-view input[type="text"] {
+  background: var(--cl-surface);
+  border: 1px solid var(--cl-line);
+  border-radius: var(--cl-r-sm);
+  color: var(--cl-ink);
+  color-scheme: inherit;
+}
+html body[data-theme="dark"] .home-view input[type="text"]::placeholder { color: var(--cl-ink-3); }
+html body[data-theme="dark"] .home-view button.secondary,
+html body[data-theme="dark"] .home-view .home-folder-actions button.secondary,
+html body[data-theme="dark"] .home-view .home-drive-config-row button {
+  background: var(--cl-surface);
+  border: 1px solid var(--cl-line);
+  color: var(--cl-ink-2);
+}
+html body[data-theme="dark"] .home-view button.secondary:hover,
+html body[data-theme="dark"] .home-view .home-folder-actions button.secondary:hover,
+html body[data-theme="dark"] .home-view .home-drive-config-row button:hover {
+  background: var(--cl-bg-2);
+  border-color: var(--cl-line);
+  color: var(--cl-ink);
+}
+
+/* 卡片 */
+html body[data-theme="dark"] .home-view .home-layout-card {
+  padding: 16px;
+  gap: 12px;
+  border: 1px solid var(--cl-line);
+  border-radius: var(--cl-r);
+  background: var(--cl-surface);
+  box-shadow: var(--cl-shadow);
+}
+html body[data-theme="dark"] .home-view .home-layout-card:hover {
+  border-color: color-mix(in oklab, var(--cl-accent) 35%, var(--cl-line));
+  background: var(--cl-surface);
+  box-shadow: var(--cl-shadow);
+  transform: translateY(-2px);
+}
+html body[data-theme="dark"] .home-view .home-layout-card::before { content: none; }
+html body[data-theme="dark"] .home-view .home-layout-card[data-current-layout="true"] {
+  border-color: color-mix(in oklab, var(--cl-accent-2) 55%, var(--cl-line));
+  background: var(--cl-surface);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--cl-accent-2) 14%, transparent), var(--cl-shadow);
+}
+html body[data-theme="dark"] .home-view .home-layout-card[data-current-layout="true"]::after,
+html body[data-theme="dark"] .home-view .home-current-label,
+html body[data-theme="dark"] .home-view .home-layout-card[data-current-layout="true"] .home-layout-badge.muted { display: none; }
+html body[data-theme="dark"] .home-view .home-layout-card[data-current-layout="true"] .home-layout-title { padding-top: 0; }
+
+/* 檔名：平常像標題，點下去才像輸入框 */
+html body[data-theme="dark"] .home-view input[type="text"].home-layout-name-edit {
+  height: 36px;
+  min-height: 36px;
+  padding: 0 8px;
+  margin-left: -8px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--cl-ink);
+  font: 700 17px/1.2 var(--cl-f-ui);
+}
+html body[data-theme="dark"] .home-view input[type="text"].home-layout-name-edit:hover { border-color: var(--cl-line); }
+html body[data-theme="dark"] .home-view input[type="text"].home-layout-name-edit:focus {
+  border-color: var(--cl-accent);
+  background: var(--cl-bg);
+  box-shadow: 0 0 0 3px var(--cl-accent-soft);
+}
+html body[data-theme="dark"] .home-view .home-layout-rename {
+  min-height: 32px;
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--cl-bg-2);
+  color: var(--cl-ink-2);
+  font: 500 12px/1 var(--cl-f-ui);
+}
+html body[data-theme="dark"] .home-view .home-layout-title span {
+  color: var(--cl-ink-3);
+  font: 400 12px/1.4 var(--cl-f-ui);
+  letter-spacing: 0;
+  text-transform: none;
+}
+html body[data-theme="dark"] .home-view .home-layout-badge {
+  padding: 3px 9px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--cl-bg-2);
+  color: var(--cl-ink-2);
+  font: 500 11px/1.4 var(--cl-f-ui);
+}
+html body[data-theme="dark"] .home-view .home-layout-badge.current {
+  background: color-mix(in oklab, var(--cl-accent-2) 16%, transparent);
+  color: var(--cl-accent-2);
+}
+html body[data-theme="dark"] .home-view .home-layout-badge.newer {
+  background: var(--cl-accent-soft);
+  color: var(--cl-accent);
+}
+
+/* 縮圖 */
+html body[data-theme="dark"] .home-view .home-preview {
+  min-height: 128px;
+  border: 0;
+  border-radius: var(--cl-r-sm);
+  background: var(--cl-stage);
+}
+html body[data-theme="dark"] .home-view .home-preview-tab { height: 4px; border-radius: 2px; background: color-mix(in oklab, var(--cl-ink) 18%, transparent); }
+html body[data-theme="dark"] .home-view .home-preview-tab:first-child { background: var(--cl-accent); }
+html body[data-theme="dark"] .home-view .home-preview-tab.posts { background: var(--cl-accent-2); }
+html body[data-theme="dark"] .home-view .home-preview-widget {
+  border: 0;
+  border-radius: 6px;
+  background: var(--cl-surface);
+  color: var(--cl-ink-2);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .12);
+  font: 500 10px/1 var(--cl-f-ui);
+  text-transform: none;
+}
+
+/* 數量與類型標籤 */
+html body[data-theme="dark"] .home-view .home-layout-meta span,
+html body[data-theme="dark"] .home-view .home-layout-meta span[data-tag-type] {
+  padding: 3px 9px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--cl-bg-2);
+  color: var(--cl-ink-2);
+  font: 500 11px/1.4 var(--cl-f-ui);
+  letter-spacing: 0;
+  text-transform: none;
+}
+html body[data-theme="dark"] .home-view .home-layout-meta span[data-tag-type="slides"] { background: var(--cl-accent-soft); color: var(--cl-accent); }
+html body[data-theme="dark"] .home-view .home-layout-meta span[data-tag-type="posts"] { background: color-mix(in oklab, var(--cl-accent-2) 16%, transparent); color: var(--cl-accent-2); }
+
+/* 動作：主按鈕實心珊瑚 */
+html body[data-theme="dark"] .home-view .home-layout-actions button {
+  min-height: 40px;
+  border-radius: 999px;
+  font: 500 14px/1 var(--cl-f-ui);
+}
+html body[data-theme="dark"] .home-view .home-layout-actions button:first-child {
+  border: 0;
+  background: var(--cl-accent);
+  color: var(--cl-on-accent);
+}
+html body[data-theme="dark"] .home-view .home-layout-actions button:first-child:hover {
+  border: 0;
+  background: var(--cl-accent);
+  color: var(--cl-on-accent);
+  filter: brightness(1.06);
+}
+html body[data-theme="dark"] .home-view .home-layout-actions button.secondary {
+  border: 0;
+  background: var(--cl-bg-2);
+  color: var(--cl-ink-2);
+}
+html body[data-theme="dark"] .home-view .home-layout-actions button.danger {
+  border: 1px solid var(--cl-line);
+  background: transparent;
+  color: var(--cl-ink-3);
+}
+html body[data-theme="dark"] .home-view .home-layout-actions button.danger:hover { color: #d0453a; border-color: #d0453a; background: transparent; }
+
+/* ─── 工具面板（簡報、頁面、排列、檔案）內文：明暗共用，拿掉白色寫死與等寬大寫 ─── */
+html body[data-theme="dark"] .tool-section label,
+html body[data-theme="dark"] .tool-section .panel-group-head,
+html body[data-theme="dark"] .tool-section .switch {
+  color: var(--cl-ink-2);
+  font: 500 12px/1.4 var(--cl-f-ui);
+  letter-spacing: 0;
+  text-transform: none;
+}
+html body[data-theme="dark"] .tool-section .panel-kicker {
+  color: var(--cl-accent);
+  font: 500 11px/1.4 var(--cl-f-ui);
+  letter-spacing: .06em;
+}
+html body[data-theme="dark"] .tool-section .hint,
+html body[data-theme="dark"] .tool-section .bg-preset-empty,
+html body[data-theme="dark"] .tool-section .home-message { color: var(--cl-ink-3); }
+html body[data-theme="dark"] .tool-section input[type="text"],
+html body[data-theme="dark"] .tool-section input[type="number"],
+html body[data-theme="dark"] .tool-section input[type="url"],
+html body[data-theme="dark"] .tool-section textarea,
+html body[data-theme="dark"] .tool-section select {
+  background: var(--cl-bg);
+  border-color: var(--cl-line);
+  color: var(--cl-ink);
+}
+html body[data-theme="dark"] .tool-section button:not([class]),
+html body[data-theme="dark"] .tool-section button[class=""] {
+  border: 0;
+  background: var(--cl-accent-soft);
+  color: var(--cl-accent);
+}
+html body[data-theme="dark"] .tool-section button:not([class]):hover,
+html body[data-theme="dark"] .tool-section button[class=""]:hover {
+  background: var(--cl-accent);
+  color: var(--cl-on-accent);
+}
+html body[data-theme="dark"] .tool-section button.secondary,
+html body[data-theme="dark"] .tool-section .link-button.secondary {
+  border: 1px solid var(--cl-line);
+  background: var(--cl-surface);
+  color: var(--cl-ink-2);
+}
+html body[data-theme="dark"] .tool-section button.secondary:hover,
+html body[data-theme="dark"] .tool-section .link-button.secondary:hover {
+  border-color: var(--cl-line);
+  background: var(--cl-bg-2);
+  color: var(--cl-ink);
+}
+html body[data-theme="dark"] .tool-section button.danger {
+  border: 1px solid color-mix(in oklab, #d0453a 30%, transparent);
+  background: transparent;
+  color: #d0453a;
+}
+html body[data-theme="dark"] .tool-section button.danger:hover { background: rgba(208, 69, 58, .1); color: #d0453a; }
+
+/* 舊夜間樣式對 .button-row 與面板直屬按鈕有更具體的藍色規則（權重 0,5,2），照同樣的選擇器蓋回來 */
+html body[data-theme="dark"] .tool-section > button:not(.secondary):not(.danger),
+html body[data-theme="dark"] .tool-section .button-row button:not(.secondary):not(.danger) {
+  border: 0;
+  background: var(--cl-accent-soft);
+  color: var(--cl-accent);
+}
+html body[data-theme="dark"] .tool-section > button:not(.secondary):not(.danger):hover,
+html body[data-theme="dark"] .tool-section .button-row button:not(.secondary):not(.danger):hover {
+  background: var(--cl-accent);
+  color: var(--cl-on-accent);
+}
+html body[data-theme="dark"] .tool-section .button-row button.secondary,
+html body[data-theme="dark"] .tool-section .button-row .link-button.secondary {
+  border: 1px solid var(--cl-line);
+  background: var(--cl-surface);
+  color: var(--cl-ink-2);
+}
+html body[data-theme="dark"] .tool-section .button-row button.secondary:hover,
+html body[data-theme="dark"] .tool-section .button-row .link-button.secondary:hover {
+  border-color: var(--cl-line);
+  background: var(--cl-bg-2);
+  color: var(--cl-ink);
 }

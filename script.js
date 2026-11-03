@@ -7890,6 +7890,20 @@ document.addEventListener("mousedown", (e) => {
   if (e.target.closest("#slide-stage") && !openWidget) clearWidgetSelection();
   closeAllWidgetSettings();
 });
+// 點到簡報（Google Slides 等 iframe）時，外層 document 收不到 mousedown；
+// 改看焦點是否跑進 iframe，一樣收起工具面板與小工具設定（點的是已打開設定的小工具裡的 iframe 就保留）
+window.addEventListener("blur", () => {
+  setTimeout(() => {
+    const frame = document.activeElement;
+    if (!frame || frame.tagName !== "IFRAME") return;
+    closeActiveToolPanel();
+    const owner = frame.closest(".dynamic-widget");
+    if (owner && getDynamicWidget(owner.dataset.dynamicId)?.state.settingsOpen) return;
+    closeAllWidgetSettings();
+    if (!owner) clearWidgetSelection();
+  }, 0);
+});
+
 window.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     if (!els.postBoardQrModal.classList.contains("hidden")) {

@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Google Slides 教學播放台</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
-  <link rel="stylesheet" href="./styles-v25.css">
-  <link rel="stylesheet" href="./styles-dark-v25.css">
+  <link rel="stylesheet" href="./styles-v26.css">
+  <link rel="stylesheet" href="./styles-dark-v26.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Huninn&family=Noto+Sans+TC:wght@400;500;700&family=Poppins:wght@500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles-classroom-v25.css">
+  <link rel="stylesheet" href="./styles-classroom-v26.css">
   <script>
     // 柔光教室明暗：使用者選過就照選的，沒選過跟系統；body 一律維持 data-theme="dark" 沿用舊版版面規則
     (function () {
@@ -755,7 +755,7 @@
 
   <div id="settings-backdrop" class="settings-backdrop hidden"></div>
 
-  <script src="./script-v25.js"></script>
+  <script src="./script-v26.js"></script>
   <script>
     // 側欄：首頁、檔案、簡報、頁面、＋小工具、排列、圖層、明暗、全螢幕（第 3 階段起直接呼叫 script.js，不再代理舊工具列）
     (function () {
@@ -831,6 +831,14 @@
         if (e.target.closest('#side-rail, .rail-flyout, #confirm-modal')) return;
         if (!addMenu.classList.contains('hidden')) setAddMenu(false);
         if (layersOpen()) toggleLayers();
+      });
+      // 點進簡報 iframe 時收不到 pointerdown，改看焦點有沒有跑進 iframe
+      window.addEventListener('blur', function () {
+        setTimeout(function () {
+          if (!document.activeElement || document.activeElement.tagName !== 'IFRAME') return;
+          if (!addMenu.classList.contains('hidden')) setAddMenu(false);
+          if (layersOpen()) toggleLayers();
+        }, 0);
       });
       document.addEventListener('keydown', function (e) {
         if (e.key !== 'Escape') return;
