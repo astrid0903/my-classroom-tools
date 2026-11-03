@@ -3269,7 +3269,7 @@ function buildDynamicSettings(instance) {
   }
 
   if (type === "slides") {
-    const url = addLabeledInput(settings, "Google Slides 或 Google Drive PDF 連結", dynamicTextarea(state.slidesUrl || "", 3));
+    const url = addLabeledInput(settings, "Google Slides、Google Drive 檔案、或 PowerPoint 公開連結", dynamicTextarea(state.slidesUrl || "", 3));
     const mode = addLabeledInput(settings, "嵌入模式", document.createElement("select"));
     [
       ["preview", "preview"],
@@ -6505,6 +6505,8 @@ function parseSlidesInput(raw) {
   const value = raw.trim();
   if (!value) return null;
 
+  // Google Drive → must be checked before .pptx pathname test to avoid
+  // ?name=lecture.pptx or #lecture.pptx in Drive URLs triggering office-online
   const drivePdfMatch =
     value.match(/drive\.google\.com\/file\/d\/([^/]+)/) ||
     value.match(/[?&]id=([-\w]{25,})/) ||
@@ -6518,6 +6520,40 @@ function parseSlidesInput(raw) {
       editUrl: `https://drive.google.com/file/d/${id}/view`,
     };
   }
+
+  // OneDrive embed URL (onedrive.live.com/embed?...) → use directly as iframe src
+  if (/onedrive\.live\.com\/embed/i.test(value)) {
+    return {
+      id: "",
+      kind: "office-embed",
+      slide: "",
+      srcUrl: value,
+      editUrl: value,
+    };
+  }
+
+  // Already-built Office Online Viewer URL, or direct HTTPS .pptx/.ppt link.
+  // Only inspect pathname so ?file=lecture.pptx or #lecture.pptx won't falsely match.
+  if (/view\.officeapps\.live\.com/i.test(value)) {
+    return {
+      id: "",
+      kind: "office-online",
+      slide: "",
+      srcUrl: value,
+      editUrl: value,
+    };
+  }
+  try {
+    if (/\.(pptx|ppt)$/i.test(new URL(value).pathname)) {
+      return {
+        id: "",
+        kind: "office-online",
+        slide: "",
+        srcUrl: value,
+        editUrl: value,
+      };
+    }
+  } catch (e) { /* not a valid absolute URL, fall through */ }
 
   const publishedMatch = value.match(/presentation\/d\/e\/([^/]+)/);
   if (publishedMatch) {
@@ -6544,6 +6580,16 @@ function parseSlidesInput(raw) {
 
 function buildSlidesUrl(slides, mode = slidesMode) {
   if (!slides) return "";
+
+  if (slides.kind === "office-online") {
+    // If srcUrl is already a viewer URL, use as-is to avoid double-wrapping
+    if (/view\.officeapps\.live\.com/i.test(slides.srcUrl)) return slides.srcUrl;
+    return `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(slides.srcUrl)}`;
+  }
+
+  if (slides.kind === "office-embed") {
+    return slides.srcUrl;
+  }
 
   if (slides.kind === "drive-pdf") {
     return `https://drive.google.com/file/d/${slides.id}/preview`;
@@ -6600,8 +6646,8 @@ function setLoading(isLoading, title = "正在載入簡報", detail = "Google Sl
 
   if (isLoading) {
     loadingTimerId = window.setTimeout(() => {
-      els.loadingTitle.textContent = "仍在等待 Google Slides";
-      els.loadingDetail.textContent = "大型簡報可能需要更久。你可以繼續等，或按「重新載入」再試一次。";
+      els.loadingTitle.textContent = "仍在等待簡報載入";
+      els.loadingDetail.textContent = "大型簡報或 PowerPoint 可能需要更久。你可以繼續等，或按「重新載入」再試一次。";
     }, 15000);
   }
 }
@@ -6619,7 +6665,7 @@ function loadPlayerUrl(playerUrl) {
 function loadSlides() {
   const slides = parseSlidesInput(els.slidesUrl.value);
   if (!slides) {
-    setSlidesMessage("請貼上 Google Slides 分享連結、embed 連結、簡報 ID，或 Google Drive PDF 分享連結。", true);
+    setSlidesMessage("請貼上 Google Slides 分享連結、embed 連結、簡報 ID、Google Drive 分享連結，或 .pptx/.ppt 直連網址。", true);
     return;
   }
 
@@ -6628,8 +6674,12 @@ function loadSlides() {
   loadPlayerUrl(playerUrl);
   updateOpenSlidesLink();
   updateSlidesDebug(playerUrl);
-  if (slides.kind === "drive-pdf") {
-    setSlidesMessage("已載入 Google Drive PDF。若畫面空白，請確認 PDF 分享權限是知道連結的人可檢視。");
+  if (slides.kind === "office-online") {
+    setSlidesMessage("已用 Microsoft Office Online 檢視器載入 PowerPoint。若畫面空白，請確認檔案連結已公開分享。");
+  } else if (slides.kind === "office-embed") {
+    setSlidesMessage("已嵌入 OneDrive PowerPoint 預覽。若畫面空白，請確認分享設定允許嵌入。");
+  } else if (slides.kind === "drive-pdf") {
+    setSlidesMessage("已載入 Google Drive 檔案（PDF / PowerPoint）。若畫面空白，請確認分享權限是「知道連結的人可檢視」。");
   } else if (isLocalFileMode()) {
     setSlidesMessage("目前是用本機 file:// 開啟，Google Slides 可能不允許嵌入。請點「開啟線上播放台」再載入簡報。", true);
   } else {
@@ -6647,13 +6697,15 @@ function clearSlides() {
   updateOpenSlidesLink();
   updateSlidesDebug("");
   updateStageForPage();
-  setSlidesMessage("若一般連結看不到，請先在 Google Slides 設為「知道連結的人可檢視」。");
+  setSlidesMessage("支援 Google Slides、Google Drive（含 PowerPoint）或 Office Online 連結。Google 分享連結請設為「知道連結的人可檢視」。");
   writeState({ currentEmbedUrl: "", currentSlides: null });
 }
 
 function switchSlidesMode() {
-  if (currentSlides?.kind === "drive-pdf") {
-    setSlidesMessage("Google Drive PDF 使用固定預覽模式，不需要切換播放模式。");
+  if (currentSlides?.kind === "drive-pdf" ||
+      currentSlides?.kind === "office-online" ||
+      currentSlides?.kind === "office-embed") {
+    setSlidesMessage("此來源使用固定預覽模式，不支援切換播放模式。");
     return;
   }
 

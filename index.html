@@ -298,8 +298,8 @@
     <aside class="control-tray" aria-label="小工具設定">
       <section id="slides-panel" class="tool-section" data-panel="slides">
         <h2>簡報</h2>
-        <label for="slides-url">Google Slides 或 Google Drive PDF 連結</label>
-        <textarea id="slides-url" rows="4" placeholder="https://docs.google.com/presentation/d/.../edit 或 https://drive.google.com/file/d/.../view"></textarea>
+        <label for="slides-url">Google Slides、Google Drive 檔案（PDF / PPTX）、或 PowerPoint 公開連結</label>
+        <textarea id="slides-url" rows="4" placeholder="Google Slides 連結、Google Drive 分享連結（PDF / PPTX）、或 HTTPS 直連 .pptx 網址"></textarea>
         <div class="button-row">
           <button id="load-slides" type="button">載入簡報</button>
           <button id="clear-slides" class="secondary" type="button">清除</button>
@@ -311,7 +311,7 @@
         </div>
         <a id="open-online-app" class="link-button secondary hidden" href="https://astrid0903.github.io/my-classroom-tools/" target="_blank" rel="noreferrer">開啟線上播放台</a>
         <p id="slides-debug" class="debug-link"></p>
-        <p id="slides-message" class="hint" aria-live="polite">若一般連結看不到，請先在 Google Slides 設為「知道連結的人可檢視」。</p>
+        <p id="slides-message" class="hint" aria-live="polite">支援 Google Slides、Google Drive 檔案（PDF / PPTX / PPT）、及 HTTPS 直連 .pptx 網址（經 Microsoft Office Online 預覽）。</p>
       </section>
 
       <section id="pages-panel" class="tool-section pages-panel" data-panel="pages">
