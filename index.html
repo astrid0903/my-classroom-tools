@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Google Slides 教學播放台</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
-  <link rel="stylesheet" href="./styles-v26.css">
-  <link rel="stylesheet" href="./styles-dark-v26.css">
+  <link rel="stylesheet" href="./styles-v27.css">
+  <link rel="stylesheet" href="./styles-dark-v27.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Huninn&family=Noto+Sans+TC:wght@400;500;700&family=Poppins:wght@500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles-classroom-v26.css">
+  <link rel="stylesheet" href="./styles-classroom-v27.css">
   <script>
     // 柔光教室明暗：使用者選過就照選的，沒選過跟系統；body 一律維持 data-theme="dark" 沿用舊版版面規則
     (function () {
@@ -44,6 +44,7 @@
       </div>
       <div id="studio-file-status" class="studio-file-status hidden" aria-live="polite">尚未連結檔案｜檔名：未命名｜最新存檔：尚未存檔</div>
       <nav id="top-page-list" class="top-page-list" aria-label="頁面切換"></nav>
+      <div id="top-qr-list" class="top-qr-list hidden" aria-label="貼文板 QR Code"></div>
     </div>
   </div>
   <section id="home-view" class="home-view" aria-label="檔案首頁">
@@ -755,7 +756,7 @@
 
   <div id="settings-backdrop" class="settings-backdrop hidden"></div>
 
-  <script src="./script-v26.js"></script>
+  <script src="./script-v27.js"></script>
   <script>
     // 側欄：首頁、檔案、簡報、頁面、＋小工具、排列、圖層、明暗、全螢幕（第 3 階段起直接呼叫 script.js，不再代理舊工具列）
     (function () {

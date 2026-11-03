@@ -112,6 +112,7 @@ const els = {
   postBoardLink: document.querySelector("#post-board-link"),
   postBoardQrPopover: document.querySelector("#post-board-qr-popover"),
   postBoardQrToggle: document.querySelector("#post-board-qr-toggle"),
+  topQrList: document.querySelector("#top-qr-list"),
   postBoardQrExpand: document.querySelector("#post-board-qr-expand"),
   postBoardQrModal: document.querySelector("#post-board-qr-modal"),
   postBoardQrModalTitle: document.querySelector("#post-board-qr-modal-title"),
@@ -304,6 +305,9 @@ let timerId = null;
 let groups = [];
 let manualGroups = [];
 let dragState = null;
+let qrBoardPageId = ""; // 貼文板 QR Code 目前顯示哪一個貼文板（見 togglePostBoardQr）
+// 拖移或縮放剛放開時，緊接著的 click 不算「點選」（否則拖完已選取的小工具會被取消選取）
+let widgetClickSuppressedUntil = 0;
 let resizeState = null;
 let activeTool = "";
 let slidesMode = "preview";
@@ -1758,6 +1762,7 @@ function renderPages() {
   updateSwatchActive(curPage.bgColor || "");
   renderBackgroundPresets();
   updatePostBoardControls();
+  renderTopQrList();
 }
 
 function renderBackgroundPresets() {
@@ -2099,6 +2104,7 @@ function handleWidgetClick(event) {
   const widget = event.target.closest(".widget");
   if (!widget || widget.classList.contains("hidden") || widget.classList.contains("page-hidden")) return;
   if (shouldIgnoreWidgetSelection(event)) return;
+  if (Date.now() < widgetClickSuppressedUntil) return;
   bringWidgetToFront(widget);
 
   const id = widgetSelectionId(widget);
@@ -3031,12 +3037,17 @@ function createDynamicWidget(type, state = {}, position = null) {
   const content = createEl("div", "dynamic-content");
   const display = createEl("div", "dynamic-display");
   const settings = createEl("div", "dynamic-settings");
-  const resize = createEl("button", "resize-handle");
-  resize.type = "button";
-  resize.setAttribute("aria-label", "縮放小工具");
+  // 四個角都能縮放；右下角沿用原本的 .resize-handle 樣式
+  const resizeHandles = ["nw", "ne", "sw", "se"].map((corner) => {
+    const handle = createEl("button", `resize-handle resize-${corner}`);
+    handle.type = "button";
+    handle.dataset.corner = corner;
+    handle.setAttribute("aria-label", "縮放小工具");
+    return handle;
+  });
 
   content.append(display);
-  widget.append(head, content, resize);
+  widget.append(head, content, ...resizeHandles);
   els.stage.appendChild(widget);
   document.body.appendChild(settings);
 
@@ -3056,12 +3067,12 @@ function createDynamicWidget(type, state = {}, position = null) {
   dynamicWidgets.push(instance);
 
   drag.addEventListener("pointerdown", startDrag);
-  if (type === "youtube") {
-    head.addEventListener("pointerdown", (event) => {
-      if (instance.state.minimized && !event.target.closest("button")) startDrag(event);
-    });
-  }
-  resize.addEventListener("pointerdown", startResize);
+  // 按住整條標題列（按鈕以外）都能拖移
+  head.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0 || event.target.closest("button, a, input, textarea, select")) return;
+    startDrag(event);
+  });
+  resizeHandles.forEach((handle) => handle.addEventListener("pointerdown", startResize));
   hideButton.addEventListener("click", () => setDynamicWidgetHidden(instance, true));
   copyButton.addEventListener("click", () => copyDynamicWidget(id));
   minimizeButton?.addEventListener("click", () => {
@@ -5246,7 +5257,7 @@ function commitPostBoardTitleEdit() {
   els.postBoardTitle.textContent = nextName;
   if (nextName === currentName) return;
   pages = pages.map((item) => (item.id === page.id ? { ...item, name: nextName } : item));
-  els.postBoardJoinTitle.textContent = nextName;
+  if (qrBoardPageId === page.id) els.postBoardJoinTitle.textContent = nextName;
   renderPages();
   updatePostBoardControls();
   writeState();
@@ -5257,14 +5268,13 @@ function renderPostBoard() {
   const page = activePage();
   if (page.type !== "posts") return;
   const sections = normalizePostSections(postBoardSections.length > 0 ? postBoardSections : page.sections);
-  const joinUrl = postBoardJoinUrl(page);
   const boardName = page.name || "貼文板";
   if (document.activeElement !== els.postBoardTitle) els.postBoardTitle.textContent = boardName;
   applyPageTextPalette(page);
-  els.postBoardJoinTitle.textContent = boardName;
   els.postBoardDetail.textContent = "";
-  els.postBoardQr.src = buildQrCodeUrl(joinUrl, "260");
-  els.postBoardLink.href = joinUrl || "#";
+  // QR 正在顯示別的貼文板時不要蓋掉它
+  if (!isPostBoardQrOpen() || qrBoardPageId === page.id) fillPostBoardQr(page);
+  syncPostBoardQrToggle();
   els.postBoardMessage.textContent = postBoardPosts.length === 0 ? "等待參與者投稿中。" : `已收到 ${postBoardPosts.length} 則貼文。`;
   els.postBoardMessage.classList.remove("error");
   if (document.activeElement !== els.postBoardNote) {
@@ -7212,11 +7222,13 @@ function moveDrag(event) {
 
   widget.style.left = `${left}px`;
   widget.style.top = `${top}px`;
+  dragState.moved = true;
   showSnapGuides(guides);
 }
 
 function stopDrag() {
   if (!dragState) return;
+  if (dragState.moved) widgetClickSuppressedUntil = Date.now() + 250;
   dragState = null;
   clearSnapGuides();
   writeState();
@@ -7240,8 +7252,11 @@ function startResize(event) {
 
   resizeState = {
     widget,
+    corner: event.currentTarget.dataset.corner || "se",
     startX: event.clientX,
     startY: event.clientY,
+    startLeft: rect.left - stageRect.left,
+    startTop: rect.top - stageRect.top,
     startWidth: rect.width,
     startHeight: rect.height,
     stageRect,
@@ -7254,10 +7269,9 @@ function moveResize(event) {
   if (!resizeState) return;
   event.preventDefault();
 
-  const { widget, startX, startY, startWidth, startHeight, stageRect } = resizeState;
-  const rect = widget.getBoundingClientRect();
-  const left = rect.left - stageRect.left;
-  const top = rect.top - stageRect.top;
+  const { widget, corner, startX, startY, startLeft, startTop, startWidth, startHeight, stageRect } = resizeState;
+  const left = startLeft;
+  const top = startTop;
   const minWidth =
     widget.dataset.widget === "timer" || widget.dataset.widget === "clock"
       ? 190
@@ -7274,6 +7288,23 @@ function moveResize(event) {
       : widget.dataset.widget === "youtube" || widget.dataset.widget === "slides"
       ? 210
       : 150;
+  resizeState.moved = true;
+  if (corner !== "se") {
+    // 左、上兩邊往外拉時，寬高變大、左上角跟著移動；右下角固定不動
+    const fromLeft = corner.includes("w");
+    const fromTop = corner.includes("n");
+    const dx = event.clientX - startX;
+    const dy = event.clientY - startY;
+    const maxW = fromLeft ? startLeft + startWidth - 8 : stageRect.width - startLeft - 8;
+    const maxH = fromTop ? startTop + startHeight - 8 : stageRect.height - startTop - 8;
+    const width = Math.min(Math.max(minWidth, maxW), Math.max(minWidth, fromLeft ? startWidth - dx : startWidth + dx));
+    const height = Math.min(Math.max(minHeight, maxH), Math.max(minHeight, fromTop ? startHeight - dy : startHeight + dy));
+    widget.style.width = `${width}px`;
+    widget.style.height = `${height}px`;
+    if (fromLeft) widget.style.left = `${startLeft + startWidth - width}px`;
+    if (fromTop) widget.style.top = `${startTop + startHeight - height}px`;
+    return;
+  }
   const maxWidth = Math.max(minWidth, stageRect.width - left - 8);
   const maxHeight = Math.max(minHeight, stageRect.height - top - 8);
   const rawWidth = Math.min(maxWidth, Math.max(minWidth, startWidth + event.clientX - startX));
@@ -7287,6 +7318,7 @@ function moveResize(event) {
 
 function stopResize() {
   if (!resizeState) return;
+  if (resizeState.moved) widgetClickSuppressedUntil = Date.now() + 250;
   resizeState = null;
   clearSnapGuides();
   writeState();
@@ -7695,20 +7727,75 @@ if (els.participantAttachmentRemove) {
   });
 }
 els.participantImageClear.addEventListener("click", () => clearParticipantImagePreview({ clearInput: true }));
+// 貼文板 QR Code：浮在畫面右上角，任何頁面都看得到；可從貼文板的「QR Code」或右上控制中心開關。
+// qrBoardPageId 記住目前顯示的是哪一個貼文板（檔案裡可能有好幾個）。
+if (els.postBoardQrPopover) document.body.appendChild(els.postBoardQrPopover);
+
+function isPostBoardQrOpen() {
+  return Boolean(els.postBoardQrPopover && !els.postBoardQrPopover.classList.contains("hidden"));
+}
+
+function fillPostBoardQr(page) {
+  const joinUrl = postBoardJoinUrl(page);
+  qrBoardPageId = page.id;
+  els.postBoardJoinTitle.textContent = page.name || "貼文板";
+  els.postBoardQr.src = buildQrCodeUrl(joinUrl, "260");
+  els.postBoardLink.href = joinUrl || "#";
+}
+
+function syncPostBoardQrToggle() {
+  if (!els.postBoardQrToggle) return;
+  const showingThis = isPostBoardQrOpen() && qrBoardPageId === activePage().id;
+  els.postBoardQrToggle.classList.toggle("active", showingThis);
+  els.postBoardQrToggle.setAttribute("aria-expanded", String(showingThis));
+}
+
 function setPostBoardQrOpen(isOpen) {
-  if (!els.postBoardQrPopover || !els.postBoardQrToggle) return;
+  if (!els.postBoardQrPopover) return;
   els.postBoardQrPopover.classList.toggle("hidden", !isOpen);
-  els.postBoardQrToggle.classList.toggle("active", isOpen);
-  els.postBoardQrToggle.setAttribute("aria-expanded", String(isOpen));
+  syncPostBoardQrToggle();
+  renderTopQrList();
+}
+
+function togglePostBoardQr(pageId) {
+  const page = pages.find((item) => item.id === pageId && item.type === "posts");
+  if (!page) return;
+  if (isPostBoardQrOpen() && qrBoardPageId === pageId) {
+    setPostBoardQrOpen(false);
+    return;
+  }
+  fillPostBoardQr(page);
+  setPostBoardQrOpen(true);
+}
+
+// 右上控制中心：檔案裡有貼文板時，每個貼文板一顆 QR Code 開關
+function renderTopQrList() {
+  if (!els.topQrList) return;
+  const boards = pages.filter((page) => page.type === "posts");
+  if (isPostBoardQrOpen() && !boards.some((page) => page.id === qrBoardPageId)) {
+    els.postBoardQrPopover.classList.add("hidden");
+    syncPostBoardQrToggle();
+  }
+  els.topQrList.innerHTML = "";
+  els.topQrList.classList.toggle("hidden", boards.length === 0);
+  boards.forEach((page) => {
+    const showing = isPostBoardQrOpen() && qrBoardPageId === page.id;
+    const button = createEl("button", `top-qr-item${showing ? " active" : ""}`);
+    button.type = "button";
+    button.setAttribute("aria-pressed", String(showing));
+    button.append(createEl("span", "top-qr-label", "QR Code"), createEl("span", "top-qr-name", page.name || "貼文板"));
+    button.title = showing ? "收起這個貼文板的 QR Code" : "在右上角顯示這個貼文板的 QR Code";
+    button.addEventListener("click", () => togglePostBoardQr(page.id));
+    els.topQrList.appendChild(button);
+  });
 }
 
 els.postBoardQrToggle.addEventListener("click", (e) => {
   e.preventDefault();
   e.stopPropagation();
   e.stopImmediatePropagation();
-  const shouldOpen = els.postBoardQrPopover?.classList.contains("hidden");
-  setPostBoardQrOpen(Boolean(shouldOpen));
-  if (shouldOpen && els.postBoardNoteWrap && !els.postBoardNoteWrap.classList.contains("hidden")) {
+  togglePostBoardQr(activePage().id);
+  if (isPostBoardQrOpen() && els.postBoardNoteWrap && !els.postBoardNoteWrap.classList.contains("hidden")) {
     els.postBoardNoteWrap.classList.add("hidden");
   }
 });
@@ -7744,7 +7831,7 @@ if (els.postBoardQrModalUrl) {
 }
 
 els.postBoardQrExpand.addEventListener("click", () => {
-  const page = activePage();
+  const page = pages.find((item) => item.id === qrBoardPageId) || activePage();
   const joinUrl = postBoardJoinUrl(page);
   els.postBoardQrModalTitle.textContent = page.name || "貼文板";
   els.postBoardQrModalImg.src = buildQrCodeUrl(joinUrl, "480");
@@ -7815,8 +7902,6 @@ if (els.postBoardNoteToggle) {
       els.postBoardNoteWrap.classList.toggle("hidden");
       if (!els.postBoardNoteWrap.classList.contains("hidden")) {
         els.postBoardNote.focus();
-        // 互斥：收合 QR Code popover
-        setPostBoardQrOpen(false);
       }
     }
   });
@@ -7857,13 +7942,7 @@ els.postBoardTitle.addEventListener("keydown", (event) => {
 });
 document.addEventListener("click", (e) => {
   document.querySelectorAll(".post-menu:not(.hidden), .post-section-menu:not(.hidden)").forEach((m) => m.classList.add("hidden"));
-  if (els.postBoardQrPopover && !els.postBoardQrPopover.classList.contains("hidden")) {
-    const isClickInside = els.postBoardQrPopover.contains(e.target) ||
-                          (els.postBoardQrToggle && els.postBoardQrToggle.contains(e.target));
-    if (!isClickInside) {
-      setPostBoardQrOpen(false);
-    }
-  }
+  // QR Code 打開後一直浮在右上角，只有再按一次「QR Code」才關（點別處不收）
 });
 
 function closeAllWidgetSettings() {
