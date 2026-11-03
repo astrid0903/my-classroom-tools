@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Google Slides 教學播放台</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
-  <link rel="stylesheet" href="./styles-v20.css">
-  <link rel="stylesheet" href="./styles-dark-v20.css">
+  <link rel="stylesheet" href="./styles-v21.css">
+  <link rel="stylesheet" href="./styles-dark-v21.css">
 </head>
 <body data-theme="dark">
   <div id="session-bar" class="session-bar hidden" aria-label="Session 狀態">
@@ -89,6 +89,11 @@
     <button class="rail-brand" type="button" id="rail-home" aria-label="回到檔案首頁">
         <svg viewBox="0 0 24 24" aria-hidden="true" class="rail-icon" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M12 17v4M8 21h8"/><path d="M10 9.5 15.5 12 10 14.5V9.5z" fill="currentColor" stroke="none"/></svg>
       </button>
+    <button class="rail-btn" type="button" data-rail="layouts" aria-label="檔案存檔" title="檔案存檔">
+      <svg viewBox="0 0 24 24" class="rail-icon"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="M12.5 11v6M9.5 14l3 3 3-3"/></svg>
+    </button>
+
+    <span class="rail-sep" aria-hidden="true"></span>
 
     <!-- Group 1: Presentation -->
     <button class="rail-btn" type="button" data-rail="slides" aria-label="簡報" title="簡報">
@@ -118,6 +123,9 @@
     </button>
     <button class="rail-btn" type="button" data-rail="youtube" aria-label="YouTube" title="YouTube">
       <svg viewBox="0 0 24 24" class="rail-icon"><rect x="3" y="6" width="18" height="12" rx="3"/><path d="M11 10l4 2-4 2z" fill="currentColor" stroke="none"/></svg>
+    </button>
+    <button class="rail-btn" type="button" data-rail="qr" aria-label="QR Code" title="QR Code">
+      <svg viewBox="0 0 24 24" class="rail-icon"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><path d="M14 14h2v2h-2zM18 18h2v2h-2zM14 18h2M18 14h2"/></svg>
     </button>
 
     <span class="rail-sep" aria-hidden="true"></span>
@@ -834,7 +842,7 @@
 
   <div id="settings-backdrop" class="settings-backdrop hidden"></div>
 
-  <script src="./script-v20.js"></script>
+  <script src="./script-v21.js"></script>
   <script>
     // IA Step 1: side-rail wiring — forwards to existing dock buttons.
     (function () {
@@ -855,18 +863,19 @@
           if (action === 'hidden-list') clickById('hidden-widgets-button');
           else if (action === 'hide-all') clickById('hide-widgets');
           else if (action === 'show-all-hidden') clickById('show-all-created-widgets');
-          rail.querySelectorAll('.rail-btn.active').forEach(function (b) { b.classList.remove('active'); });
           return;
         }
         var btn = e.target.closest('[data-rail]');
         if (!btn) return;
         var key = btn.getAttribute('data-rail');
-        var target = document.querySelector('.tool-dock [data-tool="' + key + '"]');
-        if (target) {
-          target.click();
-          rail.querySelectorAll('.rail-btn.active').forEach(function (b) { b.classList.remove('active'); });
-          btn.classList.add('active');
+        // 舊工具列的「檔案」被改成回首頁，存檔面板改由這裡直接開
+        if (key === 'layouts') {
+          toggleActiveTool('layouts');
+          return;
         }
+        // 亮起狀態交給 setActiveTool 同步，這裡不另外加，免得面板關了還亮著
+        var target = document.querySelector('.tool-dock [data-tool="' + key + '"]');
+        if (target) target.click();
       });
 
       // Show rail whenever studio is visible.

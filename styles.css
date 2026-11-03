@@ -2376,6 +2376,9 @@ body.studio-mode .page-tabs {
 .dynamic-widget[data-widget-type="clock"] {
   min-width: 240px;
   min-height: 150px;
+  /* container-type: size 只認明確尺寸，只有 min-height 時 cqh＝0，數字會消失；拖曳縮放的 inline 尺寸會覆蓋這組預設 */
+  width: 240px;
+  height: 150px;
   container-type: size;
 }
 
@@ -2550,7 +2553,7 @@ body.studio-mode .page-tabs {
 .dynamic-widget[data-widget-type="clock"] .dynamic-display {
   display: grid;
   place-items: center;
-  font-size: min(28cqw, 58cqh);
+  font-size: max(1.5rem, min(28cqw, 58cqh));
   line-height: 1;
   font-weight: 850;
   font-variant-numeric: tabular-nums;

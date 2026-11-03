@@ -2131,8 +2131,15 @@ function placeDynamicSettings(instance) {
   if (!instance.state.settingsOpen) return;
   const rect = instance.element.getBoundingClientRect();
   const width = Math.min(320, Math.max(220, window.innerWidth - 32));
-  const left = Math.min(Math.max(16, rect.right - width), Math.max(16, window.innerWidth - width - 16));
-  const top = Math.min(Math.max(16, rect.top + 48), Math.max(16, window.innerHeight - 220));
+  // 先放小工具右邊、放不下改左邊，兩邊都放不下才疊在上面；一律不蓋到左側欄
+  const rail = document.getElementById("side-rail");
+  const minLeft = rail && !rail.classList.contains("hidden") ? rail.getBoundingClientRect().right + 12 : 16;
+  const maxLeft = Math.max(minLeft, window.innerWidth - width - 16);
+  let left;
+  if (rect.right + 10 <= maxLeft) left = rect.right + 10;
+  else if (rect.left - width - 10 >= minLeft) left = rect.left - width - 10;
+  else left = Math.min(Math.max(minLeft, rect.right - width), maxLeft);
+  const top = Math.min(Math.max(16, rect.top), Math.max(16, window.innerHeight - 220));
   instance.settings.style.position = "fixed";
   instance.settings.style.width = `${width}px`;
   instance.settings.style.left = `${left}px`;
