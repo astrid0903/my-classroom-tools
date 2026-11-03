@@ -1872,8 +1872,18 @@ function renderHiddenWidgetsList() {
   }
   dynamicWidgets.forEach((widget) => {
     const row = createEl("div", "hidden-widget-row");
-    const meta = createEl("div", "hidden-widget-meta");
+    const selectable = !widget.state.hidden && widget.pageId === activePage().id;
+    const meta = createEl("button", "hidden-widget-meta");
+    meta.type = "button";
+    meta.disabled = !selectable;
+    meta.title = selectable ? "選取這個小工具" : widget.state.hidden ? "先顯示才能選取" : "在其他頁面";
     meta.append(createEl("strong", "", widgetListLabel(widget)), createEl("span", "", widget.state.hidden ? "已隱藏" : "顯示中"));
+    // 圖層清單：點名稱選取該小工具（只限目前頁面、顯示中的）
+    meta.addEventListener("click", () => {
+      selectedWidgets = new Set([widgetSelectionId(widget.element)]);
+      bringWidgetToFront(widget.element);
+      renderWidgetSelection();
+    });
     const toggle = createEl("button", widget.state.hidden ? "" : "secondary", widget.state.hidden ? "顯示" : "隱藏");
     toggle.type = "button";
     toggle.addEventListener("click", () => setDynamicWidgetHidden(widget, !widget.state.hidden));
@@ -5670,14 +5680,16 @@ function applyParticipantTextPalette(data = {}, imageLuminance) {
 }
 
 function applyParticipantAppearance(data = {}) {
-  const bgColor = typeof data.bgColor === "string" ? data.bgColor : "";
   const bgImage = typeof data.bgImage === "string" ? data.bgImage : "";
+  // 老師沒設背景色時，跟學員裝置的明暗走（柔光教室底色），文字深淺再由 pageTextPalette 依底色決定
+  const toneBg = document.documentElement.dataset.tone === "light" ? "#f4f1ec" : "#1c1a22";
+  const bgColor = typeof data.bgColor === "string" && data.bgColor ? data.bgColor : toneBg;
   const opacity = Number.isFinite(Number(data.bgOpacity)) ? Math.max(0, Math.min(100, Number(data.bgOpacity))) : 60;
   const appearance = { type: "posts", bgColor, bgImage, bgOpacity: opacity, titleColor: typeof data.titleColor === "string" ? data.titleColor : "" };
   applyParticipantTextPalette(appearance);
   if (bgImage) {
     const veil = Math.max(0, Math.min(0.75, 1 - opacity / 100));
-    els.participantView.style.backgroundColor = bgColor || "#111820";
+    els.participantView.style.backgroundColor = bgColor;
     els.participantView.style.backgroundImage = `linear-gradient(rgba(255,255,255,${veil}), rgba(255,255,255,${veil})), url("${bgImage}")`;
     els.participantView.style.backgroundSize = "cover";
     els.participantView.style.backgroundPosition = "center";
@@ -6073,6 +6085,7 @@ async function initParticipantMode() {
   els.studio.classList.add("hidden");
   els.participantView.classList.remove("hidden");
   document.body.classList.remove("home-mode", "studio-mode");
+  document.body.classList.add("participant-mode");
   els.participantTitle.textContent = title;
   document.title = title;
   els.participantForm.addEventListener("submit", submitParticipantPost);
