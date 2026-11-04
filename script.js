@@ -120,6 +120,7 @@ const els = {
   postBoardQrToggle: document.querySelector("#post-board-qr-toggle"),
   topQrList: document.querySelector("#top-qr-list"),
   postBoardQrExpand: document.querySelector("#post-board-qr-expand"),
+  postBoardQrClose: document.querySelector("#post-board-qr-close"),
   postBoardQrModal: document.querySelector("#post-board-qr-modal"),
   postBoardQrModalTitle: document.querySelector("#post-board-qr-modal-title"),
   postBoardQrModalImg: document.querySelector("#post-board-qr-modal-img"),
@@ -218,6 +219,7 @@ const els = {
   stageGroupsTitle: document.querySelector("#stage-groups-title"),
   stageGroups: document.querySelector("#stage-groups"),
   hiddenWidgetsButton: document.querySelector("#rail-layers"),
+  railHidePage: document.querySelector("#rail-hide-page"),
   hiddenWidgetPopover: document.querySelector("#hidden-widget-popover"),
   hiddenWidgetList: document.querySelector("#hidden-widget-list"),
   showAllCreatedWidgets: document.querySelector("#show-all-created-widgets"),
@@ -724,6 +726,13 @@ async function requestGoogleDriveToken() {
   try {
     return await requestGoogleDriveTokenWithPrompt(hasPriorGrant ? "" : "consent");
   } catch (error) {
+    // 這個網址不在 OAuth 的授權來源清單裡（本機預覽最常見）：再試一次只會再彈一個同樣的錯誤視窗。
+    // 清掉「這台電腦授權過」的記號，下次開啟就不會自動跳登入視窗。
+    const text = String(error?.message || error?.error || error?.type || "");
+    if (/origin|unauthorized|idpiframe|popup_failed/i.test(text)) {
+      window.localStorage.removeItem(GOOGLE_DRIVE_AUTH_GRANTED_KEY);
+      throw error;
+    }
     if (hasPriorGrant) return requestGoogleDriveTokenWithPrompt("consent");
     throw error;
   }
@@ -1888,6 +1897,7 @@ function updateDynamicWidgetVisibility() {
   });
   pruneWidgetSelection();
   renderHiddenWidgetsList();
+  syncPageWidgetsToggle();
 }
 
 function widgetTypeLabel(type) {
@@ -1941,6 +1951,53 @@ function setAllDynamicWidgetsHidden(hidden) {
   if (hidden) els.settingsBackdrop.classList.add("hidden");
   updateDynamicWidgetVisibility();
   writeState();
+}
+
+// 側欄的「隱藏／顯示」：一次收起或叫回目前這一頁的小工具，別頁的不動。
+// 跟「列表」面板裡的「全部顯示／隱藏全部」不同，那兩顆是整個檔案所有頁一起。
+function pageDynamicWidgets() {
+  return dynamicWidgets.filter((widget) => widget.pageId === activePage().id);
+}
+
+function pageWidgetsAllHidden() {
+  const list = pageDynamicWidgets();
+  return list.length > 0 && list.every((widget) => widget.state.hidden);
+}
+
+function setPageWidgetsHidden(hidden) {
+  const list = pageDynamicWidgets();
+  if (list.length === 0) return;
+  list.forEach((widget) => {
+    widget.state.hidden = hidden;
+    if (hidden) widget.state.settingsOpen = false;
+    renderDynamicWidget(widget);
+  });
+  if (hidden) els.settingsBackdrop.classList.add("hidden");
+  updateDynamicWidgetVisibility();
+  writeState();
+}
+
+function togglePageWidgetsHidden() {
+  setPageWidgetsHidden(!pageWidgetsAllHidden());
+}
+
+// 按鈕是切換鈕：全部收起來時變成「顯示」＋劃掉的眼睛；這一頁沒有小工具時停用
+function syncPageWidgetsToggle() {
+  const button = els.railHidePage;
+  if (!button) return;
+  const allHidden = pageWidgetsAllHidden();
+  button.disabled = pageDynamicWidgets().length === 0;
+  button.classList.toggle("active", allHidden);
+  button.setAttribute("aria-pressed", String(allHidden));
+  button.setAttribute("aria-label", allHidden ? "顯示這一頁的小工具" : "隱藏這一頁的小工具");
+  const label = button.querySelector(".rail-label");
+  if (label) label.textContent = allHidden ? "顯示" : "隱藏";
+  const icon = button.querySelector(".rail-icon");
+  if (icon) {
+    icon.innerHTML = allHidden
+      ? '<path d="M3 3l18 18"/><path d="M10.6 5.1A9.7 9.7 0 0 1 12 5c5 0 9 4.5 9 7 0 .9-.6 2.1-1.7 3.3M6.4 7A9.7 9.7 0 0 0 3 12c0 2.5 4 7 9 7 1.6 0 3-.4 4.3-1.1"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>'
+      : '<path d="M3 12c0-2.5 4-7 9-7s9 4.5 9 7-4 7-9 7-9-4.5-9-7z"/><circle cx="12" cy="12" r="3"/>';
+  }
 }
 
 function renderHiddenWidgetsList() {
@@ -2002,9 +2059,29 @@ function rgbLuminance({ r, g, b }) {
   return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
 }
 
+// 貼文板沒設背景色也沒放背景圖時，底色跟著明亮／夜間走，老師不必自己挑顏色。
+// 一旦自己設了背景色或上傳背景圖，就以老師設的為準，不再自動換。
+const AUTO_POST_BG = { light: "#faf7f2", dark: "#15131a" };
+
+function studioTone() {
+  return document.documentElement.dataset.tone === "dark" ? "dark" : "light";
+}
+
+function autoPostBgColor() {
+  return AUTO_POST_BG[studioTone()];
+}
+
+function usesAutoPostBg(page) {
+  return Boolean(page) && page.type === "posts" && !page.bgColor && !page.bgImage;
+}
+
 function pageBaseLuminance(page) {
   const explicit = hexToRgb(page.bgColor);
   if (explicit) return rgbLuminance(explicit);
+  if (usesAutoPostBg(page)) {
+    const auto = hexToRgb(autoPostBgColor());
+    if (auto) return rgbLuminance(auto);
+  }
   if (page.type === "posts") return 0.85; // 貼文板預設背景偏亮，底色亮度約 0.85
   if (page.type === "dark") return 0.02; // 深色白板
   return 0.08;
@@ -2094,7 +2171,7 @@ function applyPageBackground(page) {
   } else {
     bgLayer.style.backgroundImage = "";
     bgLayer.style.display = "none";
-    els.stage.style.background = page.bgColor || "";
+    els.stage.style.background = page.bgColor || (usesAutoPostBg(page) ? autoPostBgColor() : "");
   }
   applyPageTextPalette(page);
   if (page.bgImage) {
@@ -2392,7 +2469,8 @@ async function readStudioFile(file, handle = null) {
 }
 
 async function openDriveStudioFile(fileIdInput = "") {
-  const raw = fileIdInput || window.prompt("貼上 Google Drive 播放台 JSON 檔案連結或檔案 ID");
+  // 同樣不用原生 window.prompt（內建瀏覽器與部分嵌入式 WebView 會擋掉，按了沒反應）
+  const raw = fileIdInput || await showPromptModal("貼上 Google Drive 播放台 JSON 檔案連結或檔案 ID", "", { maxLength: 500 });
   const fileId = extractDriveFileId(raw);
   if (!fileId) return;
   try {
@@ -5419,8 +5497,31 @@ function renderPostBoard() {
     els.postBoardNote.innerHTML = page.noteHtml || "";
     els.postBoardNote.classList.toggle("is-empty", !els.postBoardNote.textContent.trim());
   }
+  syncPostBoardNoteVisibility();
   renderPostBoardColumns(page, sections);
   updatePostBoardControls();
+}
+
+function isPostBoardNoteEditing() {
+  return Boolean(els.postBoardNoteWrap && els.postBoardNoteWrap.classList.contains("is-editing"));
+}
+
+// 沒在編輯又沒有內容時整塊收起來；有內容就一直留在板面上（學員看得到，老師也要看得到）
+function syncPostBoardNoteVisibility() {
+  if (!els.postBoardNoteWrap) return;
+  const hasText = Boolean(els.postBoardNote.textContent.trim());
+  els.postBoardNoteWrap.classList.toggle("hidden", !isPostBoardNoteEditing() && !hasText);
+}
+
+function setPostBoardNoteEditing(isEditing) {
+  if (!els.postBoardNoteWrap) return;
+  els.postBoardNoteWrap.classList.toggle("is-editing", isEditing);
+  syncPostBoardNoteVisibility();
+  if (els.postBoardNoteToggle) {
+    els.postBoardNoteToggle.classList.toggle("active", isEditing);
+    els.postBoardNoteToggle.setAttribute("aria-expanded", String(isEditing));
+  }
+  if (isEditing) els.postBoardNote.focus();
 }
 
 let noteHtmlSaveTimer = null;
@@ -5433,6 +5534,7 @@ function onPostBoardNoteInput() {
   if (page.type !== "posts") return;
   const noteHtml = isEmpty ? "" : html;
   pages = pages.map((p) => (p.id === page.id ? { ...p, noteHtml } : p));
+  syncPostBoardNoteVisibility();
   writeState();
   clearTimeout(noteHtmlSaveTimer);
   noteHtmlSaveTimer = setTimeout(() => syncNoteToFirestore(noteHtml), 800);
@@ -7635,6 +7737,11 @@ els.homeDriveFolderUrl.addEventListener("keydown", (event) => {
   if (event.key === "Enter") changeDriveFolder();
 });
 els.clearSlides.addEventListener("click", clearSlides);
+// 切換明亮／夜間時，用自動背景的貼文板要跟著換底色與文字深淺
+document.addEventListener("studio-tone", () => {
+  const page = activePage();
+  if (usesAutoPostBg(page)) applyPageBackground(page);
+});
 // 簡報翻頁：播放台自己記頁碼，按鈕與鍵盤左右鍵都走 goToSlide()
 if (els.slidePrev) els.slidePrev.addEventListener("click", () => goToSlide(slideNo - 1));
 if (els.slideNext) els.slideNext.addEventListener("click", () => goToSlide(slideNo + 1));
@@ -8010,12 +8117,125 @@ els.postBoardQrToggle.addEventListener("click", (e) => {
   e.stopPropagation();
   e.stopImmediatePropagation();
   togglePostBoardQr(activePage().id);
-  if (isPostBoardQrOpen() && els.postBoardNoteWrap && !els.postBoardNoteWrap.classList.contains("hidden")) {
-    els.postBoardNoteWrap.classList.add("hidden");
-  }
+  if (isPostBoardQrOpen()) setPostBoardNoteEditing(false);
 });
 if (els.postBoardQrPopover) {
   els.postBoardQrPopover.addEventListener("click", (event) => event.stopPropagation());
+}
+// QR Code 卡片右上角的 ×：直接關掉，不用回貼文板頁按「QR Code」
+if (els.postBoardQrClose) {
+  els.postBoardQrClose.addEventListener("click", (event) => {
+    event.stopPropagation();
+    setPostBoardQrOpen(false);
+  });
+}
+
+// ── QR Code 卡片可以拖著移動 ─────────────────────────────
+// 位置記在這台電腦的瀏覽器（跟明暗切換一樣），不進播放台檔案——
+// 它是「這台電腦投影時放哪比較順」的事，不是簡報內容。
+const QR_POSITION_KEY = "studio-qr-position";
+let qrDragState = null;
+
+function readQrPosition() {
+  try {
+    const raw = window.localStorage.getItem(QR_POSITION_KEY);
+    if (!raw) return null;
+    const value = JSON.parse(raw);
+    if (typeof value?.left !== "number" || typeof value?.top !== "number") return null;
+    return value;
+  } catch {
+    return null;
+  }
+}
+
+function clampQrPosition(left, top) {
+  const card = els.postBoardQrPopover;
+  const width = card.offsetWidth || 200;
+  const height = card.offsetHeight || 260;
+  return {
+    // 至少留 40px 在畫面內，拖出去就抓不回來了
+    left: Math.max(40 - width, Math.min(window.innerWidth - 40, left)),
+    top: Math.max(0, Math.min(window.innerHeight - 40, top)),
+  };
+}
+
+function applyQrPosition(position) {
+  const card = els.postBoardQrPopover;
+  if (!card) return;
+  if (!position) {
+    card.style.left = "";
+    card.style.top = "";
+    card.style.right = "";
+    card.style.bottom = "";
+    return;
+  }
+  const safe = clampQrPosition(position.left, position.top);
+  card.style.left = `${safe.left}px`;
+  card.style.top = `${safe.top}px`;
+  card.style.right = "auto";
+  card.style.bottom = "auto";
+}
+
+function saveQrPosition(position) {
+  try {
+    if (position) window.localStorage.setItem(QR_POSITION_KEY, JSON.stringify(position));
+    else window.localStorage.removeItem(QR_POSITION_KEY);
+  } catch { /* 無痕視窗寫不進去就算了，位置只是方便 */ }
+}
+
+function startQrDrag(event) {
+  // 按在關閉鈕、放大鈕、投稿頁連結上時不要變成拖曳
+  if (event.button !== 0 || event.target.closest("button, a")) return;
+  const card = els.postBoardQrPopover;
+  const rect = card.getBoundingClientRect();
+  qrDragState = {
+    pointerId: event.pointerId,
+    offsetX: event.clientX - rect.left,
+    offsetY: event.clientY - rect.top,
+    moved: false,
+  };
+  card.setPointerCapture(event.pointerId);
+  card.classList.add("dragging");
+  event.preventDefault();
+}
+
+function moveQrDrag(event) {
+  if (!qrDragState || event.pointerId !== qrDragState.pointerId) return;
+  qrDragState.moved = true;
+  applyQrPosition({
+    left: event.clientX - qrDragState.offsetX,
+    top: event.clientY - qrDragState.offsetY,
+  });
+}
+
+function endQrDrag(event) {
+  if (!qrDragState || event.pointerId !== qrDragState.pointerId) return;
+  const card = els.postBoardQrPopover;
+  card.classList.remove("dragging");
+  if (card.hasPointerCapture(event.pointerId)) card.releasePointerCapture(event.pointerId);
+  if (qrDragState.moved) {
+    saveQrPosition({ left: parseFloat(card.style.left) || 0, top: parseFloat(card.style.top) || 0 });
+  }
+  qrDragState = null;
+}
+
+if (els.postBoardQrPopover) {
+  els.postBoardQrPopover.addEventListener("pointerdown", startQrDrag);
+  els.postBoardQrPopover.addEventListener("pointermove", moveQrDrag);
+  els.postBoardQrPopover.addEventListener("pointerup", endQrDrag);
+  els.postBoardQrPopover.addEventListener("pointercancel", endQrDrag);
+  // 雙擊卡片＝回到右下角的預設位置（拖到奇怪的地方時的退路）
+  els.postBoardQrPopover.addEventListener("dblclick", (event) => {
+    if (event.target.closest("button, a")) return;
+    applyQrPosition(null);
+    saveQrPosition(null);
+  });
+  applyQrPosition(readQrPosition());
+  // 視窗縮放後可能整張跑到畫面外，拉回來
+  window.addEventListener("resize", () => {
+    const saved = readQrPosition();
+    if (saved) applyQrPosition(saved);
+  });
 }
 
 async function copyQrModalUrl() {
@@ -8071,28 +8291,90 @@ document.querySelectorAll(".note-size-btn").forEach((btn) => {
     document.execCommand("fontSize", false, btn.dataset.size);
   });
 });
-// 連結按鈕
+// 連結按鈕：改用自己的輸入視窗（showPromptModal）。
+// 原本用瀏覽器原生的 window.prompt，在內建瀏覽器與部分嵌入式 WebView（Google Sites 的框、平板）
+// 會被擋掉，按了沒反應。改成非同步後焦點會跑到輸入框，所以要先把游標位置（Range）存起來，
+// 寫回公告前再還原，否則 execCommand 會找不到要套用的文字。
+// 只收 http / https。公告會原樣存進 Firestore 給學員看，
+// 放行 javascript: 等於讓任何能編輯公告的人在學員畫面上執行程式。
+function safeNoteUrl(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  try {
+    const parsed = new URL(text);
+    return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.href : "";
+  } catch {
+    return "";
+  }
+}
+
 document.querySelectorAll(".note-link-btn").forEach((btn) => {
-  btn.addEventListener("mousedown", (e) => {
+  btn.addEventListener("mousedown", async (e) => {
     e.preventDefault();
     const selection = window.getSelection();
     const selectedText = selection.toString().trim();
-    let defaultUrl = "https://";
-    if (selectedText.startsWith("http://") || selectedText.startsWith("https://")) {
-      defaultUrl = selectedText;
-    }
-    const url = window.prompt("請輸入超連結網址 (URL):", defaultUrl);
-    if (url) {
-      if (selection.rangeCount > 0 && selectedText) {
-        document.execCommand("createLink", false, url);
-      } else {
-        const linkText = window.prompt("請輸入連結文字 (選填):", url);
-        const html = `<a href="${url}" target="_blank" rel="noopener noreferrer">${linkText || url}</a>`;
-        document.execCommand("insertHTML", false, html);
+    const savedRange = selection.rangeCount > 0 ? selection.getRangeAt(0).cloneRange() : null;
+    const defaultUrl = /^https?:\/\//.test(selectedText) ? selectedText : "https://";
+
+    // 存起來的游標位置可能已經失效（例如中途重畫過公告），那就把游標放到公告最後面，
+    // 不然 insertHTML 會找不到插入點、按了什麼都沒發生。
+    const restore = () => {
+      els.postBoardNote.focus();
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      if (savedRange && els.postBoardNote.contains(savedRange.commonAncestorContainer)) {
+        sel.addRange(savedRange);
+        return;
       }
+      const end = document.createRange();
+      end.selectNodeContents(els.postBoardNote);
+      end.collapse(false);
+      sel.addRange(end);
+    };
+
+    const rawUrl = await showPromptModal("請輸入超連結網址", defaultUrl, { maxLength: 500 });
+    if (rawUrl === null) {
+      restore();
+      return;
     }
+    const url = safeNoteUrl(rawUrl);
+    if (!url) {
+      restore();
+      els.postBoardMessage.textContent = "超連結只接受 http:// 或 https:// 開頭的網址。";
+      els.postBoardMessage.classList.add("error");
+      return;
+    }
+
+    if (selectedText) {
+      restore();
+      document.execCommand("createLink", false, url);
+      return;
+    }
+    const linkText = await showPromptModal("請輸入連結文字（可留空）", url, { maxLength: 500 });
+    restore();
+    // 直接用 Range 插入 <a> 節點，不走 execCommand("insertHTML")：
+    // execCommand 需要頁面真的有鍵盤焦點，視窗在背景時會整個失敗；
+    // 而且文字用 textContent 放進去，不必自己組 HTML 字串，也就沒有跳脫漏掉的風險。
+    const sel = window.getSelection();
+    if (sel.rangeCount === 0) return;
+    const range = sel.getRangeAt(0);
+    const link = document.createElement("a");
+    link.href = url;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = (linkText || "").trim() || url;
+    range.deleteContents();
+    range.insertNode(link);
+    // 游標移到連結後面，接著打字不會打進連結裡
+    const after = document.createRange();
+    after.setStartAfter(link);
+    after.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(after);
+    onPostBoardNoteInput();
   });
 });
+
 // 色票按鈕
 document.querySelectorAll(".color-swatch").forEach((swatch) => {
   swatch.addEventListener("mousedown", (e) => {
@@ -8109,26 +8391,26 @@ els.postBoardNoteColor.addEventListener("input", (e) => {
   document.querySelectorAll(".color-swatch").forEach((s) => s.classList.remove("active"));
   els.postBoardNote.focus();
 });
-// 公告 Popover 收合控制
+// 公告：關掉編輯器只收起工具列，公告內容本身留在板面上。
+// 之前整塊（工具列＋公告文字）一起藏，寫完按一下外面就什麼都看不到了，
+// 只有學員端讀得到 Firestore 上的公告，老師自己反而看不到。
 if (els.postBoardNoteToggle) {
   els.postBoardNoteToggle.addEventListener("click", (e) => {
     e.stopPropagation();
-    if (els.postBoardNoteWrap) {
-      els.postBoardNoteWrap.classList.toggle("hidden");
-      if (!els.postBoardNoteWrap.classList.contains("hidden")) {
-        els.postBoardNote.focus();
-      }
-    }
+    setPostBoardNoteEditing(!isPostBoardNoteEditing());
+  });
+}
+// 點公告文字也能重新打開工具列
+if (els.postBoardNote) {
+  els.postBoardNote.addEventListener("click", () => {
+    if (!isPostBoardNoteEditing()) setPostBoardNoteEditing(true);
   });
 }
 document.addEventListener("click", (e) => {
-  if (els.postBoardNoteWrap && !els.postBoardNoteWrap.classList.contains("hidden")) {
-    const isClickInside = els.postBoardNoteWrap.contains(e.target) || 
-                          (els.postBoardNoteToggle && els.postBoardNoteToggle.contains(e.target));
-    if (!isClickInside) {
-      els.postBoardNoteWrap.classList.add("hidden");
-    }
-  }
+  if (!isPostBoardNoteEditing()) return;
+  const isClickInside = els.postBoardNoteWrap.contains(e.target)
+    || (els.postBoardNoteToggle && els.postBoardNoteToggle.contains(e.target));
+  if (!isClickInside) setPostBoardNoteEditing(false);
 });
 els.postBoardNote.addEventListener("input", onPostBoardNoteInput);
 els.postBoardNote.addEventListener("focus", () => {

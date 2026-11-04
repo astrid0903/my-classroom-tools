@@ -114,7 +114,7 @@ button:disabled,
   border-radius: 6px;
   background: rgba(12, 18, 26, 0.94);
   color: #f6fbff;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.24);
+  box-shadow: var(--cl-shadow);
   font-size: 0.82rem;
   font-weight: 750;
   line-height: 1.35;
@@ -335,7 +335,7 @@ h3 {
   border-radius: 8px;
   padding: 18px;
   background: rgba(19, 27, 36, 0.78);
-  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
+  box-shadow: var(--cl-shadow);
   backdrop-filter: blur(12px);
 }
 
@@ -466,7 +466,7 @@ h3 {
   border-radius: 8px;
   padding: 14px;
   background: rgba(18, 27, 36, 0.9);
-  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--cl-shadow);
 }
 
 .home-layout-card[data-current-layout="true"] {
@@ -642,7 +642,7 @@ h3 {
   color: #173f6f;
   font-size: 0.68rem;
   font-weight: 900;
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+  box-shadow: var(--cl-shadow);
 }
 
 .home-layout-meta {
@@ -742,7 +742,7 @@ h3 {
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 8px;
   background: rgba(7, 12, 18, 0.72);
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.24);
+  box-shadow: var(--cl-shadow);
   backdrop-filter: blur(14px);
 }
 
@@ -1037,7 +1037,7 @@ body.studio-mode .page-tabs {
   padding: 32px 36px;
   border-radius: 16px;
   background: #fff;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.32);
+  box-shadow: var(--cl-shadow-lg);
 }
 
 .post-board-qr-modal-title {
@@ -1291,7 +1291,7 @@ body.studio-mode .page-tabs {
   color: #f2f7fa;
   font-size: 1rem;
   line-height: 1.6;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--cl-shadow);
 }
 
 .participant-note.hidden {
@@ -1437,7 +1437,7 @@ body.studio-mode .page-tabs {
   border-radius: 8px;
   padding: 5px;
   background: rgba(15, 20, 28, 0.96);
-  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--cl-shadow-lg);
   backdrop-filter: blur(12px);
 }
 
@@ -1543,7 +1543,7 @@ body.studio-mode .page-tabs {
   color: #c0392b;
   font-size: 1.1rem;
   cursor: pointer;
-  box-shadow: 0 12px 28px rgba(28, 42, 56, 0.08);
+  box-shadow: var(--cl-shadow-0);
 }
 
 .post-section-delete:hover {
@@ -1571,7 +1571,7 @@ body.studio-mode .page-tabs {
   border-radius: 8px;
   padding: 14px;
   background: #121820; /* 不透明深灰色 */
-  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--cl-shadow);
   color: #f2f7fa;
 }
 
@@ -1682,7 +1682,7 @@ body.studio-mode .page-tabs {
   border-radius: 8px;
   padding: 5px;
   background: rgba(15, 20, 28, 0.96);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--cl-shadow-lg);
 }
 
 .post-menu button {
@@ -1887,7 +1887,7 @@ body.studio-mode .page-tabs {
   max-height: min(62vh, 520px);
   overflow: auto;
   border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 8px;
+  border-radius: var(--cl-r, 18px);
   padding: 14px;
   gap: 12px;
   background: rgba(255, 255, 255, 0.95);
@@ -2136,7 +2136,7 @@ body.studio-mode .page-tabs {
   display: grid;
   gap: 10px;
   background: rgba(10, 38, 66, 0.96);
-  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.34);
+  box-shadow: var(--cl-shadow-lg);
   backdrop-filter: blur(16px);
 }
 
@@ -2292,11 +2292,11 @@ body.studio-mode .page-tabs {
 .widget {
   position: absolute;
   z-index: 5;
-  border-radius: 8px;
+  border-radius: var(--cl-r, 18px);
   border: 1px solid rgba(255, 255, 255, 0.28);
   background: rgba(15, 22, 31, 0.86);
   color: #fff;
-  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.34);
+  box-shadow: var(--cl-shadow);
   backdrop-filter: blur(12px);
   touch-action: none;
 }
@@ -2339,7 +2339,7 @@ body.studio-mode .page-tabs {
   min-height: 22px;
   padding: 0;
   border: 0;
-  border-radius: 5px;
+  border-radius: 50%;
   background:
     linear-gradient(135deg, transparent 0 45%, rgba(255, 255, 255, 0.72) 46% 54%, transparent 55%),
     linear-gradient(135deg, transparent 0 63%, rgba(255, 255, 255, 0.54) 64% 72%, transparent 73%);
@@ -2708,7 +2708,7 @@ body.studio-mode .page-tabs {
   width: 100%;
   max-height: 46vh;
   object-fit: contain;
-  border-radius: 6px;
+  border-radius: var(--cl-r-sm, 12px);
   background: rgba(255, 255, 255, 0.08);
 }
 
@@ -2748,7 +2748,7 @@ body.studio-mode .page-tabs {
   height: 100%;
   min-height: 190px;
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--cl-r-sm, 12px);
   background: #000;
 }
 
@@ -2764,9 +2764,9 @@ body.studio-mode .page-tabs {
   gap: 8px;
   padding: 10px;
   border: 1px solid rgba(255, 255, 255, 0.24);
-  border-radius: 7px;
+  border-radius: var(--cl-r, 18px);
   background: rgba(15, 22, 31, 0.96);
-  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.34);
+  box-shadow: var(--cl-shadow-lg);
   backdrop-filter: blur(14px);
 }
 
@@ -2910,7 +2910,7 @@ body.studio-mode .page-tabs {
 .participant-post-card:focus-visible {
   transform: translateY(-1px);
   border-color: rgba(95, 168, 255, 0.28);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--cl-shadow);
   outline: none;
 }
 
@@ -2955,7 +2955,7 @@ body.studio-mode .page-tabs {
   border-radius: 999px;
   font-size: 1.1rem;
   font-weight: 700;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--cl-shadow);
   background: #2572b8;
   border: 1px solid rgba(255, 255, 255, 0.12);
   color: #fff;
@@ -3028,7 +3028,7 @@ body.studio-mode .page-tabs {
   border-radius: 8px;
   padding: 16px;
   background: rgba(255, 255, 255, 0.04);
-  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--cl-shadow-lg);
   color: #f2f7fa;
 }
 
@@ -3233,7 +3233,7 @@ body.studio-mode .page-tabs {
   border: 1px solid rgba(255, 255, 255, 0.08);
   padding: 22px;
   background: rgba(15, 20, 28, 0.96);
-  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.62);
+  box-shadow: var(--cl-shadow-lg);
   color: #f2f7fa;
 }
 
@@ -3318,7 +3318,7 @@ body.studio-mode .page-tabs {
   background: #fff;
   border-radius: 12px;
   padding: 24px;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+  box-shadow: var(--cl-shadow-lg);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -3614,7 +3614,7 @@ body.studio-mode .page-tabs {
   background: rgba(15, 22, 31, 0.86);
   color: #fff;
   border-color: rgba(255, 255, 255, 0.28);
-  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.34);
+  box-shadow: var(--cl-shadow);
 }
 
 .image-widget {

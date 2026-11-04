@@ -31,7 +31,11 @@ html body[data-theme="dark"] {
   --cl-accent-soft: #3a2a2b;
   --cl-accent-2: #5cc5b5;
   --cl-stage: #15131a;
+  /* 三級浮起感：貼齊 / 浮起的卡片 / 蓋在內容上的面板與彈窗。
+     只管「浮起來多高」，焦點圈與發光（計時器跑動、狀態小綠點）不走這組，那是另一回事。 */
+  --cl-shadow-0: none;
   --cl-shadow: 0 14px 36px rgba(0, 0, 0, .40);
+  --cl-shadow-lg: 0 28px 64px rgba(0, 0, 0, .55);
   --cl-hover: rgba(243, 238, 232, .06);
 
   --ink: var(--cl-ink);
@@ -70,7 +74,9 @@ html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) {
   --cl-accent-soft: #fbe6dd;
   --cl-accent-2: #3a9d8f;
   --cl-stage: #e9e3d9;
+  --cl-shadow-0: none;
   --cl-shadow: 0 10px 30px rgba(92, 64, 40, .10), 0 2px 6px rgba(92, 64, 40, .06);
+  --cl-shadow-lg: 0 24px 56px rgba(92, 64, 40, .18), 0 4px 12px rgba(92, 64, 40, .08);
   --cl-hover: rgba(43, 38, 34, .05);
 
   --d-surface: rgba(43, 38, 34, .03);
@@ -113,7 +119,7 @@ html body[data-theme="dark"] .side-rail .rail-btn {
   gap: 4px;
   flex: 0 0 auto;
   border: 0;
-  border-radius: 14px;
+  border-radius: var(--cl-r-sm);
   background: transparent;
   color: var(--cl-ink-2);
   font: 500 11px/1.2 var(--cl-f-ui);
@@ -176,7 +182,7 @@ html body[data-theme="dark"] .rail-flyout {
   border-radius: var(--cl-r);
   background: var(--cl-surface);
   color: var(--cl-ink);
-  box-shadow: var(--cl-shadow);
+  box-shadow: var(--cl-shadow-lg);
   backdrop-filter: none;
 }
 html body[data-theme="dark"] .rail-flyout.hidden { display: none; }
@@ -336,7 +342,7 @@ html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .tool-sec
   background: var(--cl-surface);
   border-color: var(--cl-line);
   color: var(--cl-ink);
-  box-shadow: var(--cl-shadow);
+  box-shadow: var(--cl-shadow-lg);
   backdrop-filter: none;
 }
 
@@ -388,7 +394,7 @@ html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .dynamic-
   background: var(--cl-surface);
   border-color: var(--cl-line);
   color: var(--cl-ink);
-  box-shadow: var(--cl-shadow);
+  box-shadow: var(--cl-shadow-lg);
   backdrop-filter: none;
 }
 html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .dynamic-settings label,
@@ -526,7 +532,7 @@ html body[data-theme="dark"] .dynamic-settings {
   border-radius: var(--cl-r);
   background: var(--cl-surface);
   color: var(--cl-ink);
-  box-shadow: var(--cl-shadow);
+  box-shadow: var(--cl-shadow-lg);
   backdrop-filter: none;
   animation: cl-inspector-in var(--cl-t-fast) ease-out;
 }
@@ -582,7 +588,7 @@ html body[data-theme="dark"] .dynamic-settings .inspector-foot button {
   height: 36px;
   min-height: 36px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--cl-r-sm);
   background: var(--cl-bg-2);
   color: var(--cl-ink-2);
   font: 500 13px/1 var(--cl-f-ui);
@@ -1011,7 +1017,7 @@ html body[data-theme="dark"] .post-board-qr-popover {
   border-radius: var(--cl-r);
   background: var(--cl-surface);
   color: var(--cl-ink);
-  box-shadow: var(--cl-shadow);
+  box-shadow: var(--cl-shadow-lg);
 }
 html body[data-theme="dark"] .post-board-qr-popover .post-board-join-title { color: var(--cl-ink); font-family: var(--cl-f-title); font-weight: 400; }
 html body[data-theme="dark"] .post-board-qr-popover img { border-radius: 10px; background: #fff; }
@@ -1082,7 +1088,7 @@ html body[data-theme="dark"] .top-control-panel {
   border-radius: var(--cl-r);
   background: var(--cl-surface);
   color: var(--cl-ink);
-  box-shadow: var(--cl-shadow);
+  box-shadow: var(--cl-shadow-lg);
   backdrop-filter: none;
 }
 
@@ -1138,3 +1144,193 @@ html body[data-theme="dark"] .slide-nav input {
 }
 html body[data-theme="dark"] .slide-nav-total { color: var(--cl-ink-2); font-family: var(--cl-f-num); }
 html body[data-theme="dark"] .inspector-scope-pages .hint { display: block; margin-top: 4px; }
+
+/* 側欄停用狀態：hover 不要亮起來 */
+html body[data-theme="dark"] .side-rail .rail-btn:disabled:hover {
+  background: transparent;
+  color: var(--cl-ink-2);
+}
+
+/* QR Code 卡片的關閉鈕 */
+html body[data-theme="dark"] .post-board-qr-close {
+  background: transparent;
+  color: var(--cl-ink-2);
+}
+html body[data-theme="dark"] .post-board-qr-close:hover {
+  background: var(--cl-accent-soft);
+  color: var(--cl-accent);
+}
+
+
+/* ── 2026-11-04 右上角按鈕整排對齊（v29）──────────────────────
+   貼文板的「公告／QR Code」原本長在版面裡，右邊緣跟右上角的「夜間／全螢幕」對不齊，
+   兩排高低寬窄都不一樣。改成固定在右上角、同一個右邊界、同一種膠囊，變成整齊的兩排。 */
+body.studio-mode .post-board-actions {
+  position: fixed;
+  top: 14px;
+  /* 排在右上角那排（目前只有全螢幕）的左邊，同一列；寬度由 index.html 量完寫進 --top-tools-w */
+  right: calc(14px + var(--top-tools-w, 104px) + 8px);
+  z-index: 70;
+  gap: 8px;
+}
+html body[data-theme="dark"].studio-mode .post-board-action-btn {
+  height: 40px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--cl-surface);
+  color: var(--cl-ink-2);
+  box-shadow: var(--cl-shadow);
+  font: 500 12px/1 var(--cl-f-ui);
+  backdrop-filter: none;
+}
+html body[data-theme="dark"].studio-mode .post-board-action-btn:hover,
+html body[data-theme="dark"].studio-mode .post-board-action-btn.active {
+  background: var(--cl-accent-soft);
+  color: var(--cl-accent);
+}
+/* 右側屬性面板打開時，這排跟著上面那排一起往左讓位 */
+body.studio-mode:has(> .dynamic-settings:not(.collapsed)) .post-board-actions {
+  right: calc(min(300px, 100vw - var(--cl-rail-w) - 24px) + 24px + var(--top-tools-w, 104px) + 8px);
+}
+
+/* ── 2026-11-04 貼文板的字跟著「頁面背景」深淺走（v29）──────────
+   明亮／夜間是整個播放台的介面色；貼文板的背景是老師自己挑的，兩者可以相反——
+   明亮模式配深色背景時，深色的字落在深色底上就看不見了。
+   .page-bg-dark／.page-bg-light 由 applyPageTextPalette() 依背景亮度（底色或背景圖）算出來，
+   --page-text／--page-muted-text 也是同一支程式設的，所以這裡只要跟著它們走，
+   就不必管使用者選的是明亮還是夜間。 */
+html body[data-theme="dark"] .page-bg-dark .post-section-title-row {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: none;
+}
+html body[data-theme="dark"] .page-bg-dark .post-section-title-row:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+html body[data-theme="dark"] .page-bg-dark .post-section-title,
+html body[data-theme="dark"] .page-bg-dark .post-section-title:hover {
+  color: var(--page-text, #f8fafc);
+}
+html body[data-theme="dark"] .page-bg-dark .post-section-new,
+html body[data-theme="dark"] .page-bg-dark .post-section-add,
+html body[data-theme="dark"] .page-bg-dark .post-section-menu {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--page-text, #f8fafc);
+  box-shadow: none;
+}
+html body[data-theme="dark"] .page-bg-dark .post-section-new:hover,
+html body[data-theme="dark"] .page-bg-dark .post-section-add:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--page-text, #f8fafc);
+}
+html body[data-theme="dark"] .page-bg-dark .post-board-message,
+html body[data-theme="dark"] .page-bg-dark .post-board-kicker {
+  color: var(--page-muted-text, rgba(248, 250, 252, 0.78));
+}
+html body[data-theme="dark"] .page-bg-dark .post-card.empty-post {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: var(--page-muted-text, rgba(248, 250, 252, 0.78));
+}
+
+/* 反過來：夜間模式配淺色背景時，字要變深 */
+html body[data-theme="dark"] .page-bg-light .post-section-title-row {
+  background: rgba(17, 24, 32, 0.06);
+  border: 1px solid rgba(17, 24, 32, 0.14);
+  box-shadow: none;
+}
+html body[data-theme="dark"] .page-bg-light .post-section-title-row:hover {
+  background: rgba(17, 24, 32, 0.12);
+}
+html body[data-theme="dark"] .page-bg-light .post-section-title,
+html body[data-theme="dark"] .page-bg-light .post-section-title:hover {
+  color: var(--page-text, #111820);
+}
+html body[data-theme="dark"] .page-bg-light .post-section-new,
+html body[data-theme="dark"] .page-bg-light .post-section-add,
+html body[data-theme="dark"] .page-bg-light .post-section-menu {
+  background: rgba(17, 24, 32, 0.06);
+  color: var(--page-text, #111820);
+  box-shadow: none;
+}
+html body[data-theme="dark"] .page-bg-light .post-section-new:hover,
+html body[data-theme="dark"] .page-bg-light .post-section-add:hover {
+  background: rgba(17, 24, 32, 0.12);
+  color: var(--page-text, #111820);
+}
+html body[data-theme="dark"] .page-bg-light .post-board-message,
+html body[data-theme="dark"] .page-bg-light .post-board-kicker {
+  color: var(--page-muted-text, rgba(17, 24, 32, 0.74));
+}
+html body[data-theme="dark"] .page-bg-light .post-card.empty-post {
+  background: rgba(17, 24, 32, 0.05);
+  border-color: rgba(17, 24, 32, 0.12);
+  color: var(--page-muted-text, rgba(17, 24, 32, 0.74));
+}
+
+
+/* ── 2026-11-04 公告：寫完要看得到（v29）──────────────────────
+   `.post-board-note-wrap` 同時是編輯器和公告本體。沒在編輯時只收起工具列，
+   卡片留著當公告顯示；完全沒內容時才整塊收起來（由 syncPostBoardNoteVisibility 加 .hidden）。 */
+.post-board-note-wrap:not(.is-editing) .post-board-note-toolbar { display: none; }
+.post-board-note-wrap:not(.is-editing) .post-board-note {
+  max-height: none;
+  padding: 12px 14px;
+  cursor: text;
+}
+html body[data-theme="dark"] .post-board-note-wrap {
+  border: 0;
+  border-radius: var(--cl-r);
+  background: var(--cl-surface);
+  color: var(--cl-ink);
+  box-shadow: var(--cl-shadow);
+}
+html body[data-theme="dark"] .post-board-note-wrap.is-editing {
+  box-shadow: var(--cl-shadow), 0 0 0 2px var(--cl-accent-soft);
+}
+html body[data-theme="dark"] .post-board-note { color: var(--cl-ink); }
+
+
+/* ── 2026-11-04 公告移到標題下方（v1.15.0）────────────────────
+   原本是浮在板面右上角的 popover，會蓋到貼文；改成跟在標題下面的一張卡，
+   照正常版面流排，不再 absolute。 */
+.post-board-note-wrap {
+  position: static;
+  top: auto;
+  right: auto;
+  width: 100%;
+  max-width: 720px;
+  margin: 0 0 16px;
+}
+
+/* ── 2026-11-04 貼文板統一「方形圓角」（v1.15.0）──────────────
+   原本混用藥丸型（border-radius: 999px）與各種圓角值。
+   有文字的控制項一律用 var(--cl-r-sm)（12px）；
+   純圖示的小方鈕維持正圓，那是另一種角色，不算藥丸。 */
+html body[data-theme="dark"] .post-section-title-row,
+html body[data-theme="dark"] .post-section-title.participant-section-title,
+html body[data-theme="dark"] .post-section-new,
+html body[data-theme="dark"] .post-section-add,
+html body[data-theme="dark"] .post-board-action-btn,
+html body[data-theme="dark"].studio-mode .post-board-action-btn,
+html body[data-theme="dark"] .post-image-actions button,
+html body[data-theme="dark"] .post-image-actions .link-button,
+html body[data-theme="dark"] .participant-change-name-btn,
+html body[data-theme="dark"] .participant-post-open,
+html body[data-theme="dark"] .participant-post-edit,
+html body[data-theme="dark"] .participant-post-delete,
+html body[data-theme="dark"] .post-file-open,
+html body[data-theme="dark"] .post-file-download,
+html body[data-theme="dark"] .post-image-counter,
+html body[data-theme="dark"] .participant-image-preview-item figcaption,
+html body[data-theme="dark"] .participant-fab {
+  border-radius: var(--cl-r-sm);
+}
+/* 貼文板的卡片與面板用大圓角，跟小工具一致 */
+html body[data-theme="dark"] .post-card,
+html body[data-theme="dark"] .participant-post-card,
+html body[data-theme="dark"] .post-board-note-wrap {
+  border-radius: var(--cl-r);
+}

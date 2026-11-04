@@ -153,7 +153,7 @@ body[data-theme="dark"] .home-layout-card {
   background: var(--d-surface-strong);
   border-color: var(--d-border);
   border-radius: 14px;
-  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--cl-shadow);
 }
 body[data-theme="dark"] .home-layout-title h3 { color: var(--d-text); }
 body[data-theme="dark"] .home-layout-title span { color: var(--d-text-3); }
@@ -267,7 +267,7 @@ body[data-theme="dark"] .post-board-qr-popover {
   background: #0f141c;
   background-color: #0f141c;
   border-color: var(--d-border);
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+  box-shadow: var(--cl-shadow-lg);
   backdrop-filter: none;
 }
 body[data-theme="dark"] .post-board-join-title { color: var(--d-text); }
@@ -333,7 +333,7 @@ body[data-theme="dark"] .post-board-note.is-empty::before { color: var(--d-text-
 body[data-theme="dark"] .post-section-title-row {
   background: var(--d-surface);
   border-color: var(--d-border);
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--cl-shadow-0);
 }
 body[data-theme="dark"] .post-section-title-row:hover {
   background: var(--d-surface-2);
@@ -352,7 +352,7 @@ body[data-theme="dark"] .post-section-add,
 body[data-theme="dark"] .post-section-new {
   background: var(--d-surface);
   color: var(--d-text-2);
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--cl-shadow-0);
 }
 body[data-theme="dark"] .post-section-add:hover,
 body[data-theme="dark"] .post-section-new:hover {
@@ -369,7 +369,7 @@ body[data-theme="dark"] .post-section-delete:hover { background: rgba(255, 138, 
 body[data-theme="dark"] .post-card {
   background: #121820; /* 不透明深灰色 */
   border-color: var(--d-border);
-  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--cl-shadow);
 }
 body[data-theme="dark"] .post-card.empty-post { color: var(--d-text-3); }
 body[data-theme="dark"] .post-meta { color: var(--d-text-2); }
@@ -385,7 +385,7 @@ body[data-theme="dark"] .post-menu-btn:hover {
 body[data-theme="dark"] .post-menu {
   background: #0f141b;
   border-color: var(--d-border-strong);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  box-shadow: var(--cl-shadow-lg);
 }
 body[data-theme="dark"] .post-menu button { color: var(--d-text); }
 body[data-theme="dark"] .post-menu button:hover { background: var(--d-surface-2); }
@@ -427,7 +427,7 @@ body[data-theme="dark"] .post-section-menu-btn:hover {
 body[data-theme="dark"] .post-section-menu {
   background: var(--d-surface-strong);
   border-color: var(--d-border);
-  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.38);
+  box-shadow: var(--cl-shadow-lg);
 }
 body[data-theme="dark"] .post-section-menu a,
 body[data-theme="dark"] .post-section-menu button {
@@ -712,7 +712,7 @@ body[data-theme="dark"] .tool-section {
   border-color: var(--d-border);
   color: var(--d-text);
   backdrop-filter: blur(20px);
-  border-radius: 12px;
+  border-radius: var(--cl-r, 18px);
 }
 body[data-theme="dark"] .tool-section h2,
 body[data-theme="dark"] .tool-section h3 { color: var(--d-text); }
@@ -811,7 +811,7 @@ body[data-theme="dark"] .post-edit-dialog {
   background: var(--d-surface-strong);
   border: 1px solid var(--d-border);
   color: var(--d-text);
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.7);
+  box-shadow: var(--cl-shadow-lg);
 }
 body[data-theme="dark"] .post-edit-dialog h3 { color: var(--d-text); }
 body[data-theme="dark"] .post-edit-image-del {
@@ -841,7 +841,7 @@ body[data-theme="dark"] .participant-head h1 { color: var(--page-title-text, var
 body[data-theme="dark"] .participant-note {
   background: var(--d-surface-strong);
   color: var(--page-text, var(--d-text));
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--cl-shadow);
 }
 body[data-theme="dark"] .participant-section-title {
   color: var(--page-title-text, var(--d-text));
@@ -850,7 +850,7 @@ body[data-theme="dark"] .participant-form {
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.10);
   color: var(--d-text);
-  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--cl-shadow-lg);
 }
 body[data-theme="dark"] .participant-form label,
 body[data-theme="dark"] .participant-form .hint {
@@ -901,7 +901,7 @@ body[data-theme="dark"] .participant-post-dialog {
   background: rgba(15, 20, 28, 0.96);
   border: 1px solid var(--d-border);
   color: var(--d-text);
-  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.62);
+  box-shadow: var(--cl-shadow-lg);
 }
 body[data-theme="dark"] .participant-post-modal-close {
   background: rgba(255, 255, 255, 0.06);
@@ -941,7 +941,7 @@ body[data-theme="dark"] .participant-note a {
 }
 body[data-theme="dark"] .participant-post-card:hover {
   border-color: rgba(255, 255, 255, 0.14);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--cl-shadow);
 }
 body[data-theme="dark"] .participant-section-title {
   background: rgba(255, 255, 255, 0.07);
@@ -1156,7 +1156,7 @@ body[data-theme="dark"] .theme-toggle:hover { background: rgba(255, 255, 255, 0.
   padding: 0;
   display: grid; place-items: center;
   border: 1px solid transparent;
-  border-radius: 10px;
+  border-radius: var(--cl-r-sm, 12px);
   background: transparent;
   color: rgba(255,255,255,0.62);
   font-size: 1.1rem;
@@ -1343,10 +1343,10 @@ body.studio-mode .session-bar { display: none !important; }
   display: grid;
   gap: 10px;
   padding: 10px;
-  border-radius: 14px;
+  border-radius: var(--cl-r, 18px);
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(30, 36, 44, 0.88);
-  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.36);
+  box-shadow: var(--cl-shadow-lg);
   backdrop-filter: blur(24px);
 }
 .top-control.collapsed .top-control-panel { display: none; }
@@ -1697,12 +1697,12 @@ body[data-theme="dark"] .home-empty {
 /* IA Step 4b: Widget chrome — quieter drag/close affordances */
 body[data-theme="dark"] .widget,
 body[data-theme="dark"] .dynamic-widget {
-  border-radius: 14px;
+  border-radius: var(--cl-r, 18px);
   border: 1px solid rgba(255, 255, 255, 0.06);
   background: rgba(11, 14, 19, 0.78);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    0 18px 44px rgba(0, 0, 0, 0.55);
+    var(--cl-shadow);
   backdrop-filter: blur(20px);
 }
 body[data-theme="dark"] .widget:hover,
@@ -1781,7 +1781,7 @@ body[data-theme="dark"] .resize-handle {
   min-height: 14px;
   right: 4px;
   bottom: 4px;
-  border-radius: 4px;
+  border-radius: 50%;
   background:
     linear-gradient(135deg, transparent 0 56%, rgba(255, 255, 255, 0.32) 57% 64%, transparent 65%);
   opacity: 0;
@@ -1828,12 +1828,12 @@ body[data-theme="dark"] .dynamic-stage-actions button:hover {
 
 /* IA Step 3b: widget visual refresh */
 body[data-theme="dark"] .dynamic-widget {
-  border-radius: 14px;
+  border-radius: var(--cl-r, 18px);
   background: rgba(13, 17, 23, 0.72);
   border: 1px solid rgba(255, 255, 255, 0.06);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    0 18px 44px rgba(0, 0, 0, 0.5);
+    var(--cl-shadow);
 }
 body[data-theme="dark"] .widget[data-widget="timer"] .widget-label::before,
 body[data-theme="dark"] .widget[data-widget="clock"] .widget-label::before,
@@ -2159,8 +2159,8 @@ body[data-theme="dark"] .tool-section {
   gap: 14px;
   background: rgba(15, 20, 28, 0.78);
   border: 1px solid rgba(255, 255, 255, 0.10);
-  border-radius: 14px;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 24px 60px rgba(0,0,0,0.5);
+  border-radius: var(--cl-r, 18px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), var(--cl-shadow-lg);
 }
 body[data-theme="dark"] .tool-section::before {
   content: "PANEL";
@@ -2460,7 +2460,7 @@ body[data-theme="dark"] .dynamic-settings {
   border-radius: 14px;
   padding: 14px;
   gap: 10px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 24px 60px rgba(0, 0, 0, 0.55);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), var(--cl-shadow-lg);
   backdrop-filter: blur(24px) saturate(160%);
 }
 
@@ -2889,13 +2889,11 @@ body[data-theme="dark"] .home-layout-meta span[data-tag-type="slides"] {
   width: 320px !important;
   padding: 12px !important;
   gap: 10px !important;
-  border-radius: 14px !important;
+  border-radius: var(--cl-r, 18px) !important;
   border: 1px solid rgba(255, 255, 255, 0.12) !important;
   background: rgba(15, 20, 28, 0.92) !important;
   backdrop-filter: blur(28px) saturate(160%);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    0 24px 60px rgba(0, 0, 0, 0.5) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), var(--cl-shadow-lg) !important;
 }
 
 /* 收合鈕：縮成圓角方形 icon-only */
@@ -3373,13 +3371,13 @@ body[data-theme="dark"] .top-tool-btn {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  border-radius: 999px;
+  border-radius: var(--cl-r-sm, 12px);
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(15, 20, 28, 0.78);
   color: rgba(255, 255, 255, 0.82);
   font-size: 12px;
   line-height: 1;
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.36);
+  box-shadow: var(--cl-shadow);
   backdrop-filter: blur(18px);
   cursor: pointer;
 }
@@ -3435,10 +3433,10 @@ body[data-theme="dark"] .top-tool-btn:hover {
   align-items: center;
   gap: 2px;
   padding: 3px 5px;
-  border-radius: 999px;
+  border-radius: var(--cl-r-sm, 12px);
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(15, 20, 28, 0.82);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--cl-shadow);
   backdrop-filter: blur(18px);
 }
 .slide-nav.hidden { display: none !important; }
@@ -3497,3 +3495,49 @@ body[data-theme="dark"] .slide-nav input {
   white-space: nowrap;
   border: 0;
 }
+
+/* 側欄的切換鈕在沒東西可切時停用（例：這一頁還沒有小工具） */
+.side-rail .rail-btn:disabled,
+body[data-theme="dark"] .side-rail .rail-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.side-rail .rail-btn:disabled:hover,
+body[data-theme="dark"] .side-rail .rail-btn:disabled:hover {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/* QR Code 卡片右上角的關閉鈕 */
+.post-board-qr-popover { position: fixed; }
+.post-board-qr-close,
+body[data-theme="dark"] .post-board-qr-close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 24px;
+  height: 24px;
+  min-height: 24px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+}
+.post-board-qr-close:hover,
+body[data-theme="dark"] .post-board-qr-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+/* QR Code 卡片可拖移：按住卡片空白處拖，雙擊回右下角預設位置 */
+.post-board-qr-popover { cursor: grab; touch-action: none; }
+.post-board-qr-popover.dragging { cursor: grabbing; user-select: none; }
+.post-board-qr-popover img { pointer-events: none; }
+.post-board-qr-popover button,
+.post-board-qr-popover a { cursor: pointer; }
