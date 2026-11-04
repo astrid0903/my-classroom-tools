@@ -54,7 +54,7 @@ a {
 
 button,
 .link-button {
-  min-height: 42px;
+  min-height: var(--cl-h, 36px);
   border: 0;
   border-radius: 6px;
   padding: 0 14px;
@@ -115,8 +115,8 @@ button:disabled,
   background: rgba(12, 18, 26, 0.94);
   color: #f6fbff;
   box-shadow: var(--cl-shadow);
-  font-size: 0.82rem;
-  font-weight: 750;
+  font-size: 13px;
+  font-weight: 700;
   line-height: 1.35;
   text-align: center;
   pointer-events: none;
@@ -139,8 +139,8 @@ button:disabled,
   border-radius: 10px;
   background: rgba(12, 18, 26, 0.78);
   color: #eaf5ff;
-  font-size: 0.82rem;
-  font-weight: 800;
+  font-size: 13px;
+  font-weight: 700;
   line-height: 1.4;
   overflow: hidden;
   overflow-wrap: anywhere;
@@ -169,22 +169,26 @@ textarea {
 
 input[type="number"],
 select {
-  min-height: 40px;
+  /* 高度寫死成標準級，不然 padding 加上去會比旁邊的按鈕高一點 */
+  min-height: var(--cl-h, 36px);
+  height: var(--cl-h, 36px);
   padding: 0 10px;
 }
 
 input[type="text"] {
-  min-height: 40px;
+  min-height: var(--cl-h, 36px);
+  height: var(--cl-h, 36px);
   padding: 0 10px;
 }
 
 input[type="color"] {
-  min-height: 40px;
+  min-height: var(--cl-h, 36px);
+  height: var(--cl-h, 36px);
   padding: 4px;
 }
 
 input[type="file"] {
-  min-height: 40px;
+  min-height: var(--cl-h, 36px);
   padding: 8px 10px;
 }
 
@@ -207,8 +211,8 @@ label {
   display: grid;
   gap: 6px;
   color: var(--muted);
-  font-size: 0.9rem;
-  font-weight: 650;
+  font-size: 14px;
+  font-weight: 700;
 }
 
 h1,
@@ -224,7 +228,7 @@ h2 {
 
 h3 {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 16px;
   letter-spacing: 0;
 }
 
@@ -258,8 +262,8 @@ h3 {
 
 .home-kicker {
   color: #8fb9d5;
-  font-size: 0.9rem;
-  font-weight: 900;
+  font-size: 14px;
+  font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -278,7 +282,7 @@ h3 {
   margin-top: 18px;
   color: #a9b8c5;
   font-size: 1.08rem;
-  font-weight: 650;
+  font-weight: 700;
   line-height: 1.65;
 }
 
@@ -353,7 +357,7 @@ h3 {
 .home-save-panel p {
   margin-top: 6px;
   color: #9eafbd;
-  font-weight: 650;
+  font-weight: 700;
   line-height: 1.55;
 }
 
@@ -373,7 +377,7 @@ h3 {
 }
 
 .home-import-button {
-  min-height: 42px;
+  min-height: var(--cl-h, 36px);
   border: 1px solid rgba(168, 197, 220, 0.18);
   border-radius: 6px;
   padding: 0 14px;
@@ -412,7 +416,7 @@ h3 {
 .home-message {
   min-height: 22px;
   color: #9fb1bf;
-  font-size: 0.92rem;
+  font-size: 14px;
   font-weight: 700;
 }
 
@@ -420,8 +424,8 @@ h3 {
   min-height: 22px;
   margin: 0;
   color: #b9c8d4;
-  font-size: 0.9rem;
-  font-weight: 750;
+  font-size: 14px;
+  font-weight: 700;
   line-height: 1.45;
   overflow-wrap: anywhere;
 }
@@ -446,8 +450,8 @@ h3 {
 
 .home-section-head span {
   color: #9fb1bf;
-  font-size: 0.92rem;
-  font-weight: 800;
+  font-size: 14px;
+  font-weight: 700;
 }
 
 .home-layout-grid {
@@ -500,8 +504,8 @@ h3 {
   padding: 4px 9px;
   background: rgba(95, 212, 154, 0.18);
   color: #8ff0bf;
-  font-size: 0.74rem;
-  font-weight: 950;
+  font-size: 12px;
+  font-weight: 700;
   letter-spacing: 0.08em;
 }
 
@@ -524,7 +528,7 @@ h3 {
   background: rgba(255, 255, 255, 0.07);
   color: #f3f8fc;
   font-size: 1.02rem;
-  font-weight: 900;
+  font-weight: 700;
 }
 
 .home-layout-card[data-current-layout="true"] .home-layout-name-edit {
@@ -541,8 +545,8 @@ h3 {
 
 .home-layout-title span {
   color: #9fb1bf;
-  font-size: 0.86rem;
-  font-weight: 750;
+  font-size: 14px;
+  font-weight: 700;
 }
 
 .home-layout-badges {
@@ -558,8 +562,8 @@ h3 {
   padding: 3px 7px;
   background: rgba(143, 185, 213, 0.1);
   color: #bed2df;
-  font-size: 0.72rem;
-  font-weight: 850;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .home-layout-badge.current {
@@ -640,8 +644,8 @@ h3 {
   place-items: center;
   background: rgba(255, 255, 255, 0.86);
   color: #173f6f;
-  font-size: 0.68rem;
-  font-weight: 900;
+  font-size: 11px;
+  font-weight: 700;
   box-shadow: var(--cl-shadow);
 }
 
@@ -656,8 +660,8 @@ h3 {
   padding: 5px 9px;
   background: rgba(143, 185, 213, 0.12);
   color: #bed2df;
-  font-size: 0.78rem;
-  font-weight: 850;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .home-layout-actions {
@@ -675,7 +679,7 @@ h3 {
   padding: 24px;
   background: rgba(18, 27, 36, 0.62);
   color: #9fb1bf;
-  font-weight: 800;
+  font-weight: 700;
   text-align: center;
 }
 
@@ -754,14 +758,14 @@ body.studio-mode .page-tabs {
   width: auto;
   flex: 0 0 auto;
   justify-content: flex-start;
-  min-height: 34px;
+  min-height: var(--cl-h, 36px);
   border: 1px solid transparent;
   border-radius: 6px;
   padding: 0 10px;
   background: transparent;
   color: rgba(246, 250, 255, 0.78);
-  font-size: 0.84rem;
-  font-weight: 800;
+  font-size: 13px;
+  font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -837,8 +841,8 @@ body.studio-mode .page-tabs {
 
 .post-board-kicker {
   color: rgba(255, 255, 255, 0.45);
-  font-size: 0.72rem;
-  font-weight: 900;
+  font-size: 12px;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   display: inline-flex;
@@ -878,7 +882,7 @@ body.studio-mode .page-tabs {
   line-height: 1.15;
   letter-spacing: -0.01em;
   color: #fff;
-  font-weight: 900;
+  font-weight: 700;
   outline: none;
   border-bottom: 2px solid transparent;
   transition: border-color 0.2s ease;
@@ -894,7 +898,7 @@ body.studio-mode .page-tabs {
   margin-top: 4px;
   color: #55606b;
   font-size: clamp(0.9rem, 1.2vw, 1.05rem);
-  font-weight: 650;
+  font-weight: 700;
   line-height: 1.4;
 }
 
@@ -906,29 +910,27 @@ body.studio-mode .page-tabs {
   flex-shrink: 0;
 }
 
-.post-board-action-btn,
-.post-board-actions .top-control-toggle {
+.post-board-action-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
   padding: 8px 16px;
-  height: 36px;
-  min-height: 36px;
+  height: var(--cl-h-lg, 44px);
+  min-height: var(--cl-h-lg, 44px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.08);
   color: #fff;
-  font-size: 0.85rem;
-  font-weight: 750;
+  font-size: 14px;
+  font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
   box-shadow: none;
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
 }
 
-.post-board-action-btn:hover,
-.post-board-actions .top-control-toggle:hover {
+.post-board-action-btn:hover {
   background: rgba(255, 255, 255, 0.14);
   border-color: rgba(255, 255, 255, 0.2);
 }
@@ -936,15 +938,6 @@ body.studio-mode .page-tabs {
 .post-board-action-btn.active {
   background: rgba(255, 255, 255, 0.2);
   border-color: rgba(255, 255, 255, 0.28);
-}
-
-.post-board-actions .top-control-toggle {
-  width: 36px;
-  min-width: 36px;
-  padding: 0;
-  border-radius: 50% !important;
-  box-shadow: none !important;
-  backdrop-filter: none !important;
 }
 
 /* QR Code Popover — floats above posts, same pattern as note-wrap */
@@ -972,8 +965,8 @@ body.studio-mode .page-tabs {
 }
 
 .post-board-join-title {
-  font-size: 0.82rem;
-  font-weight: 850;
+  font-size: 13px;
+  font-weight: 700;
   color: rgba(255, 255, 255, 0.85);
   text-align: center;
   word-break: break-all;
@@ -994,8 +987,8 @@ body.studio-mode .page-tabs {
 
 .post-board-join-footer a {
   color: #5ba3f5;
-  font-size: 0.86rem;
-  font-weight: 850;
+  font-size: 14px;
+  font-weight: 700;
   text-decoration: none;
 }
 
@@ -1042,7 +1035,7 @@ body.studio-mode .page-tabs {
 
 .post-board-qr-modal-title {
   font-size: 1.4rem;
-  font-weight: 900;
+  font-weight: 700;
   color: #1e252c;
   text-align: center;
   margin: 0;
@@ -1065,7 +1058,7 @@ body.studio-mode .page-tabs {
 }
 
 #post-board-qr-modal-url {
-  font-size: 0.9rem;
+  font-size: 14px;
   font-weight: 700;
   color: var(--muted);
   word-break: break-all;
@@ -1085,7 +1078,7 @@ body.studio-mode .page-tabs {
   min-height: 32px;
   height: 32px;
   padding: 0 10px;
-  font-size: 0.8rem;
+  font-size: 13px;
   font-weight: 700;
   border: 1px solid var(--line);
   background: #fff;
@@ -1106,7 +1099,7 @@ body.studio-mode .page-tabs {
   background: #1e252c;
   color: #fff;
   font-size: 1rem;
-  font-weight: 750;
+  font-weight: 700;
   cursor: pointer;
 }
 
@@ -1150,14 +1143,14 @@ body.studio-mode .page-tabs {
 .note-cmd-btn,
 .note-size-btn,
 .note-link-btn {
-  min-height: 22px;
-  height: 22px;
+  min-height: var(--cl-h-sm, 28px);
+  height: var(--cl-h-sm, 28px);
   padding: 0 6px;
   border: 0;
   border-radius: 4px;
   background: transparent;
   color: rgba(255, 255, 255, 0.55);
-  font-size: 0.76rem;
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
   display: inline-flex;
@@ -1263,7 +1256,7 @@ body.studio-mode .page-tabs {
   border: 0;
   background: transparent;
   color: #f2f7fa;
-  font-size: 0.88rem;
+  font-size: 14px;
   line-height: 1.4;
   outline: none;
   resize: none;
@@ -1302,7 +1295,7 @@ body.studio-mode .page-tabs {
   min-height: 24px;
   margin-bottom: 14px;
   color: #5c6670;
-  font-weight: 750;
+  font-weight: 700;
 }
 
 .post-board-message.error {
@@ -1369,7 +1362,7 @@ body.studio-mode .page-tabs {
   border-radius: 999px;
   padding-left: 16px;
   padding-right: 4px;
-  min-height: 40px;
+  min-height: var(--cl-h-lg, 44px);
   transition: background 0.18s ease, border-color 0.18s ease;
 }
 
@@ -1379,13 +1372,13 @@ body.studio-mode .page-tabs {
 
 .post-section-title {
   width: 100%;
-  min-height: 38px;
-  height: 38px;
+  min-height: var(--cl-h, 36px);
+  height: var(--cl-h, 36px);
   border: 0;
   background: transparent;
   color: #fff;
   font-size: clamp(0.7rem, 1.1vw, 1rem);
-  font-weight: 900;
+  font-weight: 700;
   text-align: left;
   box-shadow: none;
   padding: 0;
@@ -1407,9 +1400,9 @@ body.studio-mode .page-tabs {
 }
 
 .post-section-menu-btn {
-  width: 32px;
-  height: 32px;
-  min-height: 32px;
+  width: var(--cl-h-sm, 28px);
+  height: var(--cl-h-sm, 28px);
+  min-height: var(--cl-h-sm, 28px);
   padding: 0;
   border: 0;
   border-radius: 50%;
@@ -1453,7 +1446,7 @@ body.studio-mode .page-tabs {
   padding: 0 10px;
   background: transparent;
   color: #f2f7fa;
-  font-size: 0.88rem;
+  font-size: 14px;
   font-weight: 700;
   text-align: left;
   text-decoration: none;
@@ -1472,14 +1465,14 @@ body.studio-mode .page-tabs {
 .post-section-description {
   margin: 0;
   color: rgba(255, 255, 255, 0.62);
-  font-size: 0.9rem;
+  font-size: 14px;
   font-weight: 700;
   line-height: 1.5;
 }
 
 .post-section-add {
-  min-height: 38px;
-  height: 38px;
+  min-height: var(--cl-h, 36px);
+  height: var(--cl-h, 36px);
   border: 0;
   border-radius: 999px;
   display: grid;
@@ -1487,7 +1480,7 @@ body.studio-mode .page-tabs {
   background: rgba(255, 255, 255, 0.05);
   color: rgba(255, 255, 255, 0.65);
   font-size: 1.15rem;
-  font-weight: 450;
+  font-weight: 500;
   text-decoration: none;
   box-shadow: none;
   opacity: 0.55;
@@ -1502,8 +1495,8 @@ body.studio-mode .page-tabs {
 
 .post-section-new {
   align-self: flex-start;
-  min-height: 40px;
-  height: 40px;
+  min-height: var(--cl-h-lg, 44px);
+  height: var(--cl-h-lg, 44px);
   border: 0;
   border-radius: 999px;
   padding: 0 16px;
@@ -1512,7 +1505,7 @@ body.studio-mode .page-tabs {
   justify-content: center;
   background: rgba(255, 255, 255, 0.05);
   color: rgba(255, 255, 255, 0.74);
-  font-size: 0.9rem;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
   box-shadow: none;
@@ -1624,7 +1617,7 @@ body.studio-mode .page-tabs {
 
 .post-card.empty-post {
   color: rgba(242, 247, 250, 0.4);
-  font-weight: 800;
+  font-weight: 700;
   text-align: center;
 }
 
@@ -1644,7 +1637,7 @@ body.studio-mode .page-tabs {
 
 .post-meta span {
   flex: 0 0 auto;
-  font-size: 0.82rem;
+  font-size: 13px;
 }
 
 .post-menu-btn {
@@ -1694,8 +1687,8 @@ body.studio-mode .page-tabs {
   border-radius: 5px;
   background: transparent;
   color: #f2f7fa;
-  font-size: 0.82rem;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 700;
   text-align: left;
   cursor: pointer;
 }
@@ -1748,10 +1741,10 @@ body.studio-mode .page-tabs {
 .post-image-actions button,
 .post-image-actions .link-button {
   flex: 0 1 auto;
-  min-height: 30px;
+  min-height: var(--cl-h-sm, 28px);
   padding: 3px 10px;
-  border-radius: 999px;
-  font-size: 0.76rem;
+  border-radius: var(--cl-r-sm, 12px);
+  font-size: 12px;
   font-weight: 700;
   background: rgba(77, 90, 103, 0.06);
   border-color: rgba(77, 90, 103, 0.18);
@@ -1783,7 +1776,7 @@ body.studio-mode .page-tabs {
 
 .empty-state span {
   color: rgba(245, 251, 255, 0.82);
-  font-weight: 650;
+  font-weight: 700;
 }
 
 .slide-stage.has-slides .empty-state {
@@ -1912,7 +1905,7 @@ body.studio-mode .page-tabs {
   align-items: center;
   gap: 8px;
   color: var(--ink);
-  font-size: 0.92rem;
+  font-size: 14px;
   white-space: nowrap;
 }
 
@@ -1970,7 +1963,7 @@ body.studio-mode .page-tabs {
   grid-column: 1 / -1;
   margin: 0;
   color: rgba(30, 37, 44, 0.66);
-  font-size: 0.86rem;
+  font-size: 14px;
 }
 
 .bg-preset-item {
@@ -2019,9 +2012,9 @@ body.studio-mode .page-tabs {
 }
 
 .compact-button {
-  min-height: 34px;
+  min-height: var(--cl-h, 36px);
   padding: 0 10px;
-  font-size: 0.86rem;
+  font-size: 14px;
 }
 
 .time-grid,
@@ -2041,7 +2034,7 @@ body.studio-mode .page-tabs {
 .hint {
   min-height: 22px;
   color: var(--muted);
-  font-size: 0.88rem;
+  font-size: 14px;
   line-height: 1.45;
 }
 
@@ -2054,7 +2047,7 @@ body.studio-mode .page-tabs {
   overflow-wrap: anywhere;
   color: #465463;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.72rem;
+  font-size: 12px;
   line-height: 1.4;
 }
 
@@ -2103,26 +2096,6 @@ body.studio-mode .page-tabs {
   min-height: 72px;
 }
 
-.tool-dock {
-  position: fixed;
-  left: 50%;
-  bottom: 22px;
-  z-index: 14;
-  width: min(940px, calc(100vw - 28px));
-  min-height: 82px;
-  transform: translateX(-50%);
-  display: grid;
-  grid-template-columns: repeat(11, minmax(48px, 1fr));
-  gap: 4px;
-  align-items: center;
-  padding: 10px 12px;
-  border: 1px solid var(--dock-line);
-  border-radius: 9px;
-  background: var(--dock);
-  box-shadow: 0 20px 52px rgba(0, 0, 0, 0.3);
-  backdrop-filter: blur(16px);
-}
-
 .hidden-widget-popover {
   position: absolute;
   right: 64px;
@@ -2147,7 +2120,7 @@ body.studio-mode .page-tabs {
 
 .hidden-widget-head strong {
   color: #f3f8fc;
-  font-size: 0.95rem;
+  font-size: 16px;
 }
 
 .hidden-widget-actions {
@@ -2157,7 +2130,7 @@ body.studio-mode .page-tabs {
 }
 
 .hidden-widget-actions button {
-  min-height: 36px;
+  min-height: var(--cl-h, 36px);
 }
 
 .hidden-widget-list {
@@ -2185,7 +2158,7 @@ body.studio-mode .page-tabs {
 .hidden-widget-meta strong {
   overflow: hidden;
   color: #f3f8fc;
-  font-size: 0.86rem;
+  font-size: 14px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2193,87 +2166,13 @@ body.studio-mode .page-tabs {
 .hidden-widget-meta span,
 .hidden-widget-empty {
   color: rgba(231, 241, 251, 0.68);
-  font-size: 0.8rem;
+  font-size: 13px;
   font-weight: 700;
 }
 
 .hidden-widget-row button {
-  min-height: 34px;
+  min-height: var(--cl-h, 36px);
   padding: 0 11px;
-}
-
-.tool-dock.more-open .more-tool {
-  position: absolute;
-  bottom: calc(100% + 10px);
-  width: 78px;
-  border: 1px solid var(--dock-line);
-  background: var(--dock);
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.28);
-  backdrop-filter: blur(16px);
-}
-
-.tool-dock.more-open .more-tool[data-tool="groups"] {
-  right: 430px;
-}
-
-.tool-dock.more-open .more-tool[data-tool="image"] {
-  right: 344px;
-}
-
-.tool-dock.more-open .more-tool[data-tool="youtube"] {
-  right: 258px;
-}
-
-.tool-dock.more-open .more-tool[data-tool="layouts"] {
-  right: 172px;
-}
-
-.tool-dock.more-open .more-tool[data-tool="arrange"] {
-  right: 86px;
-}
-
-.tool-dock.more-open .more-tool[data-tool="qr"] {
-  right: 0;
-}
-
-.tool-dock.collapsed {
-  display: none;
-}
-
-.dock-mini {
-  position: fixed;
-  right: 18px;
-  bottom: 18px;
-  z-index: 14;
-  min-width: 54px;
-  min-height: 44px;
-  border: 1px solid var(--dock-line);
-  border-radius: 999px;
-  padding: 0 14px;
-  background: var(--dock);
-  color: #e7f1fb;
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.28);
-  backdrop-filter: blur(16px);
-}
-
-.dock-item {
-  min-width: 0;
-  min-height: 62px;
-  border-radius: 7px;
-  padding: 5px 8px;
-  display: grid;
-  place-items: center;
-  gap: 3px;
-  color: #e7f1fb;
-  background: transparent;
-  text-decoration: none;
-  font-size: 0.78rem;
-  font-weight: 650;
-}
-
-.dock-item:hover,
-.dock-item.active {
-  background: rgba(255, 255, 255, 0.13);
 }
 
 .dock-icon {
@@ -2286,7 +2185,7 @@ body.studio-mode .page-tabs {
   color: #2364aa;
   font-size: 1.45rem;
   line-height: 1;
-  font-weight: 850;
+  font-weight: 700;
 }
 
 .widget {
@@ -2352,8 +2251,8 @@ body.studio-mode .page-tabs {
 
 .widget-label {
   color: rgba(255, 255, 255, 0.72);
-  font-size: 0.78rem;
-  font-weight: 800;
+  font-size: 12px;
+  font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -2446,8 +2345,8 @@ body.studio-mode .page-tabs {
   min-width: 0;
   overflow: hidden;
   color: rgba(255, 255, 255, 0.78);
-  font-size: 0.8rem;
-  font-weight: 850;
+  font-size: 13px;
+  font-weight: 700;
   letter-spacing: 0.04em;
   text-overflow: ellipsis;
   text-transform: uppercase;
@@ -2555,7 +2454,7 @@ body.studio-mode .page-tabs {
   place-items: center;
   font-size: max(1.5rem, min(28cqw, 58cqh));
   line-height: 1;
-  font-weight: 850;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -2579,14 +2478,14 @@ body.studio-mode .page-tabs {
 }
 
 .dynamic-stage-actions button {
-  min-height: 32px;
+  min-height: var(--cl-h-sm, 28px);
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 6px;
   padding: 0 8px;
   background: rgba(255, 255, 255, 0.12);
   color: #fff;
-  font-size: 0.82rem;
-  font-weight: 750;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .youtube-mini-controls button {
@@ -2598,8 +2497,8 @@ body.studio-mode .page-tabs {
   padding: 0;
   background: transparent;
   color: rgba(255, 255, 255, 0.74);
-  font-size: 0.72rem;
-  font-weight: 750;
+  font-size: 12px;
+  font-weight: 700;
   line-height: 1;
 }
 
@@ -2637,7 +2536,7 @@ body.studio-mode .page-tabs {
 
 .dynamic-group span {
   color: #f2f7fa;
-  font-weight: 650;
+  font-weight: 700;
   line-height: 1.45;
   overflow-wrap: anywhere;
 }
@@ -2645,8 +2544,8 @@ body.studio-mode .page-tabs {
 .dynamic-settings-subtitle {
   margin-top: 4px;
   color: rgba(255, 255, 255, 0.9);
-  font-size: 0.86rem;
-  font-weight: 850;
+  font-size: 14px;
+  font-weight: 700;
 }
 
 .dynamic-group-editor {
@@ -2681,8 +2580,8 @@ body.studio-mode .page-tabs {
   gap: 6px;
   background: rgba(255, 255, 255, 0.08);
   color: #f2f7fa;
-  font-size: 0.92rem;
-  font-weight: 750;
+  font-size: 14px;
+  font-weight: 700;
   line-height: 1.25;
 }
 
@@ -2940,7 +2839,7 @@ body.studio-mode .page-tabs {
   background: rgba(255, 255, 255, 0.07);
   color: #fff;
   font-size: clamp(1.2rem, 2.2vw, 2rem);
-  font-weight: 900;
+  font-weight: 700;
   box-shadow: none;
   cursor: default;
 }
@@ -2984,9 +2883,9 @@ body.studio-mode .page-tabs {
 }
 
 .participant-back-btn {
-  min-height: 40px;
+  min-height: var(--cl-h, 36px);
   padding: 0 14px;
-  font-size: 0.95rem;
+  font-size: 16px;
 }
 
 .participant-shell {
@@ -3002,8 +2901,8 @@ body.studio-mode .page-tabs {
 
 .participant-head span {
   color: rgba(255, 255, 255, 0.45);
-  font-size: 0.72rem;
-  font-weight: 900;
+  font-size: 12px;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   display: inline-flex;
@@ -3016,7 +2915,7 @@ body.studio-mode .page-tabs {
   color: #fff;
   font-size: clamp(1.6rem, 4vw, 2.4rem);
   line-height: 1.15;
-  font-weight: 900;
+  font-weight: 700;
   letter-spacing: -0.01em;
 }
 
@@ -3062,7 +2961,7 @@ body.studio-mode .page-tabs {
 }
 
 .participant-form button {
-  min-height: 48px;
+  min-height: var(--cl-h-lg, 44px);
 }
 
 .participant-image-preview {
@@ -3084,19 +2983,19 @@ body.studio-mode .page-tabs {
   justify-content: space-between;
   gap: 10px;
   color: rgba(255, 255, 255, 0.74);
-  font-size: 0.82rem;
-  font-weight: 800;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .participant-image-preview-head button {
-  min-height: 30px;
+  min-height: var(--cl-h-sm, 28px);
   padding: 3px 10px;
-  border-radius: 999px;
+  border-radius: var(--cl-r-sm, 12px);
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.055);
   color: rgba(255, 255, 255, 0.74);
   cursor: pointer;
-  font-size: 0.76rem;
+  font-size: 12px;
 }
 
 .participant-image-preview-grid {
@@ -3154,8 +3053,8 @@ body.studio-mode .page-tabs {
   padding: 3px 8px;
   background: rgba(17, 24, 32, 0.72);
   color: #fff;
-  font-size: 0.72rem;
-  font-weight: 800;
+  font-size: 12px;
+  font-weight: 700;
   text-align: center;
 }
 
@@ -3179,8 +3078,8 @@ body.studio-mode .page-tabs {
   flex: 0 1 auto;
   min-height: 30px;
   padding: 3px 10px;
-  border-radius: 999px;
-  font-size: 0.76rem;
+  border-radius: var(--cl-r-sm, 12px);
+  font-size: 12px;
   border: 1px solid;
   cursor: pointer;
   background: rgba(255, 255, 255, 0.055);
@@ -3361,17 +3260,17 @@ body.studio-mode .page-tabs {
   right: 4px;
   min-height: 24px;
   padding: 2px 6px;
-  border-radius: 999px;
+  border-radius: var(--cl-r-sm, 12px);
   border: 1px solid rgba(120, 22, 22, 0.24);
   background: rgba(255, 255, 255, 0.92);
   color: #8f1d1d;
-  font-size: 0.72rem;
+  font-size: 12px;
   cursor: pointer;
 }
 
 .post-edit-image-item figcaption {
   margin-top: 3px;
-  font-size: 0.72rem;
+  font-size: 12px;
   color: #6b7280;
   text-align: center;
 }
@@ -3383,7 +3282,7 @@ body.studio-mode .page-tabs {
 
 .confirm-modal-message {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 16px;
   line-height: 1.5;
   white-space: pre-line;
 }
@@ -3410,7 +3309,7 @@ body.studio-mode .page-tabs {
   min-height: 24px;
   margin: 0;
   color: #8ff0bf;
-  font-size: 0.9rem;
+  font-size: 14px;
   text-align: center;
 }
 
@@ -3420,14 +3319,14 @@ body.studio-mode .page-tabs {
 
 .image-viewer-bar button,
 .image-viewer-bar .link-button {
-  min-height: 40px;
+  min-height: var(--cl-h, 36px);
 }
 
 .image-viewer-nav-counter {
   min-width: 44px;
   text-align: center;
   color: #fff;
-  font-size: 0.9rem;
+  font-size: 14px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
@@ -3542,14 +3441,14 @@ body.studio-mode .page-tabs {
   font-size: clamp(2.2rem, 28cqw, 6rem);
   text-align: center;
   line-height: 1;
-  font-weight: 850;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
 .stage-note {
   margin-top: 6px;
   color: #d7e2e8;
-  font-weight: 650;
+  font-weight: 700;
 }
 
 .stage-timer-actions {
@@ -3561,14 +3460,14 @@ body.studio-mode .page-tabs {
 }
 
 .stage-timer-actions button {
-  min-height: 32px;
+  min-height: var(--cl-h-sm, 28px);
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 6px;
   padding: 0 8px;
   background: rgba(255, 255, 255, 0.12);
   color: #fff;
-  font-size: 0.82rem;
-  font-weight: 750;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .stage-timer-actions button:hover {
@@ -3598,7 +3497,7 @@ body.studio-mode .page-tabs {
   font-size: clamp(2.2rem, 28cqw, 6rem);
   text-align: center;
   line-height: 1;
-  font-weight: 850;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
@@ -3699,7 +3598,7 @@ body.studio-mode .page-tabs {
 .stage-text-box {
   color: #fff;
   font-size: 44px;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1.25;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -3727,7 +3626,7 @@ body.studio-mode .page-tabs {
 .stage-group span {
   color: #f2f7fa;
   font-size: 1rem;
-  font-weight: 650;
+  font-weight: 700;
   line-height: 1.45;
   overflow-wrap: anywhere;
 }
@@ -3739,18 +3638,6 @@ body.studio-mode .page-tabs {
 
   .control-tray {
     bottom: 164px;
-  }
-
-  .tool-dock {
-    bottom: 10px;
-    min-height: 74px;
-    grid-template-columns: repeat(6, minmax(44px, 1fr));
-    padding: 8px;
-  }
-
-  .dock-item {
-    min-height: 56px;
-    font-size: 0.68rem;
   }
 
   .dock-icon {
@@ -3797,9 +3684,9 @@ body.studio-mode .page-tabs {
 .participant-change-name-btn {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 999px;
+  border-radius: var(--cl-r-sm, 12px);
   color: rgba(255, 255, 255, 0.9);
-  font-size: 0.85rem;
+  font-size: 14px;
   font-weight: 700;
   padding: 8px 16px;
   cursor: pointer;
@@ -3896,18 +3783,18 @@ body.studio-mode .page-tabs {
 
 .poll-option-check {
   color: #5fa8ff;
-  font-weight: 900;
+  font-weight: 700;
 }
 
 .poll-option-stats {
-  font-size: 0.82rem;
+  font-size: 13px;
   color: rgba(255, 255, 255, 0.6);
   white-space: nowrap;
 }
 
 .poll-total-votes {
   text-align: right;
-  font-size: 0.78rem;
+  font-size: 12px;
   color: rgba(255, 255, 255, 0.46);
   margin-top: 4px;
 }
@@ -3932,7 +3819,7 @@ body.studio-mode .page-tabs {
 
 .small-btn {
   padding: 4px 10px !important;
-  font-size: 0.82rem !important;
+  font-size: 13px !important;
   min-height: 28px !important;
 }
 
@@ -3990,15 +3877,13 @@ body.studio-mode .page-tabs {
   color: #1e252c;
 }
 
-.page-bg-light .post-board-action-btn,
-.page-bg-light .post-board-actions .top-control-toggle {
+.page-bg-light .post-board-action-btn {
   background: rgba(17, 24, 32, 0.05);
   border-color: rgba(17, 24, 32, 0.1);
   color: #111820;
 }
 
-.page-bg-light .post-board-action-btn:hover,
-.page-bg-light .post-board-actions .top-control-toggle:hover {
+.page-bg-light .post-board-action-btn:hover {
   background: rgba(17, 24, 32, 0.08);
   border-color: rgba(17, 24, 32, 0.16);
   color: #111820;
@@ -4215,8 +4100,8 @@ body.studio-mode .page-tabs {
 
 .post-file-icon {
   flex-shrink: 0;
-  font-size: 0.62rem;
-  font-weight: 800;
+  font-size: 11px;
+  font-weight: 700;
   letter-spacing: 0.06em;
   color: #ffffff;
   background: #5a6472;
@@ -4246,7 +4131,7 @@ body.studio-mode .page-tabs {
 .post-file-name {
   flex: 1;
   min-width: 0;
-  font-size: 0.82rem;
+  font-size: 13px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -4281,7 +4166,7 @@ body.studio-mode .page-tabs {
   flex: 1;
   min-width: 0;
   padding: 7px 10px;
-  border-radius: 999px;
+  border-radius: var(--cl-r-sm, 12px);
   border: 1px solid rgba(0, 0, 0, 0.12);
   background: rgba(0, 0, 0, 0.035);
   color: inherit;
@@ -4295,11 +4180,11 @@ body.studio-mode .page-tabs {
 .post-file-download {
   flex-shrink: 0;
   padding: 7px 12px;
-  border-radius: 999px;
+  border-radius: var(--cl-r-sm, 12px);
   border: 1px solid rgba(0, 0, 0, 0.12);
   background: transparent;
   color: inherit;
-  font-size: 0.78rem;
+  font-size: 12px;
   cursor: pointer;
 }
 

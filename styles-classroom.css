@@ -14,6 +14,12 @@
   --cl-r: 18px;
   --cl-r-sm: 12px;
   --cl-rail-w: 80px;
+  /* 三級控制項高度。密集列（小工具標題列、公告工具列、翻頁列）用 sm，
+     一般按鈕與輸入框用標準，浮在畫面上的主要入口用 lg。
+     側欄按鈕是圖示＋文字兩行的特例，維持自己的 54px。 */
+  --cl-h-sm: 28px;
+  --cl-h: 36px;
+  --cl-h-lg: 44px;
   --cl-t-fast: 150ms;
 }
 
@@ -258,12 +264,12 @@ html body[data-theme="dark"] .rail-layers .hidden-widget-meta:disabled { cursor:
 html body[data-theme="dark"] .rail-layers .hidden-widget-meta:not(:disabled):hover { color: var(--cl-accent); }
 html body[data-theme="dark"] .rail-layers .hidden-widget-meta strong { color: inherit; font-weight: 500; }
 html body[data-theme="dark"] .rail-layers .hidden-widget-meta span,
-html body[data-theme="dark"] .rail-layers .hidden-widget-empty { color: var(--cl-ink-3); font-weight: 400; }
+html body[data-theme="dark"] .rail-layers .hidden-widget-empty { color: var(--cl-ink-3); font-weight: 500; }
 html body[data-theme="dark"] .rail-layers button.secondary,
 html body[data-theme="dark"] .rail-layers .hidden-widget-row > button:last-child {
-  min-height: 34px;
+  min-height: var(--cl-h);
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--cl-r-sm, 12px);
   background: var(--cl-surface);
   color: var(--cl-ink-2);
 }
@@ -281,7 +287,7 @@ html body[data-theme="dark"] .dynamic-widget[data-widget-type="clock"] .dynamic-
 html body[data-theme="dark"] .tool-section h2,
 html body[data-theme="dark"] .tool-section h3 {
   font-family: var(--cl-f-title);
-  font-weight: 400;
+  font-weight: 500;
   letter-spacing: 0;
   text-transform: none;
 }
@@ -310,8 +316,6 @@ html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) input[typ
   color-scheme: light;
 }
 
-/* 右上控制中心、頁面分頁 */
-html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .top-control-toggle,
 html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .top-control-panel,
 html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .page-tabs {
   background: var(--cl-surface);
@@ -421,23 +425,6 @@ html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) .dynamic-
   color: var(--cl-ink-2);
 }
 
-/* 右上 ▣：舊樣式用 !important 寫死深色與藍色 hover，只能同樣用 !important 蓋 */
-html body[data-theme="dark"].studio-mode #top-control-toggle:hover {
-  background: var(--cl-accent-soft) !important;
-  border-color: transparent !important;
-  color: var(--cl-accent) !important;
-}
-html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) #top-control-toggle {
-  background: var(--cl-surface) !important;
-  border-color: var(--cl-line) !important;
-  color: var(--cl-ink-2) !important;
-  box-shadow: var(--cl-shadow);
-}
-html[data-tone="light"] body[data-theme="dark"]:not(.participant-mode) #top-control-toggle:hover {
-  background: var(--cl-accent-soft) !important;
-  color: var(--cl-accent) !important;
-}
-
 /* 夜間：小工具與設定面板換成深紫墨，選取框改珊瑚色（明亮模式的規則較具體，會蓋過這段） */
 html body[data-theme="dark"] .widget,
 html body[data-theme="dark"] .dynamic-widget,
@@ -457,7 +444,7 @@ html body[data-theme="dark"] .dynamic-stage-actions button:hover {
 }
 
 /* ── 首頁 ───────────────────────────────── */
-html body[data-theme="dark"] .home-hero h1 { font-family: var(--cl-f-title); font-weight: 400; letter-spacing: 0; }
+html body[data-theme="dark"] .home-hero h1 { font-family: var(--cl-f-title); font-weight: 500; letter-spacing: 0; }
 html body[data-theme="dark"] .home-hero { display: flex; justify-content: space-between; gap: 16px; }
 html body[data-theme="dark"] .home-view {
   background:
@@ -473,7 +460,7 @@ html body[data-theme="dark"].home-mode { background: var(--cl-bg); }
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  border-radius: 999px;
+  border-radius: var(--cl-r-sm, 12px);
   font: 500 13px/1 var(--cl-f-ui);
 }
 #home-tone svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
@@ -585,8 +572,8 @@ html body[data-theme="dark"] .dynamic-settings .inspector-close:hover {
   border-top: 1px solid var(--cl-line);
 }
 html body[data-theme="dark"] .dynamic-settings .inspector-foot button {
-  height: 36px;
-  min-height: 36px;
+  height: var(--cl-h);
+  min-height: var(--cl-h);
   border: 0;
   border-radius: var(--cl-r-sm);
   background: var(--cl-bg-2);
@@ -615,10 +602,10 @@ html body[data-theme="dark"] .dynamic-actions button,
 html body[data-theme="dark"] .dynamic-drag {
   width: 30px;
   min-width: 30px;
-  height: 30px;
-  min-height: 30px;
+  height: var(--cl-h-sm);
+  min-height: var(--cl-h-sm);
   border-radius: 9px;
-  font-size: 15px;
+  font-size: 14px;
   letter-spacing: 0;
   opacity: .45;
   color: var(--cl-ink-2);
@@ -712,7 +699,7 @@ html body[data-theme="dark"] .home-view .home-section-head span,
 html body[data-theme="dark"] .home-view .home-message,
 html body[data-theme="dark"] .home-view .home-empty {
   color: var(--cl-ink-3);
-  font: 400 13px/1.5 var(--cl-f-ui);
+  font: 500 13px/1.5 var(--cl-f-ui);
   letter-spacing: 0;
 }
 html body[data-theme="dark"] .home-view .file-status-line,
@@ -777,7 +764,7 @@ html body[data-theme="dark"] .home-view input[type="text"].home-layout-name-edit
   border-radius: 10px;
   background: transparent;
   color: var(--cl-ink);
-  font: 700 17px/1.2 var(--cl-f-ui);
+  font: 700 16px/1.2 var(--cl-f-ui);
 }
 html body[data-theme="dark"] .home-view input[type="text"].home-layout-name-edit:hover { border-color: var(--cl-line); }
 html body[data-theme="dark"] .home-view input[type="text"].home-layout-name-edit:focus {
@@ -790,14 +777,14 @@ html body[data-theme="dark"] .home-view .home-layout-rename {
   height: 32px;
   padding: 0 12px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--cl-r-sm, 12px);
   background: var(--cl-bg-2);
   color: var(--cl-ink-2);
   font: 500 12px/1 var(--cl-f-ui);
 }
 html body[data-theme="dark"] .home-view .home-layout-title span {
   color: var(--cl-ink-3);
-  font: 400 12px/1.4 var(--cl-f-ui);
+  font: 500 12px/1.4 var(--cl-f-ui);
   letter-spacing: 0;
   text-transform: none;
 }
@@ -834,7 +821,7 @@ html body[data-theme="dark"] .home-view .home-preview-widget {
   background: var(--cl-surface);
   color: var(--cl-ink-2);
   box-shadow: 0 2px 6px rgba(0, 0, 0, .12);
-  font: 500 10px/1 var(--cl-f-ui);
+  font: 500 11px/1 var(--cl-f-ui);
   text-transform: none;
 }
 
@@ -855,8 +842,8 @@ html body[data-theme="dark"] .home-view .home-layout-meta span[data-tag-type="po
 
 /* 動作：主按鈕實心珊瑚 */
 html body[data-theme="dark"] .home-view .home-layout-actions button {
-  min-height: 40px;
-  border-radius: 999px;
+  min-height: var(--cl-h);
+  border-radius: var(--cl-r-sm, 12px);
   font: 500 14px/1 var(--cl-f-ui);
 }
 html body[data-theme="dark"] .home-view .home-layout-actions button:first-child {
@@ -1019,7 +1006,7 @@ html body[data-theme="dark"] .post-board-qr-popover {
   color: var(--cl-ink);
   box-shadow: var(--cl-shadow-lg);
 }
-html body[data-theme="dark"] .post-board-qr-popover .post-board-join-title { color: var(--cl-ink); font-family: var(--cl-f-title); font-weight: 400; }
+html body[data-theme="dark"] .post-board-qr-popover .post-board-join-title { color: var(--cl-ink); font-family: var(--cl-f-title); font-weight: 500; }
 html body[data-theme="dark"] .post-board-qr-popover img { border-radius: 10px; background: #fff; }
 html body[data-theme="dark"] .post-board-qr-popover a { color: var(--cl-accent); }
 html body[data-theme="dark"] .post-board-qr-popover .post-board-qr-expand {
@@ -1045,7 +1032,7 @@ body:not(.studio-mode) .post-board-qr-popover { display: none !important; }
 }
 html body[data-theme="dark"] .top-qr-item {
   width: 100%;
-  min-height: 38px;
+  min-height: var(--cl-h);
   padding: 0 10px;
   display: flex;
   align-items: center;
@@ -1174,8 +1161,8 @@ body.studio-mode .post-board-actions {
   gap: 8px;
 }
 html body[data-theme="dark"].studio-mode .post-board-action-btn {
-  height: 40px;
-  min-height: 40px;
+  height: var(--cl-h-lg);
+  min-height: var(--cl-h-lg);
   padding: 0 14px;
   border: 0;
   border-radius: 999px;
