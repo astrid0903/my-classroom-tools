@@ -6821,14 +6821,21 @@ function setLoading(isLoading, title = "正在載入簡報", detail = "Google Sl
   }
 }
 
-function loadPlayerUrl(playerUrl) {
+// showLoading：是否蓋上「正在載入簡報」的提示卡。換一份簡報時要，單純翻頁不要——
+// 每翻一頁都彈一次等於整堂課一直閃。
+// hardReload：先切 about:blank 再換網址，用來強迫同一個網址重新載入；翻頁網址本來就不同，不需要。
+function loadPlayerUrl(playerUrl, { showLoading = true, hardReload = true } = {}) {
   currentPlayerUrl = playerUrl;
-  els.frame.src = "about:blank";
-  window.setTimeout(() => {
+  if (hardReload) {
+    els.frame.src = "about:blank";
+    window.setTimeout(() => {
+      els.frame.src = playerUrl;
+    }, 60);
+  } else {
     els.frame.src = playerUrl;
-  }, 60);
+  }
   updateStageForPage();
-  if (activePageShowsMainSlides()) setLoading(true);
+  if (showLoading && activePageShowsMainSlides()) setLoading(true);
 }
 
 // 只有 Google 簡報（一般連結與發布連結）吃得下 ?slide=N；
@@ -6861,7 +6868,7 @@ function goToSlide(next) {
   }
   slideNo = target;
   const playerUrl = buildSlidesUrl(currentSlides);
-  loadPlayerUrl(playerUrl);
+  loadPlayerUrl(playerUrl, { showLoading: false, hardReload: false });
   updateSlidesDebug(playerUrl);
   renderSlideNav();
   writeState({ currentEmbedUrl: playerUrl });

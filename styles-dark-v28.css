@@ -3433,20 +3433,20 @@ body[data-theme="dark"] .top-tool-btn:hover {
   z-index: 60;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
+  gap: 2px;
+  padding: 3px 5px;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(15, 20, 28, 0.82);
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.36);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(18px);
 }
 .slide-nav.hidden { display: none !important; }
 .slide-nav-btn,
 body[data-theme="dark"] .slide-nav-btn {
-  width: 32px;
-  height: 32px;
-  min-height: 32px;
+  width: 24px;
+  height: 24px;
+  min-height: 24px;
   padding: 0;
   display: grid;
   place-items: center;
@@ -3454,7 +3454,7 @@ body[data-theme="dark"] .slide-nav-btn {
   border-radius: 999px;
   background: transparent;
   color: rgba(255, 255, 255, 0.82);
-  font-size: 20px;
+  font-size: 15px;
   line-height: 1;
   cursor: pointer;
 }
@@ -3467,21 +3467,27 @@ body[data-theme="dark"] .slide-nav-btn:hover:not(:disabled) {
 .slide-nav-no { margin: 0; display: block; }
 .slide-nav input,
 body[data-theme="dark"] .slide-nav input {
-  width: 46px;
-  min-height: 28px;
-  padding: 0 4px;
-  border-radius: 8px;
+  width: 34px;
+  min-height: 22px;
+  padding: 0 2px;
+  border-radius: 7px;
   border: 1px solid rgba(255, 255, 255, 0.14);
   background: rgba(255, 255, 255, 0.06);
   color: #fff;
-  font-size: 13px;
+  font-size: 12px;
   text-align: center;
 }
+/* 數字輸入框的上下小箭頭會把框撐寬，翻頁列用不到 */
+.slide-nav input::-webkit-outer-spin-button,
+.slide-nav input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.slide-nav input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 .slide-nav-total {
-  min-width: 34px;
+  padding-right: 2px;
   color: rgba(255, 255, 255, 0.6);
-  font-size: 12px;
+  font-size: 11px;
 }
+/* 沒填總頁數時這格是空的，不要留一塊空白 */
+.slide-nav-total:empty { display: none; }
 .sr-only {
   position: absolute;
   width: 1px; height: 1px;
