@@ -70,6 +70,12 @@ const els = {
   openSlides: document.querySelector("#open-slides"),
   openOnlineApp: document.querySelector("#open-online-app"),
   slidesDebug: document.querySelector("#slides-debug"),
+  slideNav: document.querySelector("#slide-nav"),
+  slidePrev: document.querySelector("#slide-prev"),
+  slideNext: document.querySelector("#slide-next"),
+  slideNoInput: document.querySelector("#slide-no"),
+  slideTotalLabel: document.querySelector("#slide-total"),
+  slidesTotalInput: document.querySelector("#slides-total-input"),
   slidesLoading: document.querySelector("#slides-loading"),
   loadingTitle: document.querySelector("#loading-title"),
   loadingDetail: document.querySelector("#loading-detail"),
@@ -313,6 +319,11 @@ let activeTool = "";
 let slidesMode = "preview";
 let currentSlides = null;
 let currentPlayerUrl = "";
+// 簡報目前在第幾頁（1 起算）與總頁數。Google 簡報是跨網域 iframe，讀不到它自己翻到第幾頁，
+// 所以頁碼由播放台自己記：按播放台的翻頁鈕 → 重設 iframe 的 ?slide=N → 更新這個數字。
+// 老師若改用 Google 簡報自己的箭頭翻頁，這裡就會對不上（簡報面板有提醒）。
+let slideNo = 1;
+let slideTotal = 0;
 let loadingTimerId = null;
 let clockTimerId = null;
 let dockCollapsed = false;
@@ -466,6 +477,8 @@ function buildState(extra = {}) {
     currentEmbedUrl: els.frame.getAttribute("src") || "",
     slidesMode,
     currentSlides,
+    slideNo,
+    slideTotal,
     activeTool,
     dockCollapsed,
     moreToolsOpen,
@@ -695,7 +708,12 @@ function loadGoogleDriveScript() {
 function googleDriveErrorMessage(error) {
   const text = String(error?.message || error?.error || "");
   if (text.includes("popup")) return "Google Drive 登入視窗被瀏覽器阻擋，請允許彈出視窗後再試。";
-  if (text.includes("origin") || text.includes("unauthorized")) return "目前網址尚未加入 Google OAuth 授權來源，請改用正式網址或更新 OAuth 設定。";
+  // origin_mismatch＝這個網址沒登記在 OAuth 用戶端的「已授權的 JavaScript 來源」。
+  // 本機預覽（localhost:<port>）最常遇到，訊息直接把網址寫出來，才不用自己去猜要填什麼。
+  if (text.includes("origin") || text.includes("unauthorized")) {
+    return `「${window.location.origin}」還沒加進 Google OAuth 的「已授權的 JavaScript 來源」，所以不能在這裡登入 Drive。` +
+      "解法二選一：①到 Google Cloud Console → API 和服務 → 憑證 → 這個 OAuth 用戶端，把上面那個網址加進去；②改用「本機資料夾」開檔，不經過 Drive。";
+  }
   return text || "Google Drive 操作失敗。";
 }
 
@@ -1798,9 +1816,75 @@ function renderBackgroundPresets() {
   });
 }
 
+// 小工具要出現在簡報的哪幾頁：state.slideScope
+//   null ＝ 懸浮，整份簡報每一頁都出現（新建的預設，也是舊檔的行為）
+//   數字陣列 ＝ 只在這幾頁出現
+// 只對簡報頁有意義；白板頁、貼文板頁沒有頁碼，一律照舊顯示。
+function widgetSlideScope(widget) {
+  const scope = widget && widget.state ? widget.state.slideScope : null;
+  if (!Array.isArray(scope)) return null;
+  const valid = [...new Set(scope.map((n) => Math.round(Number(n))).filter((n) => Number.isFinite(n) && n >= 1))];
+  return valid.length > 0 ? valid.sort((a, b) => a - b) : null;
+}
+
+function widgetShowsOnSlide(widget) {
+  const scope = widgetSlideScope(widget);
+  if (!scope) return true;
+  if (!activePageShowsMainSlides()) return true;
+  return scope.includes(slideNo);
+}
+
+// 把 [1,3,5,6,7,8] 寫成「1,3,5-8」
+function formatSlideScope(scope) {
+  if (!Array.isArray(scope) || scope.length === 0) return "";
+  const parts = [];
+  let start = scope[0];
+  let prev = scope[0];
+  scope.slice(1).forEach((n) => {
+    if (n === prev + 1) { prev = n; return; }
+    parts.push(start === prev ? `${start}` : `${start}-${prev}`);
+    start = n;
+    prev = n;
+  });
+  parts.push(start === prev ? `${start}` : `${start}-${prev}`);
+  return parts.join(",");
+}
+
+// 讀「1,3,5-8」這種寫法；全形逗號、頓號、空白都當分隔
+function parseSlideScope(text) {
+  const cleaned = String(text || "").replace(/[，、;；\s]+/g, ",");
+  const out = [];
+  cleaned.split(",").forEach((chunk) => {
+    if (!chunk) return;
+    const range = chunk.match(/^(\d+)\s*[-~–]\s*(\d+)$/);
+    if (range) {
+      const from = Math.min(Number(range[1]), Number(range[2]));
+      const to = Math.max(Number(range[1]), Number(range[2]));
+      for (let n = Math.max(1, from); n <= to; n += 1) out.push(n);
+      return;
+    }
+    const single = Number(chunk);
+    if (Number.isFinite(single) && single >= 1) out.push(Math.round(single));
+  });
+  return out.length > 0 ? [...new Set(out)].sort((a, b) => a - b) : null;
+}
+
+function widgetScopeLabel(widget) {
+  const scope = widgetSlideScope(widget);
+  return scope ? `第 ${formatSlideScope(scope)} 頁` : "每頁";
+}
+
+function setWidgetSlideScope(instance, scope) {
+  instance.state.slideScope = Array.isArray(scope) && scope.length > 0 ? scope : null;
+  updateDynamicWidgetVisibility();
+  renderWidgetSlideScopeSection(instance);
+  writeState();
+}
+
 function updateDynamicWidgetVisibility() {
   dynamicWidgets.forEach((widget) => {
-    widget.element.classList.toggle("page-hidden", widget.pageId !== activePage().id || Boolean(widget.state.hidden));
+    const offPage = widget.pageId !== activePage().id || !widgetShowsOnSlide(widget);
+    widget.element.classList.toggle("page-hidden", offPage || Boolean(widget.state.hidden));
   });
   pruneWidgetSelection();
   renderHiddenWidgetsList();
@@ -1822,7 +1906,8 @@ function widgetTypeLabel(type) {
 function widgetListLabel(widget) {
   const page = pages.find((item) => item.id === widget.pageId);
   const title = String(widget.state.title || widgetTypeLabel(widget.type)).trim();
-  return `${title || widgetTypeLabel(widget.type)}${page ? ` · ${page.name}` : ""}`;
+  const scope = page && page.type === "slides" ? ` · ${widgetScopeLabel(widget)}` : "";
+  return `${title || widgetTypeLabel(widget.type)}${page ? ` · ${page.name}` : ""}${scope}`;
 }
 
 function setHiddenWidgetsOpen(isOpen) {
@@ -1869,14 +1954,19 @@ function renderHiddenWidgetsList() {
   }
   dynamicWidgets.forEach((widget) => {
     const row = createEl("div", "hidden-widget-row");
-    const selectable = !widget.state.hidden && widget.pageId === activePage().id;
+    const onThisPage = widget.pageId === activePage().id;
+    const selectable = !widget.state.hidden && onThisPage;
     const meta = createEl("button", "hidden-widget-meta");
     meta.type = "button";
     meta.disabled = !selectable;
     meta.title = selectable ? "選取這個小工具" : widget.state.hidden ? "先顯示才能選取" : "在其他頁面";
     meta.append(createEl("strong", "", widgetListLabel(widget)), createEl("span", "", widget.state.hidden ? "已隱藏" : "顯示中"));
-    // 圖層清單：點名稱選取該小工具（只限目前頁面、顯示中的）
+    // 列表：點名稱選取該小工具；綁了頁碼又不在那一頁時，先翻到它的第一頁
     meta.addEventListener("click", () => {
+      if (!widgetShowsOnSlide(widget)) {
+        const target = (widgetSlideScope(widget) || [])[0];
+        if (target) goToSlide(target);
+      }
       selectedWidgets = new Set([widgetSelectionId(widget.element)]);
       bringWidgetToFront(widget.element);
       renderWidgetSelection();
@@ -2014,22 +2104,13 @@ function applyPageBackground(page) {
   }
 }
 
+// 2026-11-04：控制中心改從側欄開關，右上角的 ▣ 已停用（CSS 隱藏）。
+// 貼文板頁面不再把 ▣ 塞進貼文板按鈕列，避免跟「公告／QR Code」擠在一起。
 function syncTopControlTogglePlacement() {
-  const page = activePage();
   const toggle = document.getElementById("top-control-toggle");
   const topControl = document.getElementById("top-control");
-  
-  if (!toggle) return;
-
-  if (page && page.type === "posts") {
-    if (els.postBoardActions && !els.postBoardActions.contains(toggle)) {
-      els.postBoardActions.appendChild(toggle);
-    }
-  } else {
-    if (topControl && !topControl.contains(toggle)) {
-      topControl.insertBefore(toggle, topControl.firstChild);
-    }
-  }
+  if (!toggle || !topControl) return;
+  if (!topControl.contains(toggle)) topControl.insertBefore(toggle, topControl.firstChild);
 }
 
 function updateStageForPage() {
@@ -2059,6 +2140,7 @@ function updateStageForPage() {
     unsubscribePostBoard();
   }
 
+  renderSlideNav();
   updateDynamicWidgetVisibility();
   renderPages();
 }
@@ -2991,6 +3073,11 @@ function createDynamicWidget(type, state = {}, position = null) {
   const legacyTitles = { groups: "Groups", text: "Text", image: "Image", slides: "Slides" };
   if (legacyTitles[type] && nextState.title === legacyTitles[type]) nextState.title = defaultDynamicState(type).title;
   if (type === "text" && String(nextState.color).toLowerCase() === "#ffffff") nextState.color = "";
+  // 新建的小工具預設懸浮（整份簡報每一頁都出現）
+  nextState.slideScope = Array.isArray(nextState.slideScope)
+    ? nextState.slideScope.map((n) => Math.round(Number(n))).filter((n) => Number.isFinite(n) && n >= 1)
+    : null;
+  if (nextState.slideScope && nextState.slideScope.length === 0) nextState.slideScope = null;
   delete nextState.id;
 
   const widget = document.createElement("article");
@@ -3152,9 +3239,60 @@ function addInspectorChrome(instance) {
       removeDynamicWidget(instance.id);
     }
   });
+  const scopeSection = createEl("div", "inspector-scope");
+  instance.scopeSection = scopeSection;
+  settings.appendChild(scopeSection);
+  renderWidgetSlideScopeSection(instance);
+
   foot.append(copy, hide, remove);
   settings.appendChild(foot);
 }
+
+// 屬性面板的「出現在簡報哪幾頁」：預設懸浮；改成指定頁碼時先帶目前這一頁，免得一按就整個不見
+function renderWidgetSlideScopeSection(instance) {
+  const section = instance.scopeSection;
+  if (!section) return;
+  section.innerHTML = "";
+  section.appendChild(createEl("div", "dynamic-settings-subtitle", "出現在簡報哪幾頁"));
+
+  const scope = widgetSlideScope(instance);
+  const groupName = `scope-${instance.id}`;
+
+  const floatLabel = createEl("label", "switch");
+  const floatRadio = document.createElement("input");
+  floatRadio.type = "radio";
+  floatRadio.name = groupName;
+  floatRadio.checked = !scope;
+  floatLabel.append(floatRadio, document.createTextNode("每一頁都出現（懸浮）"));
+
+  const pickLabel = createEl("label", "switch");
+  const pickRadio = document.createElement("input");
+  pickRadio.type = "radio";
+  pickRadio.name = groupName;
+  pickRadio.checked = Boolean(scope);
+  pickLabel.append(pickRadio, document.createTextNode("只在指定頁碼"));
+
+  const box = createEl("div", "inspector-scope-pages");
+  box.classList.toggle("hidden", !scope);
+  const input = dynamicInput(scope ? formatSlideScope(scope) : "");
+  input.placeholder = "例如 1,3,5-8";
+  input.addEventListener("change", () => {
+    const next = parseSlideScope(input.value);
+    setWidgetSlideScope(instance, next);
+  });
+  box.appendChild(input);
+  box.appendChild(createEl("span", "hint", "用逗號分開，連續頁碼可以寫 5-8；留空＝每一頁都出現。"));
+
+  floatRadio.addEventListener("change", () => {
+    if (floatRadio.checked) setWidgetSlideScope(instance, null);
+  });
+  pickRadio.addEventListener("change", () => {
+    if (pickRadio.checked) setWidgetSlideScope(instance, [slideNo]);
+  });
+
+  section.append(floatLabel, pickLabel, box);
+}
+
 
 function buildDynamicSettingsFields(instance) {
   const { type, state, settings } = instance;
@@ -6630,7 +6768,9 @@ function buildSlidesUrl(slides, mode = slidesMode) {
     delayms: "60000",
   });
 
-  if (slides.slide) params.set("slide", slides.slide);
+  // 播放台記的頁碼優先；Google 簡報的 embed 吃得下數字（?slide=3），會自己換成那一頁的 id
+  if (supportsSlideJump(slides) && slideNo > 1) params.set("slide", String(slideNo));
+  else if (slides.slide) params.set("slide", slides.slide);
   if (slides.kind === "published") {
     return `https://docs.google.com/presentation/d/e/${slides.id}/embed?${params.toString()}`;
   }
@@ -6691,6 +6831,53 @@ function loadPlayerUrl(playerUrl) {
   if (activePageShowsMainSlides()) setLoading(true);
 }
 
+// 只有 Google 簡報（一般連結與發布連結）吃得下 ?slide=N；
+// Drive 的 PDF／PPTX 預覽與 Office Online 走別套檢視器，沒有這個參數。
+function supportsSlideJump(slides) {
+  return Boolean(slides) && (slides.kind === "standard" || slides.kind === "published");
+}
+
+function canUseSlideNav() {
+  return activePageShowsMainSlides() && supportsSlideJump(currentSlides);
+}
+
+function renderSlideNav() {
+  if (!els.slideNav) return;
+  els.slideNav.classList.toggle("hidden", !canUseSlideNav());
+  if (els.slideNoInput && document.activeElement !== els.slideNoInput) els.slideNoInput.value = String(slideNo);
+  if (els.slideNoInput) els.slideNoInput.max = slideTotal > 0 ? String(slideTotal) : "";
+  if (els.slideTotalLabel) els.slideTotalLabel.textContent = slideTotal > 0 ? `/ ${slideTotal}` : "";
+  if (els.slidePrev) els.slidePrev.disabled = slideNo <= 1;
+  if (els.slideNext) els.slideNext.disabled = slideTotal > 0 && slideNo >= slideTotal;
+}
+
+function goToSlide(next) {
+  if (!canUseSlideNav()) return;
+  const max = slideTotal > 0 ? slideTotal : Number.MAX_SAFE_INTEGER;
+  const target = Math.max(1, Math.min(max, Math.round(Number(next) || 1)));
+  if (target === slideNo) {
+    renderSlideNav();
+    return;
+  }
+  slideNo = target;
+  const playerUrl = buildSlidesUrl(currentSlides);
+  loadPlayerUrl(playerUrl);
+  updateSlidesDebug(playerUrl);
+  renderSlideNav();
+  writeState({ currentEmbedUrl: playerUrl });
+}
+
+function setSlideTotal(value) {
+  const next = Math.max(0, Math.round(Number(value) || 0));
+  slideTotal = next;
+  if (slideTotal > 0 && slideNo > slideTotal) {
+    goToSlide(slideTotal);
+    return;
+  }
+  renderSlideNav();
+  writeState();
+}
+
 function loadSlides() {
   const slides = parseSlidesInput(els.slidesUrl.value);
   if (!slides) {
@@ -6699,6 +6886,7 @@ function loadSlides() {
   }
 
   currentSlides = slides;
+  slideNo = 1; // 換了一份簡報，頁碼從頭算
   const playerUrl = buildSlidesUrl(slides);
   loadPlayerUrl(playerUrl);
   updateOpenSlidesLink();
@@ -6723,6 +6911,8 @@ function clearSlides() {
   setLoading(false);
   els.slidesUrl.value = "";
   currentSlides = null;
+  slideNo = 1;
+  renderSlideNav();
   updateOpenSlidesLink();
   updateSlidesDebug("");
   updateStageForPage();
@@ -7365,6 +7555,9 @@ function restore() {
   els.shuffleGroups.checked = state.shuffleGroups !== false;
   slidesMode = state.slidesMode || "preview";
   currentSlides = state.currentSlides || parseSlidesInput(restoredSlidesUrl);
+  slideNo = Math.max(1, Math.round(Number(state.slideNo) || 1));
+  slideTotal = Math.max(0, Math.round(Number(state.slideTotal) || 0));
+  if (els.slidesTotalInput) els.slidesTotalInput.value = slideTotal > 0 ? String(slideTotal) : "";
   activeTool = state.activeTool || "";
   dockCollapsed = Boolean(state.dockCollapsed);
   moreToolsOpen = Boolean(state.moreToolsOpen);
@@ -7402,6 +7595,7 @@ function restore() {
   renderImage();
   renderYoutube();
   renderSavedLayouts();
+  renderSlideNav();
   setActiveTool(activeTool);
   setHiddenWidgetsOpen(hiddenWidgetsOpen);
   updateStageForPage();
@@ -7434,6 +7628,20 @@ els.homeDriveFolderUrl.addEventListener("keydown", (event) => {
   if (event.key === "Enter") changeDriveFolder();
 });
 els.clearSlides.addEventListener("click", clearSlides);
+// 簡報翻頁：播放台自己記頁碼，按鈕與鍵盤左右鍵都走 goToSlide()
+if (els.slidePrev) els.slidePrev.addEventListener("click", () => goToSlide(slideNo - 1));
+if (els.slideNext) els.slideNext.addEventListener("click", () => goToSlide(slideNo + 1));
+if (els.slideNoInput) {
+  els.slideNoInput.addEventListener("change", () => goToSlide(els.slideNoInput.value));
+  els.slideNoInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      goToSlide(els.slideNoInput.value);
+      els.slideNoInput.blur();
+    }
+  });
+}
+if (els.slidesTotalInput) els.slidesTotalInput.addEventListener("change", () => setSlideTotal(els.slidesTotalInput.value));
 els.addSlidesWidget.addEventListener("click", addSlidesWidgetFromInput);
 els.switchSlidesMode.addEventListener("click", switchSlidesMode);
 els.pageSelect.addEventListener("change", () => switchPage(els.pageSelect.value));
@@ -8008,6 +8216,13 @@ window.addEventListener("keydown", async (event) => {
   if (document.querySelector(".post-edit-modal:not(.hidden), .prompt-modal:not(.hidden)")) return;
   const targets = selectedDynamicWidgets();
   const key = event.key.toLowerCase();
+  // 沒有選取小工具時，左右鍵＝簡報翻頁（選了小工具時左右鍵還是給小工具用）
+  if ((event.key === "ArrowLeft" || event.key === "ArrowRight") && targets.length === 0 && canUseSlideNav()
+      && !event.metaKey && !event.ctrlKey && !event.altKey) {
+    event.preventDefault();
+    goToSlide(slideNo + (event.key === "ArrowRight" ? 1 : -1));
+    return;
+  }
   if (key === "escape") {
     if (targets.length === 0 && !dynamicWidgets.some((item) => item.state.settingsOpen)) return;
     clearWidgetSelection();

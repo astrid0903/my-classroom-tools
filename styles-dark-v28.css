@@ -3343,3 +3343,151 @@ body[data-theme="dark"] .page-bg-light .post-file-open:hover,
 body[data-theme="dark"] .page-bg-light .post-file-download:hover {
   background: rgba(17, 24, 32, 0.08);
 }
+
+/* ── 2026-11-04 介面重排（v28）─────────────────────────────
+   控制中心搬進側欄（面板從側欄旁浮出，右上角的 ▣ 停用）；
+   明暗切換與全螢幕改放右上角；貼文板 QR 浮窗移到右下角，不壓到「公告／QR Code」。 */
+#top-control-toggle { display: none !important; }
+.top-control {
+  top: 14px;
+  left: 74px;
+  right: auto;
+  justify-items: start;
+}
+.top-control-panel { margin-right: 0; }
+
+.top-right-tools {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 82;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.top-right-tools.hidden { display: none !important; }
+.top-tool-btn,
+body[data-theme="dark"] .top-tool-btn {
+  min-height: 40px;
+  padding: 0 14px 0 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(15, 20, 28, 0.78);
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 12px;
+  line-height: 1;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.36);
+  backdrop-filter: blur(18px);
+  cursor: pointer;
+}
+.top-tool-btn:hover,
+body[data-theme="dark"] .top-tool-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+.top-tool-btn .rail-icon { width: 18px; height: 18px; }
+
+.post-board-qr-popover {
+  position: fixed;
+  top: auto;
+  bottom: 16px;
+  right: 16px;
+  left: auto;
+}
+
+/* ── 2026-11-04 屬性面板「顯示於哪幾頁」（v28）────────────── */
+.inspector-scope {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+.inspector-scope .switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  cursor: pointer;
+}
+.inspector-scope-pages {
+  display: grid;
+  gap: 2px;
+  margin: 2px 0 0 20px;
+  padding-left: 10px;
+  border-left: 2px solid rgba(255, 255, 255, 0.12);
+}
+.inspector-scope-pages.hidden { display: none; }
+
+/* ── 2026-11-04 簡報翻頁列（v28）──────────────────────────
+   Google 簡報是跨網域 iframe，讀不到它翻到第幾頁，所以頁碼改由播放台自己記，
+   這條列就是唯一的翻頁入口（鍵盤左右鍵同功能）。 */
+.slide-nav {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(15, 20, 28, 0.82);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.36);
+  backdrop-filter: blur(18px);
+}
+.slide-nav.hidden { display: none !important; }
+.slide-nav-btn,
+body[data-theme="dark"] .slide-nav-btn {
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+.slide-nav-btn:hover:not(:disabled),
+body[data-theme="dark"] .slide-nav-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+.slide-nav-btn:disabled { opacity: 0.35; cursor: default; }
+.slide-nav-no { margin: 0; display: block; }
+.slide-nav input,
+body[data-theme="dark"] .slide-nav input {
+  width: 46px;
+  min-height: 28px;
+  padding: 0 4px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font-size: 13px;
+  text-align: center;
+}
+.slide-nav-total {
+  min-width: 34px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+}
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

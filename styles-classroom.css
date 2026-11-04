@@ -1064,3 +1064,77 @@ html body[data-theme="dark"] .top-qr-item.active { background: var(--cl-accent-s
 
 /* 控制中心展開時疊在 QR Code 小卡上面，不被蓋住 */
 body.studio-mode .top-control:not(.collapsed) { z-index: 95; }
+
+/* ── 2026-11-04 介面重排（v28）─────────────────────────────
+   控制中心從側欄旁浮出（跟＋小工具、列表同一個位置系統）；
+   右上角只放明暗切換與全螢幕；貼文板 QR 浮窗移到右下角。 */
+html body[data-theme="dark"] .top-control {
+  top: 14px;
+  left: calc(var(--cl-rail-w) + 10px);
+  right: auto;
+  justify-items: start;
+}
+/* 舊規則是為了讓右上角的 ▣ 避開右側屬性面板；控制中心搬到左邊後不需要了 */
+body.studio-mode:has(> .dynamic-settings:not(.collapsed)) .top-control { right: auto; }
+html body[data-theme="dark"] .top-control-panel {
+  margin-right: 0;
+  border: 0;
+  border-radius: var(--cl-r);
+  background: var(--cl-surface);
+  color: var(--cl-ink);
+  box-shadow: var(--cl-shadow);
+  backdrop-filter: none;
+}
+
+html body[data-theme="dark"] .top-tool-btn {
+  border: 0;
+  background: var(--cl-surface);
+  color: var(--cl-ink-2);
+  box-shadow: var(--cl-shadow);
+  font: 500 12px/1 var(--cl-f-ui);
+  backdrop-filter: none;
+}
+html body[data-theme="dark"] .top-tool-btn:hover {
+  background: var(--cl-accent-soft);
+  color: var(--cl-accent);
+}
+
+html body[data-theme="dark"] .post-board-qr-popover {
+  top: auto;
+  bottom: 16px;
+  right: 16px;
+  left: auto;
+}
+
+/* 右側屬性面板打開時，右上角按鈕與 QR 浮窗往左讓位（面板是整條右側欄，不讓位會被蓋住） */
+body.studio-mode:has(> .dynamic-settings:not(.collapsed)) .top-right-tools,
+body.studio-mode:has(> .dynamic-settings:not(.collapsed)) .post-board-qr-popover {
+  right: calc(min(300px, 100vw - var(--cl-rail-w) - 24px) + 24px);
+}
+
+/* 屬性面板「顯示於哪幾頁」 */
+html body[data-theme="dark"] .inspector-scope { border-top-color: var(--cl-line); }
+html body[data-theme="dark"] .inspector-scope .dynamic-settings-subtitle { color: var(--cl-ink-2); }
+html body[data-theme="dark"] .inspector-scope .switch { color: var(--cl-ink); font: 500 13px/1.3 var(--cl-f-ui); }
+html body[data-theme="dark"] .inspector-scope-pages { border-left-color: var(--cl-line); }
+
+/* 簡報翻頁列 */
+html body[data-theme="dark"] .slide-nav {
+  border: 0;
+  background: var(--cl-surface);
+  box-shadow: var(--cl-shadow);
+  backdrop-filter: none;
+}
+html body[data-theme="dark"] .slide-nav-btn { color: var(--cl-ink-2); }
+html body[data-theme="dark"] .slide-nav-btn:hover:not(:disabled) {
+  background: var(--cl-accent-soft);
+  color: var(--cl-accent);
+}
+html body[data-theme="dark"] .slide-nav input {
+  border: 1px solid var(--cl-line);
+  background: var(--cl-bg-2);
+  color: var(--cl-ink);
+  font-family: var(--cl-f-num);
+}
+html body[data-theme="dark"] .slide-nav-total { color: var(--cl-ink-2); font-family: var(--cl-f-num); }
+html body[data-theme="dark"] .inspector-scope-pages .hint { display: block; margin-top: 4px; }
