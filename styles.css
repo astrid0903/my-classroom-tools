@@ -3465,6 +3465,11 @@ body.studio-mode .page-tabs {
   opacity: 1;
 }
 
+.roster-qr-option {
+  margin-top: 10px;
+  font-size: 0.85rem;
+}
+
 .roster-preview {
   border: 1px solid rgba(0, 0, 0, 0.14);
   border-radius: 8px;

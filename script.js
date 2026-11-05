@@ -140,6 +140,7 @@ const els = {
   rosterCopyText: document.querySelector("#roster-copy-text"),
   rosterOpenDraft: document.querySelector("#roster-open-draft"),
   rosterSendStatus: document.querySelector("#roster-send-status"),
+  rosterIncludeQr: document.querySelector("#roster-include-qr"),
   rosterFallbackText: document.querySelector("#roster-fallback-text"),
   rosterSenderLabel: document.querySelector("#roster-sender-label"),
   rosterConnectSender: document.querySelector("#roster-connect-sender"),
@@ -4523,6 +4524,9 @@ function renderRosterPreview() {
   box.appendChild(subjectLine);
   box.appendChild(bodyLabel);
   box.appendChild(bodyBox);
+  if (els.rosterIncludeQr?.checked) {
+    box.appendChild(createEl("div", "roster-preview-label", "信末會附上投稿連結的 QR Code 圖片（只有「寄出」這條路會附，Gmail 草稿那條不會）"));
+  }
 }
 
 async function copyRosterText(text, okMessage) {
@@ -4689,17 +4693,104 @@ function encodeMailHeader(text) {
   return `=?UTF-8?B?${utf8ToBase64(String(text || ""))}?=`;
 }
 
-function buildGmailRaw({ from, bcc, subject, body }) {
+// 信件結構：純文字 + HTML 兩版（multipart/alternative），
+// 要附 QR 時再用 multipart/related 把圖包在外層，用 cid 嵌進 HTML。
+// 圖直接嵌進信裡（不是外連），收信端不用連外就看得到。
+function buildGmailRaw({ from, bcc, subject, body, qrBase64 }) {
+  const altBoundary = makeBoundary("alt");
+  const relBoundary = makeBoundary("rel");
+  const withQr = Boolean(qrBase64);
+  const htmlBody = buildMailHtml(body, { withQr });
+
+  const alternative = [
+    `--${altBoundary}`,
+    'Content-Type: text/plain; charset="UTF-8"',
+    "Content-Transfer-Encoding: base64",
+    "",
+    wrap76(utf8ToBase64(body)),
+    `--${altBoundary}`,
+    'Content-Type: text/html; charset="UTF-8"',
+    "Content-Transfer-Encoding: base64",
+    "",
+    wrap76(utf8ToBase64(htmlBody)),
+    `--${altBoundary}--`,
+  ].join("\r\n");
+
   const headers = [
     `From: ${from}`,
     `To: ${from}`,
     `Bcc: ${bcc.join(", ")}`,
     `Subject: ${encodeMailHeader(subject)}`,
     "MIME-Version: 1.0",
-    'Content-Type: text/plain; charset="UTF-8"',
+  ];
+
+  if (!withQr) {
+    headers.push(`Content-Type: multipart/alternative; boundary="${altBoundary}"`);
+    return base64Url(`${headers.join("\r\n")}\r\n\r\n${alternative}`);
+  }
+
+  headers.push(`Content-Type: multipart/related; boundary="${relBoundary}"`);
+  const related = [
+    `--${relBoundary}`,
+    `Content-Type: multipart/alternative; boundary="${altBoundary}"`,
+    "",
+    alternative,
+    `--${relBoundary}`,
+    'Content-Type: image/png; name="submit-qr.png"',
     "Content-Transfer-Encoding: base64",
+    "Content-ID: <submitqr>",
+    'Content-Disposition: inline; filename="submit-qr.png"',
+    "",
+    wrap76(qrBase64),
+    `--${relBoundary}--`,
   ].join("\r\n");
-  return base64Url(`${headers}\r\n\r\n${wrap76(utf8ToBase64(body))}`);
+  return base64Url(`${headers.join("\r\n")}\r\n\r\n${related}`);
+}
+
+function escapeHtml(text) {
+  return String(text || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+// 內文是純文字編輯的，寄出前轉成 HTML 讓網址變成可以點的連結。
+// 結尾的中英文標點不能吃進網址裡，否則連結會點不開。
+const LINK_PATTERN = /https?:\/\/[^\s<>"'，。、；：！？）)\]】」』]+/g;
+
+function linkifyHtml(text) {
+  return escapeHtml(text)
+    .replace(LINK_PATTERN, (url) => `<a href="${url}" style="color:#1a73e8">${url}</a>`)
+    .replace(/\r?\n/g, "<br>");
+}
+
+function buildMailHtml(body, { withQr }) {
+  const qr = withQr
+    ? '<div style="margin-top:22px">'
+      + '<div style="font-size:14px;color:#555;margin-bottom:8px">用手機掃這個 QR Code 也可以開啟：</div>'
+      + '<img src="cid:submitqr" alt="投稿連結 QR Code" width="220" height="220" style="display:block;border:0">'
+      + "</div>"
+    : "";
+  return '<div style="font-family:-apple-system,\'Segoe UI\',\'Noto Sans TC\',sans-serif;font-size:15px;line-height:1.7;color:#222">'
+    + linkifyHtml(body)
+    + qr
+    + "</div>";
+}
+
+async function fetchQrPngBase64(value) {
+  const response = await fetch(buildQrCodeUrl(value, "440"));
+  if (!response.ok) throw new Error(`QR Code 圖片抓不下來（${response.status}）。`);
+  const buffer = new Uint8Array(await response.arrayBuffer());
+  let binary = "";
+  for (let i = 0; i < buffer.length; i += 0x8000) {
+    binary += String.fromCharCode.apply(null, buffer.subarray(i, i + 0x8000));
+  }
+  return btoa(binary);
+}
+
+function makeBoundary(tag) {
+  return `----studio_${tag}_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
 }
 
 async function gmailSendOne(raw) {
@@ -4754,10 +4845,25 @@ async function sendRosterMail() {
     return;
   }
 
+  // QR 先抓下來再問要不要寄：抓失敗就不該讓她按完確定才發現少了圖。
+  let qrBase64 = "";
+  if (els.rosterIncludeQr?.checked) {
+    const page = selectedRosterPage();
+    const link = postBoardJoinUrl(page);
+    try {
+      setRosterSendStatus("正在產生 QR Code…");
+      qrBase64 = await fetchQrPngBase64(link);
+    } catch (error) {
+      setRosterSendStatus(`${error.message} 可以把「附上 QR Code」取消勾選再寄，信裡的連結照樣能點。`, true);
+      return;
+    }
+  }
+
   const chunks = chunkList(recipients, ROSTER_BCC_CHUNK);
   const extra = chunks.length > 1 ? `（會分成 ${chunks.length} 封寄，避免被 Gmail 擋）` : "";
   const ok = await showConfirmModal(
-    `要用 ${gmailSenderAddress} 寄出嗎？\n\n收件人：${recipients.length} 人（密件副本）${extra}\n主旨：${subject}`,
+    `要用 ${gmailSenderAddress} 寄出嗎？\n\n收件人：${recipients.length} 人（密件副本）${extra}\n主旨：${subject}\n`
+      + (qrBase64 ? "附件：投稿連結的 QR Code 圖片" : "不附 QR Code"),
     { okLabel: "確定寄出" }
   );
   if (!ok) { setRosterSendStatus("已取消，沒有寄出。"); return; }
@@ -4767,7 +4873,7 @@ async function sendRosterMail() {
   try {
     for (let i = 0; i < chunks.length; i += 1) {
       setRosterSendStatus(`寄送中…（第 ${i + 1}／${chunks.length} 批）`);
-      const raw = buildGmailRaw({ from: gmailSenderAddress, bcc: chunks[i], subject, body });
+      const raw = buildGmailRaw({ from: gmailSenderAddress, bcc: chunks[i], subject, body, qrBase64 });
       await gmailSendOne(raw);
       sent += chunks[i].length;
     }
@@ -8871,6 +8977,7 @@ els.rosterCopyMails.addEventListener("click", copyRosterMails);
 els.rosterCopyText.addEventListener("click", copyRosterMailText);
 els.rosterOpenDraft.addEventListener("click", openRosterDraft);
 els.rosterSend.addEventListener("click", sendRosterMail);
+els.rosterIncludeQr.addEventListener("change", renderRosterPreview);
 els.rosterConnectSender.addEventListener("click", async () => {
   try {
     setRosterSendStatus("正在連結公司信箱…");

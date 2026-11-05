@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Google Slides 教學播放台</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
-  <link rel="stylesheet" href="./styles-v34.css">
-  <link rel="stylesheet" href="./styles-dark-v34.css">
+  <link rel="stylesheet" href="./styles-v35.css">
+  <link rel="stylesheet" href="./styles-dark-v35.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Huninn&family=Noto+Sans+TC:wght@400;500;700&family=Poppins:wght@500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles-classroom-v34.css">
+  <link rel="stylesheet" href="./styles-classroom-v35.css">
   <script>
     // 柔光教室明暗：使用者選過就照選的，沒選過跟系統；body 一律維持 data-theme="dark" 沿用舊版版面規則
     (function () {
@@ -792,6 +792,10 @@
           按一下插入到游標位置。
         </p>
 
+        <label class="roster-head-check roster-qr-option">
+          <input id="roster-include-qr" type="checkbox" checked> 信裡附上投稿連結的 QR Code 圖片
+        </label>
+
         <div class="roster-mail-step">5　預覽</div>
         <div id="roster-preview" class="roster-preview"></div>
         <div class="roster-sender-row">
@@ -861,7 +865,7 @@
 
   <div id="settings-backdrop" class="settings-backdrop hidden"></div>
 
-  <script src="./script-v34.js"></script>
+  <script src="./script-v35.js"></script>
   <script>
     // 側欄（2026-11-04 重排）：控制中心｜檔案、簡報、頁面｜小工具、排列、列表、隱藏｜（最下）夜間、首頁。
     // 全螢幕在右上角 #top-right-tools（貼文板的「公告／QR Code」排在它左邊，同一列），
