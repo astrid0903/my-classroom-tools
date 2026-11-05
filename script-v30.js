@@ -6770,6 +6770,40 @@ function clearSnapGuides() {
   els.snapGuides.innerHTML = "";
 }
 
+// 會被直接拿去當 iframe src（或塞進 Office 檢視器）的網址，一律先走這裡。
+// 規則：①必須是合法的絕對網址；②必須是 https（http 等同允許中途被換掉內容）；
+// ③網域用 new URL().hostname 精確比對，不可用字串 includes——
+//    `https://evil.com/?x=onedrive.live.com/embed` 這種會騙過 includes。
+function isAllowedSlidesHost(hostname, allowed) {
+  const host = String(hostname || "").toLowerCase();
+  return allowed.some((domain) => host === domain || host.endsWith("." + domain));
+}
+
+function safeSlidesSrc(value, allowedHosts) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  // 貼上時常常沒帶 https://；只有「完全沒有 scheme」時才補，
+  // 已經寫了 http: / javascript: / data: 的一律照原樣判斷（接著會被擋掉）。
+  const candidate = /^[a-z][a-z0-9+.-]*:/i.test(text) ? text : "https://" + text;
+  let parsed;
+  try {
+    parsed = new URL(candidate);
+  } catch (e) {
+    return "";
+  }
+  if (parsed.protocol !== "https:") return "";
+  if (allowedHosts && !isAllowedSlidesHost(parsed.hostname, allowedHosts)) return "";
+  return parsed.href;
+}
+
+function slidesSrcPathname(value) {
+  try {
+    return new URL(value).pathname;
+  } catch (e) {
+    return "";
+  }
+}
+
 function parseSlidesInput(raw) {
   const value = raw.trim();
   if (!value) return null;
@@ -6790,39 +6824,43 @@ function parseSlidesInput(raw) {
     };
   }
 
-  // OneDrive embed URL (onedrive.live.com/embed?...) → use directly as iframe src
-  if (/onedrive\.live\.com\/embed/i.test(value)) {
+  // OneDrive embed URL (onedrive.live.com/embed?...) → use directly as iframe src.
+  // Host is matched exactly via safeSlidesSrc(), and https is required.
+  const oneDriveSrc = safeSlidesSrc(value, ["onedrive.live.com"]);
+  if (oneDriveSrc && /^\/embed/i.test(slidesSrcPathname(oneDriveSrc))) {
     return {
       id: "",
       kind: "office-embed",
       slide: "",
-      srcUrl: value,
-      editUrl: value,
+      srcUrl: oneDriveSrc,
+      editUrl: oneDriveSrc,
     };
   }
 
   // Already-built Office Online Viewer URL, or direct HTTPS .pptx/.ppt link.
   // Only inspect pathname so ?file=lecture.pptx or #lecture.pptx won't falsely match.
-  if (/view\.officeapps\.live\.com/i.test(value)) {
+  const viewerSrc = safeSlidesSrc(value, ["view.officeapps.live.com"]);
+  if (viewerSrc) {
     return {
       id: "",
       kind: "office-online",
       slide: "",
-      srcUrl: value,
-      editUrl: value,
+      srcUrl: viewerSrc,
+      editUrl: viewerSrc,
     };
   }
-  try {
-    if (/\.(pptx|ppt)$/i.test(new URL(value).pathname)) {
-      return {
-        id: "",
-        kind: "office-online",
-        slide: "",
-        srcUrl: value,
-        editUrl: value,
-      };
-    }
-  } catch (e) { /* not a valid absolute URL, fall through */ }
+  // Direct .pptx/.ppt link: any host, but https only (http would allow the file
+  // to be swapped in transit, and the viewer would render whatever arrives).
+  const directPptx = safeSlidesSrc(value);
+  if (directPptx && /\.(pptx|ppt)$/i.test(slidesSrcPathname(directPptx))) {
+    return {
+      id: "",
+      kind: "office-online",
+      slide: "",
+      srcUrl: directPptx,
+      editUrl: directPptx,
+    };
+  }
 
   const publishedMatch = value.match(/presentation\/d\/e\/([^/]+)/);
   if (publishedMatch) {
@@ -6850,14 +6888,18 @@ function parseSlidesInput(raw) {
 function buildSlidesUrl(slides, mode = slidesMode) {
   if (!slides) return "";
 
+  // 存檔會把 srcUrl 一起存起來，舊檔可能帶著未驗證過的值 → 這裡一律重驗一次。
   if (slides.kind === "office-online") {
     // If srcUrl is already a viewer URL, use as-is to avoid double-wrapping
-    if (/view\.officeapps\.live\.com/i.test(slides.srcUrl)) return slides.srcUrl;
-    return `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(slides.srcUrl)}`;
+    const viewer = safeSlidesSrc(slides.srcUrl, ["view.officeapps.live.com"]);
+    if (viewer) return viewer;
+    const src = safeSlidesSrc(slides.srcUrl);
+    if (!src) return "";
+    return `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(src)}`;
   }
 
   if (slides.kind === "office-embed") {
-    return slides.srcUrl;
+    return safeSlidesSrc(slides.srcUrl, ["onedrive.live.com"]);
   }
 
   if (slides.kind === "drive-pdf") {
@@ -6990,7 +7032,7 @@ function setSlideTotal(value) {
 function loadSlides() {
   const slides = parseSlidesInput(els.slidesUrl.value);
   if (!slides) {
-    setSlidesMessage("請貼上 Google Slides 分享連結、embed 連結、簡報 ID、Google Drive 分享連結，或 .pptx/.ppt 直連網址。", true);
+    setSlidesMessage("請貼上 Google Slides 分享連結、embed 連結、簡報 ID、Google Drive 分享連結，或 .pptx/.ppt 直連網址。OneDrive、Office 線上檢視與 .pptx 直連只接受 https 開頭的網址。", true);
     return;
   }
 
