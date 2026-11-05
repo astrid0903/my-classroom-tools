@@ -4553,29 +4553,42 @@ function copyRosterMailText() {
   copyRosterText(`${subject}\n\n${body}`, "已複製主旨與內文。");
 }
 
-// mailto 的長度各家瀏覽器與信件軟體限制不一，太長會被默默截掉，
-// 寧可先擋下來叫她改用複製，也不要讓她寄出一封被切一半的信。
-const ROSTER_MAILTO_MAX = 1900;
+// 不用 mailto：那會交給系統預設的信件軟體（這台是 Outlook），
+// 跟「用公司 Gmail 寄」對不起來。直接開 Gmail 網頁版的撰寫畫面。
+// 網址列長度各家瀏覽器不一，超過就擋下來改用複製，不要讓她寄出一封被切一半的信。
+const ROSTER_COMPOSE_MAX = 7000;
+const GMAIL_COMPOSE_URL = "https://mail.google.com/mail/";
 
-function buildRosterMailtoUrl({ subject, body, recipients }) {
-  return `mailto:?bcc=${encodeURIComponent(recipients.join(","))}`
-    + `&subject=${encodeURIComponent(subject)}`
-    + `&body=${encodeURIComponent(body)}`;
+function buildGmailComposeUrl({ subject, body, recipients, sender }) {
+  const params = new URLSearchParams();
+  params.set("view", "cm");
+  params.set("fs", "1");
+  params.set("bcc", recipients.join(","));
+  params.set("su", subject);
+  params.set("body", body);
+  // 這台電腦通常同時登入個人與公司帳號，指定 authuser 才會開在公司那個。
+  if (sender) params.set("authuser", sender);
+  return `${GMAIL_COMPOSE_URL}?${params.toString()}`;
 }
 
 function openRosterDraft() {
   const { subject, body, recipients } = rosterMailContent();
   if (recipients.length === 0) { setRosterSendStatus("還沒勾任何收件人。", true); return; }
-  const url = buildRosterMailtoUrl({ subject, body, recipients });
-  if (url.length > ROSTER_MAILTO_MAX) {
+  const url = buildGmailComposeUrl({ subject, body, recipients, sender: gmailSenderAddress });
+  if (url.length > ROSTER_COMPOSE_MAX) {
     setRosterSendStatus(
-      `收件人太多（${recipients.length} 人），草稿網址會被信件軟體截掉。請改用「複製收件人信箱」與「複製主旨與內文」，自己開一封信貼上。`,
+      `收件人太多（${recipients.length} 人），草稿網址會被瀏覽器截掉。請改用「複製收件人信箱」與「複製主旨與內文」，自己開一封信貼上。`,
       true
     );
     return;
   }
-  window.location.href = url;
-  setRosterSendStatus(`已把 ${recipients.length} 人放進草稿的密件副本，請在信件軟體裡確認後再寄出。`);
+  const opened = window.open(url, "_blank", "noopener");
+  if (!opened) {
+    setRosterSendStatus("Gmail 分頁被瀏覽器的彈出視窗封鎖了，請允許這個網站開新分頁再試一次。", true);
+    return;
+  }
+  const who = gmailSenderAddress ? `（會開在 ${gmailSenderAddress}）` : "（如果開錯帳號，請先在下面連結公司信箱）";
+  setRosterSendStatus(`已在新分頁開好 Gmail 草稿，${recipients.length} 人放在密件副本${who}，確認後自己按寄出。`);
 }
 
 // ---- 用公司信箱寄出 ----
