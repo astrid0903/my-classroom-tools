@@ -3275,6 +3275,266 @@ body.studio-mode .page-tabs {
   text-align: center;
 }
 
+.roster-mail-dialog {
+  max-width: 620px;
+  gap: 6px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* input 有預設的 size 屬性當最小寬度，不壓掉的話長網址會把對話框撐出橫向捲軸 */
+.roster-mail-dialog input:not([type="checkbox"]),
+.roster-mail-dialog select,
+.roster-mail-dialog textarea {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.roster-mail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.roster-mail-head h3 {
+  margin: 0;
+}
+
+.roster-mail-close {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: 20px;
+  line-height: 1;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+}
+
+.roster-mail-step {
+  margin: 14px 0 2px;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  opacity: 0.6;
+}
+
+.roster-mail-step:first-of-type {
+  margin-top: 8px;
+}
+
+.roster-mail-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.roster-mail-row > button {
+  flex: 0 0 auto;
+}
+
+.roster-mail-row > input {
+  flex: 1 1 42%;
+  min-width: 0;
+}
+
+.roster-mail-row > select {
+  flex: 1 1 58%;
+  min-width: 0;
+}
+
+.roster-warning {
+  margin: 4px 0 2px;
+  color: #b4590d;
+  font-weight: 600;
+}
+
+.roster-list-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 4px 0 6px;
+  font-size: 0.85rem;
+}
+
+.roster-head-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  cursor: pointer;
+}
+
+.roster-head-button {
+  padding: 4px 10px;
+  font-size: 0.82rem;
+}
+
+.roster-count {
+  margin-left: auto;
+  opacity: 0.75;
+}
+
+.roster-list {
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  border-radius: 8px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.roster-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  font-size: 0.88rem;
+  cursor: pointer;
+  margin: 0;
+}
+
+.roster-row + .roster-row {
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.roster-row-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.roster-row-mail {
+  opacity: 0.6;
+  margin-left: 6px;
+}
+
+.roster-row-tag {
+  flex: 0 0 auto;
+  padding: 1px 8px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  background: rgba(0, 0, 0, 0.07);
+}
+
+.roster-row-tag.attended {
+  background: rgba(29, 158, 117, 0.16);
+  color: #0f6e56;
+}
+
+.roster-row.is-off .roster-row-name {
+  opacity: 0.55;
+}
+
+.roster-reveal {
+  margin-bottom: 6px;
+  font-size: 0.82rem;
+}
+
+.roster-variable-hint {
+  margin: 2px 0 0;
+  line-height: 1.8;
+}
+
+.link-like {
+  padding: 1px 6px;
+  margin: 0 2px;
+  font-size: 0.8rem;
+  font-family: inherit;
+  border: 1px dashed currentColor;
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.85;
+}
+
+.link-like:hover {
+  opacity: 1;
+}
+
+.roster-preview {
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 0.86rem;
+  line-height: 1.6;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.roster-preview-label {
+  opacity: 0.6;
+  font-size: 0.78rem;
+}
+
+.roster-preview-subject {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.roster-preview-body {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+}
+
+.roster-preview-empty {
+  opacity: 0.7;
+}
+
+.roster-sender-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  font-size: 0.85rem;
+}
+
+.roster-sender-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  opacity: 0.8;
+}
+
+.roster-sender-label.ready {
+  opacity: 1;
+}
+
+.roster-send-row {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.roster-send-row > button {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.roster-fallback-text {
+  margin-top: 6px;
+  font-size: 0.82rem;
+  font-family: inherit;
+}
+
+.roster-mail-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
 .post-simple-dialog {
   max-width: 360px;
   gap: 12px;

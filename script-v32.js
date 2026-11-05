@@ -107,6 +107,42 @@ const els = {
   openPostBoardLink: document.querySelector("#open-post-board-link"),
   postBoardParticipantMode: document.querySelector("#post-board-participant-mode"),
   postBoardAddPost: document.querySelector("#post-board-add-post"),
+  openRosterMail: document.querySelector("#open-roster-mail"),
+  rosterMailModal: document.querySelector("#roster-mail-modal"),
+  rosterMailClose: document.querySelector("#roster-mail-close"),
+  rosterMailCancel: document.querySelector("#roster-mail-cancel"),
+  rosterSheetUrl: document.querySelector("#roster-sheet-url"),
+  rosterSheetFilter: document.querySelector("#roster-sheet-filter"),
+  rosterSheetTab: document.querySelector("#roster-sheet-tab"),
+  rosterSheetReloadTabs: document.querySelector("#roster-sheet-reload-tabs"),
+  rosterSheetLoad: document.querySelector("#roster-sheet-load"),
+  rosterSheetStatus: document.querySelector("#roster-sheet-status"),
+  rosterMailRest: document.querySelector("#roster-mail-rest"),
+  rosterAttendanceWarning: document.querySelector("#roster-attendance-warning"),
+  rosterCheckAll: document.querySelector("#roster-check-all"),
+  rosterCheckAttended: document.querySelector("#roster-check-attended"),
+  rosterRevealEmail: document.querySelector("#roster-reveal-email"),
+  rosterCount: document.querySelector("#roster-count"),
+  rosterList: document.querySelector("#roster-list"),
+  rosterListBody: document.querySelector("#roster-list-body"),
+  rosterToggleList: document.querySelector("#roster-toggle-list"),
+  rosterTemplateSelect: document.querySelector("#roster-template-select"),
+  rosterTemplateSave: document.querySelector("#roster-template-save"),
+  rosterTemplateDelete: document.querySelector("#roster-template-delete"),
+  rosterMailSubject: document.querySelector("#roster-mail-subject"),
+  rosterMailBody: document.querySelector("#roster-mail-body"),
+  rosterInsertLink: document.querySelector("#roster-insert-link"),
+  rosterInsertBoard: document.querySelector("#roster-insert-board"),
+  rosterPreview: document.querySelector("#roster-preview"),
+  rosterCopyMails: document.querySelector("#roster-copy-mails"),
+  rosterCopyText: document.querySelector("#roster-copy-text"),
+  rosterOpenDraft: document.querySelector("#roster-open-draft"),
+  rosterSendStatus: document.querySelector("#roster-send-status"),
+  rosterFallbackText: document.querySelector("#roster-fallback-text"),
+  rosterSenderLabel: document.querySelector("#roster-sender-label"),
+  rosterConnectSender: document.querySelector("#roster-connect-sender"),
+  rosterSend: document.querySelector("#roster-send"),
+  confirmModalOkSafe: document.querySelector("#confirm-modal-ok-safe"),
   pageTabs: document.querySelector("#page-tabs"),
   emptyStateTitle: document.querySelector("#empty-state strong"),
   emptyStateDetail: document.querySelector("#empty-state span"),
@@ -3949,6 +3985,773 @@ function postBoardPostsRef(api, boardId) {
   return api.collection(api.db, POST_BOARDS_COLLECTION, boardId, "posts");
 }
 
+// ===== 寄投稿連結給學員 =====
+// 名單裡是學員 email，屬於個資。設計上刻意只讓它活在記憶體：
+// 不寫 Firestore（學員端讀得到）、不寫存檔（會同步到雲端硬碟）。
+// 存進 localStorage 的只有「這份名單在哪裡」——Sheet 連結與工作表名稱，
+// 換電腦要重貼一次，這是刻意付的代價。
+const ROSTER_SOURCE_KEY = "classroomSlidesStudio.rosterSource.v1";
+const ROSTER_SHEETS_API = "https://sheets.googleapis.com/v4/spreadsheets";
+// 名單欄位靠「第一列的標題名稱」找，不用固定欄號。
+// 原因：同一份檔案裡各工作表欄數並不一致（31／34／65 欄都有），
+// 寫死欄號的話，只要有人插一欄，手機號碼就會被當成 email 寄出去。
+const ROSTER_FIELD_ALIASES = {
+  name: ["中文姓名", "姓名", "學員姓名"],
+  email: ["e-mail", "email", "電子郵件", "信箱"],
+  attendance: ["出席與否", "出席狀態", "出席"],
+  leaveNote: ["請假說明", "請假原因"],
+  unit: ["功能單位名稱", "單位", "部門"],
+};
+// 只讀 A:S。T 欄之後是各工作表自己的樞紐／統計區，
+// 那區的標題也叫「出席與否」，整列讀進來會把統計數字當成人。
+const ROSTER_READ_RANGE = "A1:S1000";
+
+let rosterSheetTabs = [];
+let rosterSheetId = "";
+let rosterPeople = [];
+let rosterListOpen = false;
+
+function extractSheetId(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  const match = text.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+  if (match) return match[1];
+  // 也接受直接貼 ID
+  return /^[a-zA-Z0-9_-]{30,}$/.test(text) ? text : "";
+}
+
+function loadRosterSource() {
+  try {
+    const raw = window.localStorage.getItem(ROSTER_SOURCE_KEY);
+    if (!raw) return { url: "", tab: "" };
+    const parsed = JSON.parse(raw);
+    return { url: String(parsed?.url || ""), tab: String(parsed?.tab || "") };
+  } catch (e) {
+    return { url: "", tab: "" };
+  }
+}
+
+function saveRosterSource(url, tab) {
+  try {
+    window.localStorage.setItem(ROSTER_SOURCE_KEY, JSON.stringify({ url, tab }));
+  } catch (e) {
+    /* 無痕模式寫不進去就算了，不影響這次使用 */
+  }
+}
+
+function setRosterStatus(message, isError = false) {
+  if (!els.rosterSheetStatus) return;
+  els.rosterSheetStatus.textContent = message;
+  els.rosterSheetStatus.classList.toggle("error", Boolean(isError));
+}
+
+async function sheetsFetch(path) {
+  // 借用既有的 Google 授權：播放台存檔用的是完整雲端硬碟權限，
+  // Sheets API 本來就吃這個權限，所以不用另外加授權範圍。
+  const token = await requestGoogleDriveToken();
+  const response = await fetch(`${ROSTER_SHEETS_API}/${path}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (response.status === 401) {
+    googleDriveAccessToken = "";
+    const retryToken = await requestGoogleDriveToken();
+    const retry = await fetch(`${ROSTER_SHEETS_API}/${path}`, {
+      headers: { Authorization: `Bearer ${retryToken}` },
+    });
+    if (!retry.ok) throw new Error(await sheetsErrorText(retry));
+    return retry.json();
+  }
+  if (!response.ok) throw new Error(await sheetsErrorText(response));
+  return response.json();
+}
+
+async function sheetsErrorText(response) {
+  let detail = "";
+  try {
+    const data = await response.json();
+    detail = data?.error?.message || "";
+  } catch (e) {
+    detail = "";
+  }
+  if (response.status === 403) return "這個 Google 帳號沒有這份名單的讀取權限。" + (detail ? `（${detail}）` : "");
+  if (response.status === 404) return "找不到這份 Google Sheet，請確認連結。";
+  return detail || `讀取名單失敗（${response.status}）。`;
+}
+
+function renderRosterTabOptions() {
+  const select = els.rosterSheetTab;
+  if (!select) return;
+  const keyword = String(els.rosterSheetFilter?.value || "").trim().toLowerCase();
+  const wanted = select.value;
+  const list = keyword
+    ? rosterSheetTabs.filter((title) => title.toLowerCase().includes(keyword))
+    : rosterSheetTabs.slice();
+  select.innerHTML = "";
+  if (rosterSheetTabs.length === 0) {
+    select.appendChild(createEl("option", "", "先貼上連結"));
+    select.firstChild.value = "";
+    return;
+  }
+  if (list.length === 0) {
+    const none = createEl("option", "", "沒有符合的工作表");
+    none.value = "";
+    select.appendChild(none);
+    return;
+  }
+  list.forEach((title) => {
+    const option = createEl("option", "", title);
+    option.value = title;
+    select.appendChild(option);
+  });
+  if (wanted && list.includes(wanted)) select.value = wanted;
+}
+
+async function loadRosterSheetTabs(options = {}) {
+  const sheetId = extractSheetId(els.rosterSheetUrl?.value);
+  if (!sheetId) {
+    rosterSheetTabs = [];
+    rosterSheetId = "";
+    renderRosterTabOptions();
+    if (!options.quiet) setRosterStatus("這不像 Google Sheet 的網址，請重新複製一次。", true);
+    return;
+  }
+  rosterSheetId = sheetId;
+  setRosterStatus("正在讀取工作表清單…");
+  try {
+    const data = await sheetsFetch(`${sheetId}?fields=properties.title,sheets.properties.title`);
+    rosterSheetTabs = (data?.sheets || [])
+      .map((sheet) => String(sheet?.properties?.title || ""))
+      .filter(Boolean);
+    renderRosterTabOptions();
+    const remembered = options.preferTab || "";
+    if (remembered && rosterSheetTabs.includes(remembered)) els.rosterSheetTab.value = remembered;
+    const title = data?.properties?.title || "這份檔案";
+    setRosterStatus(`「${title}」共有 ${rosterSheetTabs.length} 個工作表，選一個再按「讀取名單」。`);
+  } catch (error) {
+    rosterSheetTabs = [];
+    renderRosterTabOptions();
+    setRosterStatus(googleDriveErrorMessage(error), true);
+  }
+}
+
+function normalizeHeader(value) {
+  return String(value || "").trim().toLowerCase().replace(/[\s　]/g, "");
+}
+
+function findRosterColumns(headerRow) {
+  const normalized = headerRow.map(normalizeHeader);
+  const columns = {};
+  Object.keys(ROSTER_FIELD_ALIASES).forEach((field) => {
+    const aliases = ROSTER_FIELD_ALIASES[field].map(normalizeHeader);
+    columns[field] = normalized.findIndex((title) => title && aliases.includes(title));
+  });
+  return columns;
+}
+
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
+}
+
+// 「出席」那一欄實際填的是 出席／公務請假／私人請假，也可能整欄空白。
+function isAttendedValue(value) {
+  const text = String(value || "").trim();
+  if (!text) return false;
+  if (text.includes("請假") || text.includes("未") || text.includes("缺")) return false;
+  return text.includes("出席") || text === "V" || text === "v" || text === "是";
+}
+
+function maskEmail(email) {
+  const text = String(email || "");
+  const at = text.indexOf("@");
+  if (at <= 0) return text;
+  const name = text.slice(0, at);
+  const head = name.slice(0, 2);
+  return `${head}${name.length > 2 ? "…" : ""}@${text.slice(at + 1)}`;
+}
+
+function parseRosterValues(values) {
+  const rows = Array.isArray(values) ? values : [];
+  if (rows.length === 0) return { error: "這個工作表是空的。" };
+  const columns = findRosterColumns(rows[0] || []);
+  if (columns.email < 0) return { error: "這個工作表的第一列找不到「e-mail」欄位，請確認選對工作表。" };
+
+  const people = [];
+  const seen = new Set();
+  let skippedInvalid = 0;
+  let skippedDuplicate = 0;
+  // 從第二列開始；名單中間可能有空列，所以整張掃完，
+  // 用「這一列有沒有合格的 email」決定它算不算一個人。
+  for (let i = 1; i < rows.length; i += 1) {
+    const row = rows[i] || [];
+    const email = String(row[columns.email] || "").trim();
+    if (!email) continue;
+    if (!isValidEmail(email)) { skippedInvalid += 1; continue; }
+    const key = email.toLowerCase();
+    if (seen.has(key)) { skippedDuplicate += 1; continue; }
+    seen.add(key);
+    const attendance = columns.attendance >= 0 ? String(row[columns.attendance] || "").trim() : "";
+    people.push({
+      name: columns.name >= 0 ? String(row[columns.name] || "").trim() : "",
+      email,
+      attendance,
+      leaveNote: columns.leaveNote >= 0 ? String(row[columns.leaveNote] || "").trim() : "",
+      unit: columns.unit >= 0 ? String(row[columns.unit] || "").trim() : "",
+      attended: isAttendedValue(attendance),
+      checked: false,
+    });
+  }
+  return { people, skippedInvalid, skippedDuplicate, hasAttendanceColumn: columns.attendance >= 0 };
+}
+
+function renderRosterList() {
+  const list = els.rosterList;
+  if (!list) return;
+  const reveal = Boolean(els.rosterRevealEmail?.checked);
+  list.innerHTML = "";
+  rosterPeople.forEach((person, index) => {
+    const row = createEl("label", "roster-row");
+    if (!person.checked) row.classList.add("is-off");
+    const box = createEl("input");
+    box.type = "checkbox";
+    box.checked = person.checked;
+    box.addEventListener("change", () => {
+      rosterPeople[index].checked = box.checked;
+      row.classList.toggle("is-off", !box.checked);
+      updateRosterCount();
+    });
+    const name = createEl("span", "roster-row-name");
+    name.textContent = person.name || "（沒有姓名）";
+    const mail = createEl("span", "roster-row-mail", reveal ? person.email : maskEmail(person.email));
+    name.appendChild(mail);
+    const tagText = person.attendance || "未填";
+    const tag = createEl("span", "roster-row-tag", person.leaveNote ? `${tagText}・${person.leaveNote}` : tagText);
+    if (person.attended) tag.classList.add("attended");
+    row.appendChild(box);
+    row.appendChild(name);
+    row.appendChild(tag);
+    list.appendChild(row);
+  });
+  updateRosterCount();
+}
+
+function updateRosterCount() {
+  const total = rosterPeople.length;
+  const checked = rosterPeople.filter((person) => person.checked).length;
+  if (els.rosterCount) els.rosterCount.textContent = `已勾 ${checked}／${total} 人`;
+  renderRosterPreview();
+  if (els.rosterCheckAll) {
+    els.rosterCheckAll.checked = total > 0 && checked === total;
+    els.rosterCheckAll.indeterminate = checked > 0 && checked < total;
+  }
+}
+
+function setAllRosterChecked(checked) {
+  rosterPeople.forEach((person) => { person.checked = checked; });
+  renderRosterList();
+}
+
+function checkOnlyAttendedRoster() {
+  rosterPeople.forEach((person) => { person.checked = person.attended; });
+  renderRosterList();
+}
+
+async function loadRosterPeople() {
+  const sheetId = rosterSheetId || extractSheetId(els.rosterSheetUrl?.value);
+  const tab = String(els.rosterSheetTab?.value || "");
+  if (!sheetId) { setRosterStatus("請先貼上名單的 Google Sheet 連結。", true); return; }
+  if (!tab) { setRosterStatus("請先選一個工作表。", true); return; }
+  rosterSheetId = sheetId;
+  setRosterStatus(`正在讀取「${tab}」…`);
+  try {
+    const range = encodeURIComponent(`${tab}!${ROSTER_READ_RANGE}`);
+    const data = await sheetsFetch(`${sheetId}/values/${range}`);
+    const result = parseRosterValues(data?.values);
+    if (result.error) {
+      rosterPeople = [];
+      els.rosterMailRest.classList.add("hidden");
+      setRosterStatus(result.error, true);
+      return;
+    }
+    rosterPeople = result.people;
+    if (rosterPeople.length === 0) {
+      els.rosterMailRest.classList.add("hidden");
+      setRosterStatus("這個工作表裡沒有任何有 e-mail 的人。", true);
+      return;
+    }
+    const attendedCount = rosterPeople.filter((person) => person.attended).length;
+    // 出席欄整欄沒填的名單（例如還沒上課）一律不預設勾選。
+    // 勾錯寄出去收不回來，沒勾只是寄不出去，所以寧可讓她自己按「全選」。
+    if (attendedCount === 0) {
+      setAllRosterChecked(false);
+      setRosterListOpen(true);
+      els.rosterAttendanceWarning.textContent = result.hasAttendanceColumn
+        ? "這份名單的「出席與否」還沒填，所以一個都沒先勾。要全部寄就按上面的「全選」。"
+        : "這個工作表沒有「出席與否」欄位，所以一個都沒先勾。";
+      els.rosterAttendanceWarning.classList.remove("hidden");
+    } else {
+      checkOnlyAttendedRoster();
+      els.rosterAttendanceWarning.classList.add("hidden");
+    }
+    els.rosterMailRest.classList.remove("hidden");
+    saveRosterSource(String(els.rosterSheetUrl.value || "").trim(), tab);
+    const notes = [];
+    if (result.skippedDuplicate) notes.push(`重複的信箱 ${result.skippedDuplicate} 筆已合併`);
+    if (result.skippedInvalid) notes.push(`格式不對的信箱 ${result.skippedInvalid} 筆已略過`);
+    setRosterStatus(
+      `讀到 ${rosterPeople.length} 人，出席 ${attendedCount} 人。` + (notes.length ? `（${notes.join("；")}）` : "")
+    );
+  } catch (error) {
+    setRosterStatus(googleDriveErrorMessage(error), true);
+  }
+}
+
+function setRosterListOpen(open) {
+  rosterListOpen = Boolean(open);
+  els.rosterListBody.classList.toggle("hidden", !rosterListOpen);
+  els.rosterToggleList.textContent = rosterListOpen ? "收合名單" : "展開名單";
+  els.rosterToggleList.setAttribute("aria-expanded", rosterListOpen ? "true" : "false");
+}
+
+// ---- 信件內容與範本（都只存在這台電腦，不跟存檔走）----
+const ROSTER_TEMPLATE_KEY = "classroomSlidesStudio.mailTemplates.v1";
+const ROSTER_DRAFT_KEY = "classroomSlidesStudio.mailDraft.v1";
+const ROSTER_VAR_LINK = "{{投稿連結}}";
+const ROSTER_VAR_BOARD = "{{貼文板名稱}}";
+const ROSTER_DEFAULT_SUBJECT = `「${ROSTER_VAR_BOARD}」投稿連結`;
+const ROSTER_DEFAULT_BODY = `各位夥伴好：
+
+這是今天課堂「${ROSTER_VAR_BOARD}」的投稿連結，用手機或電腦打開都可以：
+
+${ROSTER_VAR_LINK}
+
+請在課程結束前完成，謝謝大家。`;
+
+let rosterTemplates = [];
+
+function readJsonStorage(key, fallback) {
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw);
+    return parsed === null || parsed === undefined ? fallback : parsed;
+  } catch (e) {
+    return fallback;
+  }
+}
+
+function writeJsonStorage(key, value) {
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch (e) {
+    /* 無痕模式寫不進去就算了 */
+  }
+}
+
+function loadRosterTemplates() {
+  const stored = readJsonStorage(ROSTER_TEMPLATE_KEY, []);
+  rosterTemplates = Array.isArray(stored)
+    ? stored
+        .map((item) => ({
+          name: String(item?.name || "").trim(),
+          subject: String(item?.subject || ""),
+          body: String(item?.body || ""),
+        }))
+        .filter((item) => item.name)
+    : [];
+}
+
+function renderRosterTemplateOptions(selectedName = "") {
+  const select = els.rosterTemplateSelect;
+  if (!select) return;
+  select.innerHTML = "";
+  const placeholder = createEl("option", "", rosterTemplates.length ? "選一個範本帶入" : "沒有存過的範本");
+  placeholder.value = "";
+  select.appendChild(placeholder);
+  rosterTemplates.forEach((template) => {
+    const option = createEl("option", "", template.name);
+    option.value = template.name;
+    select.appendChild(option);
+  });
+  select.value = rosterTemplates.some((item) => item.name === selectedName) ? selectedName : "";
+}
+
+function saveRosterDraft() {
+  writeJsonStorage(ROSTER_DRAFT_KEY, {
+    subject: els.rosterMailSubject.value,
+    body: els.rosterMailBody.value,
+  });
+}
+
+function loadRosterDraft() {
+  const draft = readJsonStorage(ROSTER_DRAFT_KEY, null);
+  els.rosterMailSubject.value = draft?.subject ?? ROSTER_DEFAULT_SUBJECT;
+  els.rosterMailBody.value = draft?.body ?? ROSTER_DEFAULT_BODY;
+}
+
+function applyRosterTemplate(name) {
+  const template = rosterTemplates.find((item) => item.name === name);
+  if (!template) return;
+  els.rosterMailSubject.value = template.subject;
+  els.rosterMailBody.value = template.body;
+  saveRosterDraft();
+  renderRosterPreview();
+  setRosterStatus(`已帶入範本「${name}」。`);
+}
+
+async function saveRosterTemplate() {
+  const current = els.rosterTemplateSelect.value;
+  const name = await showPromptModal("範本名稱", current || "", { maxLength: 30 });
+  if (name === null) return;
+  const trimmed = String(name).trim();
+  if (!trimmed) { setRosterStatus("範本名稱不能空白。", true); return; }
+  const existing = rosterTemplates.findIndex((item) => item.name === trimmed);
+  const entry = { name: trimmed, subject: els.rosterMailSubject.value, body: els.rosterMailBody.value };
+  if (existing >= 0) rosterTemplates[existing] = entry;
+  else rosterTemplates.push(entry);
+  writeJsonStorage(ROSTER_TEMPLATE_KEY, rosterTemplates);
+  renderRosterTemplateOptions(trimmed);
+  setRosterStatus(existing >= 0 ? `範本「${trimmed}」已更新。` : `已存成範本「${trimmed}」。`);
+}
+
+function deleteRosterTemplate() {
+  const name = els.rosterTemplateSelect.value;
+  if (!name) { setRosterStatus("請先選一個要刪的範本。", true); return; }
+  rosterTemplates = rosterTemplates.filter((item) => item.name !== name);
+  writeJsonStorage(ROSTER_TEMPLATE_KEY, rosterTemplates);
+  renderRosterTemplateOptions("");
+  setRosterStatus(`已刪掉範本「${name}」。`);
+}
+
+function insertAtCursor(field, text) {
+  const start = field.selectionStart ?? field.value.length;
+  const end = field.selectionEnd ?? field.value.length;
+  field.value = field.value.slice(0, start) + text + field.value.slice(end);
+  const caret = start + text.length;
+  field.focus();
+  field.setSelectionRange(caret, caret);
+  saveRosterDraft();
+  renderRosterPreview();
+}
+
+// 內文寫的是變數，真的要用的時候才換成這一頁貼文板的名稱與連結。
+function fillRosterVariables(text, page) {
+  const link = postBoardJoinUrl(page);
+  const boardName = String(page?.name || "貼文板");
+  return String(text || "")
+    .split(ROSTER_VAR_LINK).join(link)
+    .split(ROSTER_VAR_BOARD).join(boardName);
+}
+
+function checkedRosterPeople() {
+  return rosterPeople.filter((person) => person.checked);
+}
+
+function rosterMailContent() {
+  const page = activePage();
+  return {
+    page,
+    subject: fillRosterVariables(els.rosterMailSubject.value, page).trim(),
+    body: fillRosterVariables(els.rosterMailBody.value, page),
+    recipients: checkedRosterPeople().map((person) => person.email),
+  };
+}
+
+function setRosterSendStatus(message, isError = false) {
+  if (!els.rosterSendStatus) return;
+  els.rosterSendStatus.textContent = message;
+  els.rosterSendStatus.classList.toggle("error", Boolean(isError));
+}
+
+function renderRosterPreview() {
+  const box = els.rosterPreview;
+  if (!box || els.rosterMailModal.classList.contains("hidden")) return;
+  const { subject, body, recipients } = rosterMailContent();
+  box.innerHTML = "";
+  if (recipients.length === 0) {
+    box.appendChild(createEl("p", "roster-preview-empty", "還沒勾任何收件人。"));
+    return;
+  }
+  const to = createEl("div", "roster-preview-label", `密件副本 ${recipients.length} 人`);
+  const subjectLine = createEl("div", "roster-preview-subject", subject || "（沒有主旨）");
+  const bodyLabel = createEl("div", "roster-preview-label", "內文");
+  const bodyBox = createEl("pre", "roster-preview-body", body);
+  box.appendChild(to);
+  box.appendChild(subjectLine);
+  box.appendChild(bodyLabel);
+  box.appendChild(bodyBox);
+}
+
+async function copyRosterText(text, okMessage) {
+  try {
+    await navigator.clipboard.writeText(text);
+    els.rosterFallbackText.classList.add("hidden");
+    setRosterSendStatus(okMessage);
+  } catch (e) {
+    // 自動複製被瀏覽器擋掉時，一定要把內容攤出來讓她自己選取：
+    // 收件人信箱不在預覽區裡，只叫她「手動複製」等於沒給她東西可複製。
+    els.rosterFallbackText.value = text;
+    els.rosterFallbackText.classList.remove("hidden");
+    els.rosterFallbackText.focus();
+    els.rosterFallbackText.select();
+    setRosterSendStatus("瀏覽器沒有開放自動複製，內容放在下面這格，請全選後自己複製。", true);
+  }
+}
+
+function copyRosterMails() {
+  const { recipients } = rosterMailContent();
+  if (recipients.length === 0) { setRosterSendStatus("還沒勾任何收件人。", true); return; }
+  // 用分號分隔：Gmail 與 Outlook 貼上都吃得下。
+  copyRosterText(recipients.join("; "), `已複製 ${recipients.length} 個信箱，貼到信件的密件副本欄。`);
+}
+
+function copyRosterMailText() {
+  const { subject, body } = rosterMailContent();
+  copyRosterText(`${subject}\n\n${body}`, "已複製主旨與內文。");
+}
+
+// mailto 的長度各家瀏覽器與信件軟體限制不一，太長會被默默截掉，
+// 寧可先擋下來叫她改用複製，也不要讓她寄出一封被切一半的信。
+const ROSTER_MAILTO_MAX = 1900;
+
+function buildRosterMailtoUrl({ subject, body, recipients }) {
+  return `mailto:?bcc=${encodeURIComponent(recipients.join(","))}`
+    + `&subject=${encodeURIComponent(subject)}`
+    + `&body=${encodeURIComponent(body)}`;
+}
+
+function openRosterDraft() {
+  const { subject, body, recipients } = rosterMailContent();
+  if (recipients.length === 0) { setRosterSendStatus("還沒勾任何收件人。", true); return; }
+  const url = buildRosterMailtoUrl({ subject, body, recipients });
+  if (url.length > ROSTER_MAILTO_MAX) {
+    setRosterSendStatus(
+      `收件人太多（${recipients.length} 人），草稿網址會被信件軟體截掉。請改用「複製收件人信箱」與「複製主旨與內文」，自己開一封信貼上。`,
+      true
+    );
+    return;
+  }
+  window.location.href = url;
+  setRosterSendStatus(`已把 ${recipients.length} 人放進草稿的密件副本，請在信件軟體裡確認後再寄出。`);
+}
+
+// ---- 用公司信箱寄出 ----
+// 刻意跟存檔用的 Google 授權分開：存檔是個人帳號，寄信是公司帳號，
+// 兩個 token 各拿各的，介面上也各顯示各的，才不會寄錯身分。
+const GMAIL_SEND_SCOPE = "https://www.googleapis.com/auth/gmail.send email";
+const GMAIL_SEND_URL = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send";
+const GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo";
+const ROSTER_LAST_SEND_KEY = "classroomSlidesStudio.lastMailSend.v1";
+// 一封信塞太多密件副本會被 Gmail 退，分批寄；介面上仍然當成一次寄送。
+const ROSTER_BCC_CHUNK = 90;
+
+let gmailAccessToken = "";
+let gmailSenderAddress = "";
+
+function requestGmailToken(prompt) {
+  return new Promise((resolve, reject) => {
+    const client = window.google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_DRIVE_CLIENT_ID,
+      scope: GMAIL_SEND_SCOPE,
+      callback: (response) => {
+        if (response?.error) { reject(new Error(response.error)); return; }
+        const token = response?.access_token || "";
+        if (!token) { reject(new Error("沒有取得寄信授權。")); return; }
+        resolve(token);
+      },
+      error_callback: (error) => reject(error),
+    });
+    client.requestAccessToken({ prompt });
+  });
+}
+
+function gmailErrorMessage(error, status = 0) {
+  const text = String(error?.message || error?.error || error || "");
+  if (/access_denied/i.test(text)) {
+    return "公司帳號被擋下來了。最可能的原因是這個帳號還沒被加進 Google Cloud 的「測試使用者」清單，"
+      + "或是公司的 Google 管理員封鎖了未驗證的第三方應用程式（後者要請公司 IT 開放）。";
+  }
+  if (/invalid_scope/i.test(text)) {
+    return "Google 不接受寄信權限，要先到 Google Cloud Console 的 OAuth 同意畫面把 gmail.send 加進去。";
+  }
+  if (/popup/i.test(text)) return "授權視窗被瀏覽器擋住了，請允許彈出視窗後再試。";
+  if (/origin|unauthorized/i.test(text)) {
+    return `「${window.location.origin}」沒有登記在 Google OAuth 的授權來源裡，這個網址不能授權寄信。`;
+  }
+  if (status === 403) return "Google 拒絕這次寄信，通常是公司的政策限制。原始訊息：" + text;
+  if (status === 429) return "寄太多次被 Google 暫時擋住，等幾分鐘再試。";
+  return text || "寄信失敗。";
+}
+
+async function connectGmailSender(forceChooser = false) {
+  await loadGoogleDriveScript();
+  // 一定要讓她自己選帳號：這台電腦通常同時登入個人與公司兩個 Google 帳號，
+  // 預設帶哪一個都可能寄錯身分。
+  const token = await requestGmailToken(forceChooser || !gmailSenderAddress ? "select_account" : "");
+  const response = await fetch(GOOGLE_USERINFO_URL, { headers: { Authorization: `Bearer ${token}` } });
+  if (!response.ok) throw new Error("拿不到這個帳號的信箱位址。");
+  const profile = await response.json();
+  gmailAccessToken = token;
+  gmailSenderAddress = String(profile?.email || "");
+  renderRosterSender();
+  return gmailSenderAddress;
+}
+
+function renderRosterSender() {
+  if (!els.rosterSenderLabel) return;
+  if (gmailSenderAddress) {
+    els.rosterSenderLabel.textContent = `寄件人：${gmailSenderAddress}`;
+    els.rosterSenderLabel.classList.add("ready");
+    els.rosterConnectSender.textContent = "換帳號";
+  } else {
+    els.rosterSenderLabel.textContent = "寄件人：尚未連結公司信箱";
+    els.rosterSenderLabel.classList.remove("ready");
+    els.rosterConnectSender.textContent = "連結公司信箱";
+  }
+}
+
+function utf8ToBase64(text) {
+  const bytes = new TextEncoder().encode(text);
+  let binary = "";
+  // 一次 apply 太多 byte 會爆堆疊，分段轉。
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(binary);
+}
+
+function base64Url(text) {
+  return utf8ToBase64(text).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function wrap76(text) {
+  return text.replace(/(.{76})/g, "$1\r\n");
+}
+
+// 中文主旨不能直接塞進標頭，要用 RFC 2047 編碼，否則收件匣會是一堆亂碼。
+function encodeMailHeader(text) {
+  return `=?UTF-8?B?${utf8ToBase64(String(text || ""))}?=`;
+}
+
+function buildGmailRaw({ from, bcc, subject, body }) {
+  const headers = [
+    `From: ${from}`,
+    `To: ${from}`,
+    `Bcc: ${bcc.join(", ")}`,
+    `Subject: ${encodeMailHeader(subject)}`,
+    "MIME-Version: 1.0",
+    'Content-Type: text/plain; charset="UTF-8"',
+    "Content-Transfer-Encoding: base64",
+  ].join("\r\n");
+  return base64Url(`${headers}\r\n\r\n${wrap76(utf8ToBase64(body))}`);
+}
+
+async function gmailSendOne(raw) {
+  const response = await fetch(GMAIL_SEND_URL, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${gmailAccessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ raw }),
+  });
+  if (response.ok) return;
+  let detail = "";
+  try {
+    const data = await response.json();
+    detail = data?.error?.message || "";
+  } catch (e) { detail = ""; }
+  const error = new Error(detail || `HTTP ${response.status}`);
+  error.status = response.status;
+  throw error;
+}
+
+function chunkList(list, size) {
+  const chunks = [];
+  for (let i = 0; i < list.length; i += size) chunks.push(list.slice(i, i + size));
+  return chunks;
+}
+
+function recordRosterSend(count) {
+  // 只記時間與人數，不記是誰——這台電腦上不留任何學員信箱。
+  writeJsonStorage(ROSTER_LAST_SEND_KEY, { count, at: new Date().toISOString() });
+}
+
+function describeLastRosterSend() {
+  const last = readJsonStorage(ROSTER_LAST_SEND_KEY, null);
+  if (!last?.at) return "";
+  const when = new Date(last.at);
+  if (Number.isNaN(when.getTime())) return "";
+  const stamp = `${when.getMonth() + 1}/${when.getDate()} ${String(when.getHours()).padStart(2, "0")}:${String(when.getMinutes()).padStart(2, "0")}`;
+  return `上次寄出：${stamp}，${last.count} 人。`;
+}
+
+async function sendRosterMail() {
+  const { subject, body, recipients } = rosterMailContent();
+  if (recipients.length === 0) { setRosterSendStatus("還沒勾任何收件人。", true); return; }
+  if (!subject) { setRosterSendStatus("主旨不能空白。", true); return; }
+
+  try {
+    if (!gmailSenderAddress) {
+      setRosterSendStatus("正在連結公司信箱…");
+      await connectGmailSender(true);
+    }
+  } catch (error) {
+    setRosterSendStatus(gmailErrorMessage(error), true);
+    return;
+  }
+
+  const chunks = chunkList(recipients, ROSTER_BCC_CHUNK);
+  const extra = chunks.length > 1 ? `（會分成 ${chunks.length} 封寄，避免被 Gmail 擋）` : "";
+  const ok = await showConfirmModal(
+    `要用 ${gmailSenderAddress} 寄出嗎？\n\n收件人：${recipients.length} 人（密件副本）${extra}\n主旨：${subject}`,
+    { okLabel: "確定寄出" }
+  );
+  if (!ok) { setRosterSendStatus("已取消，沒有寄出。"); return; }
+
+  els.rosterSend.disabled = true;
+  let sent = 0;
+  try {
+    for (let i = 0; i < chunks.length; i += 1) {
+      setRosterSendStatus(`寄送中…（第 ${i + 1}／${chunks.length} 批）`);
+      const raw = buildGmailRaw({ from: gmailSenderAddress, bcc: chunks[i], subject, body });
+      await gmailSendOne(raw);
+      sent += chunks[i].length;
+    }
+    recordRosterSend(sent);
+    setRosterSendStatus(`已寄給 ${sent} 人，你自己的信箱也會收到一封存底。`);
+  } catch (error) {
+    if (error?.status === 401) gmailAccessToken = "";
+    const tail = sent > 0 ? `已經寄出 ${sent} 人，剩下的沒寄成功，重寄前請先確認，避免有人收到兩封。` : "一封都沒有寄出。";
+    setRosterSendStatus(`${gmailErrorMessage(error, error?.status)} ${tail}`, true);
+  } finally {
+    els.rosterSend.disabled = false;
+  }
+}
+
+function openRosterMailModal() {
+  const page = activePage();
+  if (page?.type !== "posts" || !page.boardId) {
+    els.pageMessage.textContent = "請先切到貼文板頁面，才有投稿連結可以寄。";
+    els.pageMessage.classList.add("error");
+    return;
+  }
+  const saved = loadRosterSource();
+  if (saved.url && !els.rosterSheetUrl.value) els.rosterSheetUrl.value = saved.url;
+  if (rosterTemplates.length === 0) loadRosterTemplates();
+  renderRosterTemplateOptions(els.rosterTemplateSelect.value);
+  if (!els.rosterMailBody.value) loadRosterDraft();
+  els.rosterMailModal.classList.remove("hidden");
+  els.rosterFallbackText.classList.add("hidden");
+  renderRosterSender();
+  setRosterSendStatus(describeLastRosterSend());
+  renderRosterPreview();
+  els.rosterSheetUrl.focus();
+  if (els.rosterSheetUrl.value && rosterSheetTabs.length === 0) {
+    loadRosterSheetTabs({ quiet: true, preferTab: saved.tab });
+  }
+}
+
+function closeRosterMailModal() {
+  els.rosterMailModal.classList.add("hidden");
+}
+
 function postBoardJoinUrl(page) {
   if (!page?.boardId) return "";
   const url = new URL(window.location.href);
@@ -4538,15 +5341,24 @@ function showPromptModal(title, defaultValue = "", options = {}) {
   });
 }
 
-function showConfirmModal(message) {
+function showConfirmModal(message, options = {}) {
   return new Promise((resolve) => {
     els.confirmModalMessage.textContent = message;
+    // 預設那顆寫的是「確定刪除」且是紅色。寄信、覆蓋這類不是刪除的確認，
+    // 用 okLabel 換一顆中性的按鈕，才不會嚇到人也不會詞不達意。
+    const useSafe = Boolean(options.okLabel);
+    const okButton = useSafe ? els.confirmModalOkSafe : els.confirmModalOk;
+    if (useSafe) els.confirmModalOkSafe.textContent = options.okLabel;
+    els.confirmModalOk.classList.toggle("hidden", useSafe);
+    els.confirmModalOkSafe.classList.toggle("hidden", !useSafe);
     els.confirmModal.classList.remove("hidden");
-    els.confirmModalOk.focus();
+    okButton.focus();
 
     const cleanup = (result) => {
       els.confirmModal.classList.add("hidden");
-      els.confirmModalOk.removeEventListener("click", onOk);
+      els.confirmModalOk.classList.remove("hidden");
+      els.confirmModalOkSafe.classList.add("hidden");
+      okButton.removeEventListener("click", onOk);
       els.confirmModalCancel.removeEventListener("click", onCancel);
       els.confirmModal.removeEventListener("click", onBackdrop);
       resolve(result);
@@ -4554,7 +5366,7 @@ function showConfirmModal(message) {
     const onOk = () => cleanup(true);
     const onCancel = () => cleanup(false);
     const onBackdrop = (e) => { if (e.target === els.confirmModal) cleanup(false); };
-    els.confirmModalOk.addEventListener("click", onOk);
+    okButton.addEventListener("click", onOk);
     els.confirmModalCancel.addEventListener("click", onCancel);
     els.confirmModal.addEventListener("click", onBackdrop);
   });
@@ -7959,6 +8771,50 @@ els.postBoardAddPost.addEventListener("click", () => createInstructorPost());
 els.exportObsidian.addEventListener("click", exportPostBoardToObsidian);
 els.exportPdf.addEventListener("click", exportPostBoardToPdf);
 els.exportAllFiles.addEventListener("click", exportPostBoardAllFiles);
+els.openRosterMail.addEventListener("click", openRosterMailModal);
+els.rosterMailClose.addEventListener("click", closeRosterMailModal);
+els.rosterMailCancel.addEventListener("click", closeRosterMailModal);
+els.rosterMailModal.addEventListener("click", (event) => {
+  if (event.target === els.rosterMailModal) closeRosterMailModal();
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  if (els.rosterMailModal.classList.contains("hidden")) return;
+  // 上面還疊著「範本名稱」輸入框時，Esc 要先關那一層，不要把整個視窗收掉。
+  if (!els.promptModal.classList.contains("hidden")) return;
+  closeRosterMailModal();
+});
+els.rosterSheetUrl.addEventListener("change", () => loadRosterSheetTabs());
+els.rosterSheetReloadTabs.addEventListener("click", () => loadRosterSheetTabs());
+els.rosterSheetFilter.addEventListener("input", renderRosterTabOptions);
+els.rosterSheetTab.addEventListener("change", () => {
+  saveRosterSource(els.rosterSheetUrl.value.trim(), els.rosterSheetTab.value);
+});
+els.rosterSheetLoad.addEventListener("click", loadRosterPeople);
+els.rosterCheckAll.addEventListener("change", () => setAllRosterChecked(els.rosterCheckAll.checked));
+els.rosterCheckAttended.addEventListener("click", checkOnlyAttendedRoster);
+els.rosterRevealEmail.addEventListener("change", renderRosterList);
+els.rosterToggleList.addEventListener("click", () => setRosterListOpen(!rosterListOpen));
+els.rosterTemplateSelect.addEventListener("change", () => applyRosterTemplate(els.rosterTemplateSelect.value));
+els.rosterTemplateSave.addEventListener("click", saveRosterTemplate);
+els.rosterTemplateDelete.addEventListener("click", deleteRosterTemplate);
+els.rosterMailSubject.addEventListener("input", () => { saveRosterDraft(); renderRosterPreview(); });
+els.rosterMailBody.addEventListener("input", () => { saveRosterDraft(); renderRosterPreview(); });
+els.rosterCopyMails.addEventListener("click", copyRosterMails);
+els.rosterCopyText.addEventListener("click", copyRosterMailText);
+els.rosterOpenDraft.addEventListener("click", openRosterDraft);
+els.rosterSend.addEventListener("click", sendRosterMail);
+els.rosterConnectSender.addEventListener("click", async () => {
+  try {
+    setRosterSendStatus("正在連結公司信箱…");
+    const address = await connectGmailSender(true);
+    setRosterSendStatus(`已連結 ${address}，寄出時會用這個帳號。`);
+  } catch (error) {
+    setRosterSendStatus(gmailErrorMessage(error), true);
+  }
+});
+els.rosterInsertLink.addEventListener("click", () => insertAtCursor(els.rosterMailBody, ROSTER_VAR_LINK));
+els.rosterInsertBoard.addEventListener("click", () => insertAtCursor(els.rosterMailBody, ROSTER_VAR_BOARD));
 els.retrySlides.addEventListener("click", () => {
   if (currentPlayerUrl) loadPlayerUrl(currentPlayerUrl);
 });
