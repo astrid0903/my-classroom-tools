@@ -107,7 +107,9 @@ const els = {
   openPostBoardLink: document.querySelector("#open-post-board-link"),
   postBoardParticipantMode: document.querySelector("#post-board-participant-mode"),
   postBoardAddPost: document.querySelector("#post-board-add-post"),
-  openRosterMail: document.querySelector("#open-roster-mail"),
+  railRosterMail: document.querySelector("#rail-roster-mail"),
+  rosterBoardSelect: document.querySelector("#roster-board-select"),
+  rosterBoardLink: document.querySelector("#roster-board-link"),
   rosterMailModal: document.querySelector("#roster-mail-modal"),
   rosterMailClose: document.querySelector("#roster-mail-close"),
   rosterMailCancel: document.querySelector("#roster-mail-cancel"),
@@ -3991,6 +3993,10 @@ function postBoardPostsRef(api, boardId) {
 // 存進 localStorage 的只有「這份名單在哪裡」——Sheet 連結與工作表名稱，
 // 換電腦要重貼一次，這是刻意付的代價。
 const ROSTER_SOURCE_KEY = "classroomSlidesStudio.rosterSource.v1";
+// 平常都是這一份「2026上課名單」，所以第一次打開就先填好；
+// 這只是預設值，欄位照樣可以改，改完存起來之後就以存的那份為準。
+const ROSTER_DEFAULT_SHEET_URL =
+  "https://docs.google.com/spreadsheets/d/1iFzx9sfHu5GpfFxhMnWBqR-oZkyxjniKoWHFCzv8jlE/edit";
 const ROSTER_SHEETS_API = "https://sheets.googleapis.com/v4/spreadsheets";
 // 名單欄位靠「第一列的標題名稱」找，不用固定欄號。
 // 原因：同一份檔案裡各工作表欄數並不一致（31／34／65 欄都有），
@@ -4010,6 +4016,8 @@ let rosterSheetTabs = [];
 let rosterSheetId = "";
 let rosterPeople = [];
 let rosterListOpen = false;
+let rosterBoardId = "";
+let rosterPreferredTab = "";
 
 function extractSheetId(value) {
   const text = String(value || "").trim();
@@ -4023,11 +4031,14 @@ function extractSheetId(value) {
 function loadRosterSource() {
   try {
     const raw = window.localStorage.getItem(ROSTER_SOURCE_KEY);
-    if (!raw) return { url: "", tab: "" };
+    if (!raw) return { url: ROSTER_DEFAULT_SHEET_URL, tab: "" };
     const parsed = JSON.parse(raw);
-    return { url: String(parsed?.url || ""), tab: String(parsed?.tab || "") };
+    return {
+      url: String(parsed?.url || ROSTER_DEFAULT_SHEET_URL),
+      tab: String(parsed?.tab || ""),
+    };
   } catch (e) {
-    return { url: "", tab: "" };
+    return { url: ROSTER_DEFAULT_SHEET_URL, tab: "" };
   }
 }
 
@@ -4088,8 +4099,9 @@ function renderRosterTabOptions() {
     : rosterSheetTabs.slice();
   select.innerHTML = "";
   if (rosterSheetTabs.length === 0) {
-    select.appendChild(createEl("option", "", "先貼上連結"));
-    select.firstChild.value = "";
+    const none = createEl("option", "", "尚未載入工作表");
+    none.value = "";
+    select.appendChild(none);
     return;
   }
   if (list.length === 0) {
@@ -4442,12 +4454,44 @@ function fillRosterVariables(text, page) {
     .split(ROSTER_VAR_BOARD).join(boardName);
 }
 
+function postBoardPages() {
+  return pages.filter((page) => page?.type === "posts" && page.boardId);
+}
+
+function selectedRosterPage() {
+  const list = postBoardPages();
+  if (list.length === 0) return null;
+  return list.find((page) => page.boardId === rosterBoardId) || list[0];
+}
+
+function renderRosterBoardOptions() {
+  const select = els.rosterBoardSelect;
+  if (!select) return;
+  const list = postBoardPages();
+  select.innerHTML = "";
+  list.forEach((page, index) => {
+    const option = createEl("option", "", `${index + 1}. ${page.name || "貼文板"}`);
+    option.value = page.boardId;
+    select.appendChild(option);
+  });
+  const chosen = selectedRosterPage();
+  rosterBoardId = chosen?.boardId || "";
+  if (rosterBoardId) select.value = rosterBoardId;
+  renderRosterBoardLink();
+}
+
+function renderRosterBoardLink() {
+  if (!els.rosterBoardLink) return;
+  const page = selectedRosterPage();
+  els.rosterBoardLink.textContent = page ? postBoardJoinUrl(page) : "";
+}
+
 function checkedRosterPeople() {
   return rosterPeople.filter((person) => person.checked);
 }
 
 function rosterMailContent() {
-  const page = activePage();
+  const page = selectedRosterPage();
   return {
     page,
     subject: fillRosterVariables(els.rosterMailSubject.value, page).trim(),
@@ -4726,12 +4770,15 @@ async function sendRosterMail() {
 }
 
 function openRosterMailModal() {
-  const page = activePage();
-  if (page?.type !== "posts" || !page.boardId) {
-    els.pageMessage.textContent = "請先切到貼文板頁面，才有投稿連結可以寄。";
+  if (postBoardPages().length === 0) {
+    els.pageMessage.textContent = "還沒有貼文板，沒有投稿連結可以寄。請先在「頁面」裡新增一頁貼文板。";
     els.pageMessage.classList.add("error");
     return;
   }
+  // 人在哪一頁不重要，但如果剛好站在某個貼文板上，就預設選它。
+  const current = activePage();
+  if (current?.type === "posts" && current.boardId) rosterBoardId = current.boardId;
+  renderRosterBoardOptions();
   const saved = loadRosterSource();
   if (saved.url && !els.rosterSheetUrl.value) els.rosterSheetUrl.value = saved.url;
   if (rosterTemplates.length === 0) loadRosterTemplates();
@@ -4743,8 +4790,10 @@ function openRosterMailModal() {
   setRosterSendStatus(describeLastRosterSend());
   renderRosterPreview();
   els.rosterSheetUrl.focus();
-  if (els.rosterSheetUrl.value && rosterSheetTabs.length === 0) {
-    loadRosterSheetTabs({ quiet: true, preferTab: saved.tab });
+  rosterPreferredTab = saved.tab;
+  if (rosterSheetTabs.length === 0) {
+    renderRosterTabOptions();
+    setRosterStatus("按「載入工作表」把這份名單的工作表抓下來（第一次會跳 Google 授權）。");
   }
 }
 
@@ -8771,7 +8820,12 @@ els.postBoardAddPost.addEventListener("click", () => createInstructorPost());
 els.exportObsidian.addEventListener("click", exportPostBoardToObsidian);
 els.exportPdf.addEventListener("click", exportPostBoardToPdf);
 els.exportAllFiles.addEventListener("click", exportPostBoardAllFiles);
-els.openRosterMail.addEventListener("click", openRosterMailModal);
+els.railRosterMail.addEventListener("click", openRosterMailModal);
+els.rosterBoardSelect.addEventListener("change", () => {
+  rosterBoardId = els.rosterBoardSelect.value;
+  renderRosterBoardLink();
+  renderRosterPreview();
+});
 els.rosterMailClose.addEventListener("click", closeRosterMailModal);
 els.rosterMailCancel.addEventListener("click", closeRosterMailModal);
 els.rosterMailModal.addEventListener("click", (event) => {
@@ -8785,7 +8839,7 @@ document.addEventListener("keydown", (event) => {
   closeRosterMailModal();
 });
 els.rosterSheetUrl.addEventListener("change", () => loadRosterSheetTabs());
-els.rosterSheetReloadTabs.addEventListener("click", () => loadRosterSheetTabs());
+els.rosterSheetReloadTabs.addEventListener("click", () => loadRosterSheetTabs({ preferTab: rosterPreferredTab }));
 els.rosterSheetFilter.addEventListener("input", renderRosterTabOptions);
 els.rosterSheetTab.addEventListener("change", () => {
   saveRosterSource(els.rosterSheetUrl.value.trim(), els.rosterSheetTab.value);

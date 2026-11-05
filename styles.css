@@ -3348,6 +3348,12 @@ body.studio-mode .page-tabs {
   min-width: 0;
 }
 
+.roster-board-link {
+  margin: 2px 0 0;
+  word-break: break-all;
+  opacity: 0.65;
+}
+
 .roster-warning {
   margin: 4px 0 2px;
   color: #b4590d;

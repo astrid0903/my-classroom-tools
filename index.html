@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Google Slides 教學播放台</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
-  <link rel="stylesheet" href="./styles-v32.css">
-  <link rel="stylesheet" href="./styles-dark-v32.css">
+  <link rel="stylesheet" href="./styles-v33.css">
+  <link rel="stylesheet" href="./styles-dark-v33.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Huninn&family=Noto+Sans+TC:wght@400;500;700&family=Poppins:wght@500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles-classroom-v32.css">
+  <link rel="stylesheet" href="./styles-classroom-v33.css">
   <script>
     // 柔光教室明暗：使用者選過就照選的，沒選過跟系統；body 一律維持 data-theme="dark" 沿用舊版版面規則
     (function () {
@@ -124,6 +124,9 @@
     </button>
     <button class="rail-btn" type="button" id="rail-layers" data-flyout="hidden-widget-popover" aria-label="列表" aria-haspopup="true" aria-expanded="false">
       <svg viewBox="0 0 24 24" class="rail-icon" aria-hidden="true"><path d="M4 6h2M9 6h11M4 12h2M9 12h11M4 18h2M9 18h11"/></svg><span class="rail-label">列表</span>
+    </button>
+    <button class="rail-btn" type="button" id="rail-roster-mail" aria-label="寄投稿連結給學員">
+      <svg viewBox="0 0 24 24" class="rail-icon" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 8l9 6 9-6"/></svg><span class="rail-label">寄信</span>
     </button>
     <button class="rail-btn" type="button" id="rail-hide-page" aria-label="隱藏這一頁的小工具" aria-pressed="false">
       <svg viewBox="0 0 24 24" class="rail-icon" aria-hidden="true"><path d="M3 12c0-2.5 4-7 9-7s9 4.5 9 7-4 7-9 7-9-4.5-9-7z"/><circle cx="12" cy="12" r="3"/></svg><span class="rail-label">隱藏</span>
@@ -409,7 +412,6 @@
             <button id="copy-post-board-link" class="secondary" type="button">複製連結</button>
             <a id="open-post-board-link" class="link-button secondary" href="#" target="_blank" rel="noreferrer">開啟投稿頁</a>
           </div>
-          <button id="open-roster-mail" class="secondary" type="button">寄投稿連結給學員</button>
           <label for="post-board-participant-mode">參與者權限</label>
           <select id="post-board-participant-mode">
             <option value="edit">可新增與編輯</option>
@@ -740,7 +742,12 @@
         <button id="roster-mail-close" class="roster-mail-close" type="button" aria-label="關閉">×</button>
       </div>
 
-      <div class="roster-mail-step">1　名單來源</div>
+      <div class="roster-mail-step">1　貼文板</div>
+      <label for="roster-board-select">要寄哪一個貼文板的投稿連結</label>
+      <select id="roster-board-select"></select>
+      <p id="roster-board-link" class="hint roster-board-link"></p>
+
+      <div class="roster-mail-step">2　名單來源</div>
       <label for="roster-sheet-url">名單 Google Sheet 連結</label>
       <input id="roster-sheet-url" type="text" placeholder="貼上 Google Sheet 網址" spellcheck="false">
       <label for="roster-sheet-tab">工作表</label>
@@ -749,13 +756,13 @@
         <select id="roster-sheet-tab"><option value="">先貼上連結</option></select>
       </div>
       <div class="button-row">
-        <button id="roster-sheet-reload-tabs" class="secondary" type="button">重新讀取工作表</button>
-        <button id="roster-sheet-load" type="button">讀取名單</button>
+        <button id="roster-sheet-reload-tabs" type="button">載入工作表</button>
+        <button id="roster-sheet-load" class="secondary" type="button">讀取名單</button>
       </div>
       <p id="roster-sheet-status" class="hint" aria-live="polite">名單只留在這個瀏覽器分頁裡，不會存進存檔或資料庫。</p>
 
       <div id="roster-mail-rest" class="roster-mail-rest hidden">
-        <div class="roster-mail-step">2　收件人</div>
+        <div class="roster-mail-step">3　收件人</div>
         <p id="roster-attendance-warning" class="hint roster-warning hidden"></p>
         <div class="roster-list-head">
           <label class="roster-head-check"><input id="roster-check-all" type="checkbox"> 全選</label>
@@ -768,7 +775,7 @@
           <div id="roster-list" class="roster-list"></div>
         </div>
 
-        <div class="roster-mail-step">3　信件內容</div>
+        <div class="roster-mail-step">4　信件內容</div>
         <div class="roster-mail-row">
           <select id="roster-template-select"><option value="">沒有存過的範本</option></select>
           <button id="roster-template-save" class="secondary roster-head-button" type="button">存成範本</button>
@@ -785,7 +792,7 @@
           按一下插入到游標位置。
         </p>
 
-        <div class="roster-mail-step">4　預覽</div>
+        <div class="roster-mail-step">5　預覽</div>
         <div id="roster-preview" class="roster-preview"></div>
         <div class="roster-sender-row">
           <span id="roster-sender-label" class="roster-sender-label">寄件人：尚未連結公司信箱</span>
@@ -854,7 +861,7 @@
 
   <div id="settings-backdrop" class="settings-backdrop hidden"></div>
 
-  <script src="./script-v32.js"></script>
+  <script src="./script-v33.js"></script>
   <script>
     // 側欄（2026-11-04 重排）：控制中心｜檔案、簡報、頁面｜小工具、排列、列表、隱藏｜（最下）夜間、首頁。
     // 全螢幕在右上角 #top-right-tools（貼文板的「公告／QR Code」排在它左邊，同一列），
